@@ -1,0 +1,29 @@
+Name: cscan-api
+Host: 0.0.0.0
+Port: 8888
+MaxBytes: 104857600  # 100MB
+Timeout: 300000      # 5分钟超时 (毫秒)
+
+Log:
+  Level: info
+  Stat: false
+  Mode: console
+  Encoding: plain
+  TimeFormat: 2006-01-02 15:04:05
+  
+Auth:
+  AccessSecret: "cscan-jwt-secret-key-2024"
+  AccessExpire: 86400
+
+Mongo:
+  Uri: "mongodb://mongodb:27017"
+  DbName: "cscan"
+
+Redis:
+  Host: "redis:6379"
+  Pass: ""
+
+TaskRpc:
+  Endpoints:
+    - cscan-rpc:9000
+  Timeout: 30000

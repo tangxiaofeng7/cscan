@@ -1,0 +1,19 @@
+Name: task.rpc
+ListenOn: 0.0.0.0:9000
+MaxRecvMsgSize: 104857600
+MaxSendMsgSize: 104857600
+
+Log:
+  Level: info
+  Stat: false
+  Mode: console
+  Encoding: plain
+  TimeFormat: 2006-01-02 15:04:05
+  
+Mongo:
+  Uri: "mongodb://localhost:27017"
+  DbName: "cscan"
+
+RedisConf:
+  Host: "localhost:6379"
+  Pass: ""

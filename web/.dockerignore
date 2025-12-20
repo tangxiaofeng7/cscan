@@ -1,0 +1,16 @@
+# 依赖
+node_modules
+
+# 构建产物
+dist
+
+# IDE
+.idea
+.vscode
+
+# 日志
+*.log
+
+# 环境配置
+.env.local
+.env.*.local

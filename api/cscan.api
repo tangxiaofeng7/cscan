@@ -1,0 +1,288 @@
+syntax = "v1"
+
+info (
+	title:   "CSCAN API"
+	desc:    "网络安全资产扫描平台"
+	author:  "cscan"
+	version: "1.0"
+)
+
+// ==================== 通用类型 ====================
+type (
+	BaseResp {
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
+	}
+	PageReq {
+		Page     int `json:"page,default=1"`
+		PageSize int `json:"pageSize,default=20"`
+	}
+)
+
+// ==================== 用户认证 ====================
+type (
+	LoginReq {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	LoginResp {
+		Code        int    `json:"code"`
+		Msg         string `json:"msg"`
+		Token       string `json:"token"`
+		UserId      string `json:"userId"`
+		Username    string `json:"username"`
+		Role        string `json:"role"`
+		WorkspaceId string `json:"workspaceId"`
+	}
+	UserInfo {
+		Id       string `json:"id"`
+		Username string `json:"username"`
+		Role     string `json:"role"`
+		Status   string `json:"status"`
+	}
+	UserListResp {
+		Code  int        `json:"code"`
+		Msg   string     `json:"msg"`
+		Total int        `json:"total"`
+		List  []UserInfo `json:"list"`
+	}
+)
+
+// ==================== 工作空间 ====================
+type (
+	Workspace {
+		Id          string `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Status      string `json:"status"`
+		CreateTime  string `json:"createTime"`
+	}
+	WorkspaceListResp {
+		Code  int         `json:"code"`
+		Msg   string      `json:"msg"`
+		Total int         `json:"total"`
+		List  []Workspace `json:"list"`
+	}
+	WorkspaceSaveReq {
+		Id          string `json:"id,optional"`
+		Name        string `json:"name"`
+		Description string `json:"description,optional"`
+	}
+)
+
+// ==================== 资产管理 ====================
+type (
+	Asset {
+		Id         string   `json:"id"`
+		Authority  string   `json:"authority"`
+		Host       string   `json:"host"`
+		Port       int      `json:"port"`
+		Category   string   `json:"category"`
+		Service    string   `json:"service"`
+		Title      string   `json:"title"`
+		App        []string `json:"app"`
+		HttpStatus string   `json:"httpStatus"`
+		IsCDN      bool     `json:"isCdn"`
+		IsCloud    bool     `json:"isCloud"`
+		CreateTime string   `json:"createTime"`
+		UpdateTime string   `json:"updateTime"`
+	}
+	AssetListReq {
+		Page       int    `json:"page,default=1"`
+		PageSize   int    `json:"pageSize,default=20"`
+		Host       string `json:"host,optional"`
+		Port       int    `json:"port,optional"`
+		Service    string `json:"service,optional"`
+		Title      string `json:"title,optional"`
+		App        string `json:"app,optional"`
+		HttpStatus string `json:"httpStatus,optional"`
+	}
+	AssetListResp {
+		Code  int     `json:"code"`
+		Msg   string  `json:"msg"`
+		Total int     `json:"total"`
+		List  []Asset `json:"list"`
+	}
+	AssetStatResp {
+		Code       int            `json:"code"`
+		Msg        string         `json:"msg"`
+		TotalAsset int            `json:"totalAsset"`
+		TotalHost  int            `json:"totalHost"`
+		TopPorts   []StatItem     `json:"topPorts"`
+		TopService []StatItem     `json:"topService"`
+		TopApp     []StatItem     `json:"topApp"`
+	}
+	StatItem {
+		Name  string `json:"name"`
+		Count int    `json:"count"`
+	}
+)
+
+// ==================== 任务管理 ====================
+type (
+	MainTask {
+		Id          string `json:"id"`
+		Name        string `json:"name"`
+		Target      string `json:"target"`
+		ProfileId   string `json:"profileId"`
+		ProfileName string `json:"profileName"`
+		Status      string `json:"status"`
+		Progress    int    `json:"progress"`
+		Result      string `json:"result"`
+		IsCron      bool   `json:"isCron"`
+		CronRule    string `json:"cronRule"`
+		CreateTime  string `json:"createTime"`
+	}
+	MainTaskListReq {
+		Page     int    `json:"page,default=1"`
+		PageSize int    `json:"pageSize,default=20"`
+		Name     string `json:"name,optional"`
+		Status   string `json:"status,optional"`
+	}
+	MainTaskListResp {
+		Code  int        `json:"code"`
+		Msg   string     `json:"msg"`
+		Total int        `json:"total"`
+		List  []MainTask `json:"list"`
+	}
+	MainTaskCreateReq {
+		Name      string `json:"name"`
+		Target    string `json:"target"`
+		ProfileId string `json:"profileId"`
+		IsCron    bool   `json:"isCron,optional"`
+		CronRule  string `json:"cronRule,optional"`
+	}
+	TaskProfile {
+		Id          string `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		Config      string `json:"config"`
+	}
+	TaskProfileListResp {
+		Code  int           `json:"code"`
+		Msg   string        `json:"msg"`
+		List  []TaskProfile `json:"list"`
+	}
+)
+
+// ==================== 漏洞管理 ====================
+type (
+	Vul {
+		Id         string `json:"id"`
+		Authority  string `json:"authority"`
+		Url        string `json:"url"`
+		PocFile    string `json:"pocFile"`
+		Source     string `json:"source"`
+		Severity   string `json:"severity"`
+		Result     string `json:"result"`
+		CreateTime string `json:"createTime"`
+	}
+	VulListReq {
+		Page      int    `json:"page,default=1"`
+		PageSize  int    `json:"pageSize,default=20"`
+		Authority string `json:"authority,optional"`
+		Severity  string `json:"severity,optional"`
+		Source    string `json:"source,optional"`
+	}
+	VulListResp {
+		Code  int    `json:"code"`
+		Msg   string `json:"msg"`
+		Total int    `json:"total"`
+		List  []Vul  `json:"list"`
+	}
+)
+
+// ==================== Worker管理 ====================
+type (
+	Worker {
+		Name       string  `json:"name"`
+		CPULoad    float64 `json:"cpuLoad"`
+		MemUsed    float64 `json:"memUsed"`
+		TaskCount  int     `json:"taskCount"`
+		Status     string  `json:"status"`
+		UpdateTime string  `json:"updateTime"`
+	}
+	WorkerListResp {
+		Code  int      `json:"code"`
+		Msg   string   `json:"msg"`
+		List  []Worker `json:"list"`
+	}
+)
+
+// ==================== 路由定义 ====================
+@server (
+	prefix: /api/v1
+)
+service cscan-api {
+	@doc "用户登录"
+	@handler Login
+	post /login (LoginReq) returns (LoginResp)
+}
+
+@server (
+	prefix: /api/v1
+	jwt:    Auth
+)
+service cscan-api {
+	// 用户管理
+	@doc "用户列表"
+	@handler UserList
+	post /user/list (PageReq) returns (UserListResp)
+	
+	// 工作空间
+	@doc "工作空间列表"
+	@handler WorkspaceList
+	post /workspace/list (PageReq) returns (WorkspaceListResp)
+	
+	@doc "保存工作空间"
+	@handler WorkspaceSave
+	post /workspace/save (WorkspaceSaveReq) returns (BaseResp)
+	
+	@doc "删除工作空间"
+	@handler WorkspaceDelete
+	post /workspace/delete (WorkspaceSaveReq) returns (BaseResp)
+	
+	// 资产管理
+	@doc "资产列表"
+	@handler AssetList
+	post /asset/list (AssetListReq) returns (AssetListResp)
+	
+	@doc "资产统计"
+	@handler AssetStat
+	post /asset/stat returns (AssetStatResp)
+	
+	@doc "删除资产"
+	@handler AssetDelete
+	post /asset/delete (BaseResp) returns (BaseResp)
+	
+	// 任务管理
+	@doc "任务列表"
+	@handler MainTaskList
+	post /task/list (MainTaskListReq) returns (MainTaskListResp)
+	
+	@doc "创建任务"
+	@handler MainTaskCreate
+	post /task/create (MainTaskCreateReq) returns (BaseResp)
+	
+	@doc "删除任务"
+	@handler MainTaskDelete
+	post /task/delete (BaseResp) returns (BaseResp)
+	
+	@doc "任务配置列表"
+	@handler TaskProfileList
+	post /task/profile/list returns (TaskProfileListResp)
+	
+	// 漏洞管理
+	@doc "漏洞列表"
+	@handler VulList
+	post /vul/list (VulListReq) returns (VulListResp)
+	
+	@doc "删除漏洞"
+	@handler VulDelete
+	post /vul/delete (BaseResp) returns (BaseResp)
+	
+	// Worker管理
+	@doc "Worker列表"
+	@handler WorkerList
+	post /worker/list returns (WorkerListResp)
+}

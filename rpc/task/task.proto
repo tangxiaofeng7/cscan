@@ -1,0 +1,379 @@
+syntax = "proto3";
+
+package task;
+
+option go_package = "./pb";
+
+// 任务服务
+service TaskService {
+  // 检查任务状态
+  rpc CheckTask(CheckTaskReq) returns (CheckTaskResp);
+  // 更新任务状态
+  rpc UpdateTask(UpdateTaskReq) returns (UpdateTaskResp);
+  // 创建执行器任务
+  rpc NewTask(NewTaskReq) returns (NewTaskResp);
+  // 保存任务结果
+  rpc SaveTaskResult(SaveTaskResultReq) returns (SaveTaskResultResp);
+  // 保存漏洞结果
+  rpc SaveVulResult(SaveVulResultReq) returns (SaveVulResultResp);
+  // Worker心跳
+  rpc KeepAlive(KeepAliveReq) returns (KeepAliveResp);
+  // 获取Worker配置
+  rpc GetWorkerConfig(GetWorkerConfigReq) returns (GetWorkerConfigResp);
+  // 请求资源文件
+  rpc RequestResource(RequestResourceReq) returns (RequestResourceResp);
+  // 根据标签获取模板
+  rpc GetTemplatesByTags(GetTemplatesByTagsReq) returns (GetTemplatesByTagsResp);
+  // 获取自定义指纹
+  rpc GetCustomFingerprints(GetCustomFingerprintsReq) returns (GetCustomFingerprintsResp);
+  // 验证指纹匹配
+  rpc ValidateFingerprint(ValidateFingerprintReq) returns (ValidateFingerprintResp);
+  // POC验证
+  rpc ValidatePoc(ValidatePocReq) returns (ValidatePocResp);
+  // 批量POC验证
+  rpc BatchValidatePoc(BatchValidatePocReq) returns (BatchValidatePocResp);
+  // 查询POC验证结果
+  rpc GetPocValidationResult(GetPocValidationResultReq) returns (GetPocValidationResultResp);
+  // 根据ID获取POC内容
+  rpc GetPocById(GetPocByIdReq) returns (GetPocByIdResp);
+  // 根据ID列表批量获取模板内容
+  rpc GetTemplatesByIds(GetTemplatesByIdsReq) returns (GetTemplatesByIdsResp);
+}
+
+message CheckTaskReq {
+  string taskId = 1;
+  string mainTaskId = 2;
+}
+
+message CheckTaskResp {
+  bool isExist = 1;
+  bool isFinished = 2;
+  string taskId = 3;
+  string state = 4;
+  string worker = 5;
+  string result = 6;
+  string workspaceId = 7;
+  string config = 8;
+}
+
+message UpdateTaskReq {
+  string taskId = 1;
+  string state = 2;
+  string worker = 3;
+  string result = 4;
+}
+
+message UpdateTaskResp {
+  bool success = 1;
+  string message = 2;
+}
+
+message NewTaskReq {
+  string taskId = 1;
+  string mainTaskId = 2;
+  string taskName = 3;
+  string config = 4;
+  string workspaceId = 5;
+}
+
+message NewTaskResp {
+  bool success = 1;
+  string message = 2;
+}
+
+message AssetDocument {
+  string authority = 1;
+  string host = 2;
+  int32 port = 3;
+  string category = 4;
+  string service = 5;
+  string server = 6;
+  string banner = 7;
+  string title = 8;
+  repeated string app = 9;
+  string httpStatus = 10;
+  string httpHeader = 11;
+  string httpBody = 12;
+  string cert = 13;
+  string iconHash = 14;
+  bool isCdn = 15;
+  string cname = 16;
+  bool isCloud = 17;
+  repeated IPV4 ipv4 = 18;
+  repeated IPV6 ipv6 = 19;
+  string screenshot = 20;
+}
+
+message IPV4 {
+  string ip = 1;
+  uint32 ipInt = 2;
+  string location = 3;
+}
+
+message IPV6 {
+  string ip = 1;
+  string location = 2;
+}
+
+message SaveTaskResultReq {
+  string workspaceId = 1;
+  string mainTaskId = 2;
+  repeated AssetDocument assets = 3;
+}
+
+message SaveTaskResultResp {
+  bool success = 1;
+  string message = 2;
+  int32 totalAsset = 3;
+  int32 newAsset = 4;
+  int32 updateAsset = 5;
+}
+
+message VulDocument {
+  string authority = 1;
+  string host = 2;
+  int32 port = 3;
+  string url = 4;
+  string pocFile = 5;
+  string source = 6;
+  string severity = 7;
+  string extra = 8;
+  string result = 9;
+  string taskId = 10;
+}
+
+message SaveVulResultReq {
+  string workspaceId = 1;
+  string mainTaskId = 2;
+  repeated VulDocument vuls = 3;
+}
+
+message SaveVulResultResp {
+  bool success = 1;
+  string message = 2;
+  int32 total = 3;
+}
+
+message KeepAliveReq {
+  string workerName = 1;
+  double cpuLoad = 2;
+  double memUsed = 3;
+  int32 taskStartedNumber = 4;
+  int32 taskExecutedNumber = 5;
+  bool isDaemon = 6;
+}
+
+message KeepAliveResp {
+  string status = 1;
+  bool manualStopFlag = 2;
+  bool manualReloadFlag = 3;
+  bool manualInitEnvFlag = 4;
+  bool manualSyncFlag = 5;
+}
+
+message GetWorkerConfigReq {
+  string workerName = 1;
+}
+
+message GetWorkerConfigResp {
+  string config = 1;
+}
+
+message RequestResourceReq {
+  string category = 1;
+  string name = 2;
+}
+
+message RequestResourceResp {
+  string path = 1;
+  string hash = 2;
+  bytes data = 3;
+}
+
+
+// 根据标签获取模板请求
+message GetTemplatesByTagsReq {
+  repeated string tags = 1;
+  repeated string severities = 2;
+}
+
+// 根据标签获取模板响应
+message GetTemplatesByTagsResp {
+  bool success = 1;
+  string message = 2;
+  repeated string templates = 3;
+  int32 count = 4;
+}
+
+// 获取自定义指纹请求
+message GetCustomFingerprintsReq {
+  bool enabledOnly = 1;
+}
+
+// 指纹文档
+message FingerprintDocument {
+  string id = 1;
+  string name = 2;
+  string category = 3;
+  string rule = 4;
+  string source = 5;
+  map<string, string> headers = 6;
+  map<string, string> cookies = 7;
+  repeated string html = 8;
+  repeated string scripts = 9;
+  repeated string scriptSrc = 10;
+  map<string, string> meta = 11;
+  repeated string css = 12;
+  repeated string url = 13;
+  bool isBuiltin = 14;
+  bool enabled = 15;
+}
+
+// 获取自定义指纹响应
+message GetCustomFingerprintsResp {
+  bool success = 1;
+  string message = 2;
+  repeated FingerprintDocument fingerprints = 3;
+  int32 count = 4;
+}
+
+// 验证指纹请求
+message ValidateFingerprintReq {
+  string url = 1;           // 目标URL
+  string fingerprintId = 2; // 指纹ID（可选，为空则验证所有）
+  string scope = 3;         // 范围: all, builtin, custom
+}
+
+// 匹配的指纹信息
+message MatchedFingerprintInfo {
+  string id = 1;
+  string name = 2;
+  string category = 3;
+  bool isBuiltin = 4;
+  string matchedConditions = 5;
+}
+
+// 验证指纹响应
+message ValidateFingerprintResp {
+  bool success = 1;
+  string message = 2;
+  bool matched = 3;                              // 单个指纹验证时是否匹配
+  int32 matchedCount = 4;                        // 批量验证时匹配数量
+  string duration = 5;                           // 耗时
+  string details = 6;                            // 单个指纹验证详情
+  repeated MatchedFingerprintInfo matchedList = 7; // 批量验证匹配列表
+}
+// POC验证请求
+message ValidatePocReq {
+  string url = 1;           // 目标URL
+  string pocId = 2;         // POC ID（可选，为空则验证所有）
+  string pocType = 3;       // POC类型: nuclei, custom, all
+  repeated string severities = 4; // 严重级别过滤
+  repeated string tags = 5;       // 标签过滤
+  int32 timeout = 6;        // 超时时间（秒）
+  bool useTemplate = 7;     // 是否使用默认模板
+  bool useCustom = 8;       // 是否使用自定义POC
+}
+
+// POC验证结果
+message PocValidationResult {
+  string pocId = 1;         // POC ID
+  string pocName = 2;       // POC名称
+  string templateId = 3;    // 模板ID
+  string severity = 4;      // 严重级别
+  bool matched = 5;         // 是否匹配
+  string matchedUrl = 6;    // 匹配的URL
+  string details = 7;       // 匹配详情
+  string output = 8;        // 输出信息
+  string pocType = 9;       // POC类型: nuclei, custom
+  repeated string tags = 10; // 标签
+}
+
+// POC验证响应
+message ValidatePocResp {
+  bool success = 1;
+  string message = 2;
+  bool matched = 3;                              // 单个POC验证时是否匹配
+  int32 matchedCount = 4;                        // 批量验证时匹配数量
+  int32 totalCount = 5;                          // 总验证数量
+  string duration = 6;                           // 耗时
+  string details = 7;                            // 单个POC验证详情
+  repeated PocValidationResult results = 8;      // 验证结果列表
+  string taskId = 9;                             // 任务ID（用于查询结果）
+}
+
+// 批量POC验证请求
+message BatchValidatePocReq {
+  repeated string urls = 1;     // 目标URL列表
+  string pocType = 2;           // POC类型: nuclei, custom, all
+  repeated string severities = 3; // 严重级别过滤
+  repeated string tags = 4;       // 标签过滤
+  int32 timeout = 5;            // 超时时间（秒）
+  bool useTemplate = 6;         // 是否使用默认模板
+  bool useCustom = 7;           // 是否使用自定义POC
+  int32 concurrency = 8;        // 并发数
+}
+
+// 批量POC验证响应
+message BatchValidatePocResp {
+  bool success = 1;
+  string message = 2;
+  int32 totalUrls = 3;                           // 总URL数量
+  int32 totalPocs = 4;                           // 总POC数量
+  int32 matchedCount = 5;                        // 匹配数量
+  string duration = 6;                           // 耗时
+  repeated PocValidationResult results = 7;      // 验证结果列表
+  map<string, int32> urlStats = 8;              // 每个URL的匹配统计
+  string batchId = 9;                            // 批次ID（用于查询结果）
+}
+// 查询POC验证结果请求
+message GetPocValidationResultReq {
+  string taskId = 1;    // 任务ID
+  string batchId = 2;   // 批次ID（可选）
+}
+
+// 查询POC验证结果响应
+message GetPocValidationResultResp {
+  bool success = 1;
+  string message = 2;
+  string status = 3;                             // 任务状态: PENDING, STARTED, SUCCESS, FAILURE
+  int32 completedCount = 4;                      // 已完成数量
+  int32 totalCount = 5;                          // 总数量
+  repeated PocValidationResult results = 6;      // 验证结果列表
+  string createTime = 7;                         // 创建时间
+  string updateTime = 8;                         // 更新时间
+}
+
+
+// 根据ID获取POC请求
+message GetPocByIdReq {
+  string pocId = 1;     // POC ID
+  string pocType = 2;   // POC类型: nuclei, custom
+}
+
+// 根据ID获取POC响应
+message GetPocByIdResp {
+  bool success = 1;
+  string message = 2;
+  string pocId = 3;         // POC ID
+  string name = 4;          // POC名称
+  string templateId = 5;    // 模板ID
+  string severity = 6;      // 严重级别
+  repeated string tags = 7; // 标签
+  string content = 8;       // POC YAML内容
+  string pocType = 9;       // POC类型
+}
+
+// 根据ID列表批量获取模板请求
+message GetTemplatesByIdsReq {
+  repeated string nucleiTemplateIds = 1;  // Nuclei模板ID列表
+  repeated string customPocIds = 2;       // 自定义POC ID列表
+}
+
+// 根据ID列表批量获取模板响应
+message GetTemplatesByIdsResp {
+  bool success = 1;
+  string message = 2;
+  repeated string templates = 3;  // 模板内容列表
+  int32 count = 4;
+}

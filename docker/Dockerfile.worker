@@ -1,0 +1,50 @@
+# CSCAN Worker 扫描节点 Dockerfile
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /app
+
+# 安装依赖
+RUN apk add --no-cache git
+
+# 复制 go.mod 和 go.sum
+COPY go.mod go.sum ./
+RUN go mod download
+
+# 复制源代码
+COPY . .
+
+# 编译 Worker 服务
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /cscan-worker ./cmd/worker/main.go
+
+# 运行镜像
+FROM alpine:3.18
+
+WORKDIR /app
+
+# 安装扫描工具和依赖
+RUN apk add --no-cache \
+    ca-certificates \
+    tzdata \
+    unzip \
+    nmap \
+    masscan \
+    curl \
+    bind-tools
+
+# 从本地 poc 目录复制 nuclei 安装包并安装
+COPY poc/nuclei_3.6.1_linux_amd64.zip /tmp/
+RUN unzip /tmp/nuclei_3.6.1_linux_amd64.zip -d /tmp/ \
+    && mv /tmp/nuclei /usr/local/bin/ \
+    && rm -rf /tmp/nuclei* \
+    && chmod +x /usr/local/bin/nuclei
+
+# 更新 nuclei 模板
+RUN nuclei -update-templates || true
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+
+# 复制编译产物
+COPY --from=builder /cscan-worker .
+
+CMD ["./cscan-worker", "-s", "cscan-rpc:9000", "-r", "redis:6379", "-n", "docker-worker"]

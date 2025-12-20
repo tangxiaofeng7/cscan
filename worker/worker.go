@@ -1,0 +1,1358 @@
+package worker
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"runtime"
+	"strings"
+	"sync"
+	"time"
+
+	"cscan/model"
+	"cscan/rpc/task/pb"
+	"cscan/scanner"
+	"cscan/scheduler"
+
+	"github.com/redis/go-redis/v9"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
+	"github.com/zeromicro/go-zero/core/logx"
+	"github.com/zeromicro/go-zero/zrpc"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"google.golang.org/grpc"
+)
+
+// 使用标准 protobuf 编解码器，不再覆盖
+
+// WorkerConfig Worker配置
+type WorkerConfig struct {
+	Name        string `json:"name"`
+	ServerAddr  string `json:"serverAddr"`
+	RedisAddr   string `json:"redisAddr"`
+	RedisPass   string `json:"redisPass"`
+	Concurrency int    `json:"concurrency"`
+	Timeout     int    `json:"timeout"`
+}
+
+// Worker 工作节点
+type Worker struct {
+	config      WorkerConfig
+	rpcClient   pb.TaskServiceClient
+	redisClient *redis.Client
+	scanners    map[string]scanner.Scanner
+	taskChan    chan *scheduler.TaskInfo
+	resultChan  chan *scanner.ScanResult
+	stopChan    chan struct{}
+	wg          sync.WaitGroup
+	mu          sync.Mutex
+
+	taskStarted  int
+	taskExecuted int
+	isRunning    bool
+}
+
+// NewWorker 创建Worker
+func NewWorker(config WorkerConfig) (*Worker, error) {
+	// 创建RPC客户端，增加消息大小限制到100MB
+	client, err := zrpc.NewClient(zrpc.RpcClientConf{
+		Target: config.ServerAddr,
+	}, zrpc.WithDialOption(grpc.WithDefaultCallOptions(
+		grpc.MaxCallRecvMsgSize(100*1024*1024), // 100MB
+		grpc.MaxCallSendMsgSize(100*1024*1024), // 100MB
+	)))
+	if err != nil {
+		return nil, fmt.Errorf("connect to server failed: %v", err)
+	}
+
+	// 创建Redis客户端（用于日志推送）
+	var redisClient *redis.Client
+	if config.RedisAddr != "" {
+		redisClient = redis.NewClient(&redis.Options{
+			Addr:     config.RedisAddr,
+			Password: config.RedisPass,
+			DB:       0,
+		})
+		
+		// 测试Redis连接
+		ctx := context.Background()
+		if err := redisClient.Ping(ctx).Err(); err != nil {
+			fmt.Printf("[Worker] Redis connection failed: %v, logs will not be streamed\n", err)
+			redisClient = nil
+		} else {
+			fmt.Printf("[Worker] Redis connected successfully at %s, logs will be streamed\n", config.RedisAddr)
+			// 设置logx的输出Writer，将所有日志同时发送到Redis
+			logWriter := NewRedisLogWriter(redisClient, config.Name)
+			logx.SetWriter(logx.NewWriter(logWriter))
+			// 写入一条测试日志确认日志系统工作
+			PublishLog(redisClient, config.Name, "INFO", "Worker日志系统已启动，Redis连接成功")
+		}
+	} else {
+		fmt.Println("[Worker] Redis address not specified (-r flag), logs will not be streamed to Web")
+	}
+
+	w := &Worker{
+		config:      config,
+		rpcClient:   pb.NewTaskServiceClient(client.Conn()),
+		redisClient: redisClient,
+		scanners:    make(map[string]scanner.Scanner),
+		taskChan:    make(chan *scheduler.TaskInfo, config.Concurrency),
+		resultChan:  make(chan *scanner.ScanResult, 100),
+		stopChan:    make(chan struct{}),
+	}
+
+	// 注册扫描器
+	w.registerScanners()
+
+	return w, nil
+}
+
+// registerScanners 注册扫描器
+func (w *Worker) registerScanners() {
+	w.scanners["portscan"] = scanner.NewPortScanner()
+	w.scanners["masscan"] = scanner.NewMasscanScanner()
+	w.scanners["nmap"] = scanner.NewNmapScanner()
+	w.scanners["domainscan"] = scanner.NewDomainScanner()
+	w.scanners["fingerprint"] = scanner.NewFingerprintScanner()
+	w.scanners["nuclei"] = scanner.NewNucleiScanner()
+}
+
+// Start 启动Worker
+func (w *Worker) Start() {
+	w.isRunning = true
+
+	// 启动任务处理协程
+	for i := 0; i < w.config.Concurrency; i++ {
+		w.wg.Add(1)
+		go w.processTask()
+	}
+
+	// 启动任务拉取协程
+	w.wg.Add(1)
+	go w.fetchTasks()
+
+	// 启动结果上报协程
+	w.wg.Add(1)
+	go w.reportResult()
+
+	// 启动心跳协程
+	w.wg.Add(1)
+	go w.keepAlive()
+
+	logx.Infof("Worker %s started with %d workers", w.config.Name, w.config.Concurrency)
+}
+
+// fetchTasks 从服务端拉取任务
+func (w *Worker) fetchTasks() {
+	defer w.wg.Done()
+
+	emptyCount := 0
+	baseInterval := 3 * time.Second
+	maxInterval := 30 * time.Second
+
+	for {
+		select {
+		case <-w.stopChan:
+			return
+		default:
+			hasTask := w.pullTask()
+			if hasTask {
+				emptyCount = 0
+				time.Sleep(100 * time.Millisecond) // 有任务时快速拉取
+			} else {
+				emptyCount++
+				// 没有任务时逐渐增加等待时间，最多30秒
+				interval := baseInterval * time.Duration(emptyCount)
+				if interval > maxInterval {
+					interval = maxInterval
+				}
+				time.Sleep(interval)
+			}
+		}
+	}
+}
+
+// pullTask 拉取单个任务，返回是否获取到任务
+func (w *Worker) pullTask() bool {
+	ctx := context.Background()
+
+	// 检查是否有空闲槽位
+	if len(w.taskChan) >= w.config.Concurrency {
+		return false
+	}
+
+	// 通过 RPC 获取任务
+	resp, err := w.rpcClient.CheckTask(ctx, &pb.CheckTaskReq{
+		TaskId: w.config.Name, // 用 worker name 作为标识请求任务
+	})
+	if err != nil {
+		return false
+	}
+
+	if resp.IsExist && !resp.IsFinished {
+		// 有待执行的任务
+		task := &scheduler.TaskInfo{
+			TaskId:      resp.TaskId,
+			MainTaskId:  resp.TaskId,
+			WorkspaceId: resp.WorkspaceId,
+			TaskName:    "scan",
+			Config:      resp.Config,
+		}
+		w.taskChan <- task
+		return true
+	}
+	return false
+}
+
+// Stop 停止Worker
+func (w *Worker) Stop() {
+	w.isRunning = false
+	close(w.stopChan)
+	w.wg.Wait()
+	logx.Infof("Worker %s stopped", w.config.Name)
+}
+
+// SubmitTask 提交任务
+func (w *Worker) SubmitTask(task *scheduler.TaskInfo) {
+	w.taskChan <- task
+}
+
+// processTask 处理任务
+func (w *Worker) processTask() {
+	defer w.wg.Done()
+
+	for {
+		select {
+		case <-w.stopChan:
+			return
+		case task := <-w.taskChan:
+			w.executeTask(task)
+		}
+	}
+}
+
+// checkTaskControl 检查任务控制信号
+// 返回: "PAUSE" - 暂停, "STOP" - 停止, "" - 继续执行
+func (w *Worker) checkTaskControl(ctx context.Context, taskId string) string {
+	if w.redisClient == nil {
+		return ""
+	}
+	ctrlKey := "cscan:task:ctrl:" + taskId
+	ctrl, err := w.redisClient.Get(ctx, ctrlKey).Result()
+	if err != nil {
+		return ""
+	}
+	return ctrl
+}
+
+// saveTaskProgress 保存任务进度（用于暂停后继续）
+func (w *Worker) saveTaskProgress(ctx context.Context, task *scheduler.TaskInfo, completedPhases map[string]bool, assets []*scanner.Asset) {
+	// 构建状态
+	phases := make([]string, 0)
+	for phase, completed := range completedPhases {
+		if completed {
+			phases = append(phases, phase)
+		}
+	}
+	
+	assetsJson, _ := json.Marshal(assets)
+	state := map[string]interface{}{
+		"completedPhases": phases,
+		"assets":          string(assetsJson),
+	}
+	stateJson, _ := json.Marshal(state)
+	
+	// 通过RPC保存到数据库
+	w.rpcClient.UpdateTask(ctx, &pb.UpdateTaskReq{
+		TaskId: task.TaskId,
+		State:  "PAUSED",
+		Result: string(stateJson),
+	})
+	logx.Infof("Task %s progress saved: completedPhases=%v, assets=%d", task.TaskId, phases, len(assets))
+}
+
+// executeTask 执行任务
+func (w *Worker) executeTask(task *scheduler.TaskInfo) {
+	ctx := context.Background()
+	startTime := time.Now()
+
+	w.mu.Lock()
+	w.taskStarted++
+	w.mu.Unlock()
+
+	// 检查是否有停止信号（任务可能在队列中被停止）
+	if ctrl := w.checkTaskControl(ctx, task.TaskId); ctrl == "STOP" {
+		logx.Infof("Task %s was stopped before execution", task.TaskId)
+		return
+	}
+
+	// 更新任务状态为开始
+	w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusStarted, "")
+
+	// 解析任务配置
+	var taskConfig map[string]interface{}
+	if err := json.Unmarshal([]byte(task.Config), &taskConfig); err != nil {
+		w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusFailure, "配置解析失败: "+err.Error())
+		return
+	}
+
+	// 检查任务类型，处理POC验证任务
+	taskType, _ := taskConfig["taskType"].(string)
+	if taskType == "poc_validate" {
+		w.executePocValidateTask(ctx, task, taskConfig, startTime)
+		return
+	}
+
+	// 获取目标
+	target, _ := taskConfig["target"].(string)
+	if target == "" {
+		w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusFailure, "目标为空")
+		return
+	}
+
+	var allAssets []*scanner.Asset
+	var allVuls []*scanner.Vulnerability
+
+	// 解析扫描配置
+	config, _ := scheduler.ParseTaskConfig(task.Config)
+	if config == nil {
+		config = &scheduler.TaskConfig{
+			PortScan: &scheduler.PortScanConfig{Enable: true, Ports: "80,443,8080"},
+		}
+	}
+
+	// 解析恢复状态（如果是继续执行的任务）
+	var resumeState map[string]interface{}
+	if stateStr, ok := taskConfig["resumeState"].(string); ok && stateStr != "" {
+		json.Unmarshal([]byte(stateStr), &resumeState)
+		logx.Infof("Resuming task from saved state: %v", resumeState)
+	}
+	completedPhases := make(map[string]bool)
+	if resumeState != nil {
+		if phases, ok := resumeState["completedPhases"].([]interface{}); ok {
+			for _, p := range phases {
+				if ps, ok := p.(string); ok {
+					completedPhases[ps] = true
+				}
+			}
+		}
+		// 恢复已扫描的资产
+		if assetsJson, ok := resumeState["assets"].(string); ok && assetsJson != "" {
+			json.Unmarshal([]byte(assetsJson), &allAssets)
+			logx.Infof("Restored %d assets from saved state", len(allAssets))
+		}
+	}
+
+	// 执行端口扫描
+	if (config.PortScan == nil || config.PortScan.Enable) && !completedPhases["portscan"] {
+		// 检查控制信号
+		if ctrl := w.checkTaskControl(ctx, task.TaskId); ctrl == "STOP" {
+			logx.Infof("Task %s stopped during port scan phase", task.TaskId)
+			return
+		} else if ctrl == "PAUSE" {
+			logx.Infof("Task %s paused during port scan phase", task.TaskId)
+			return
+		}
+
+		// 根据配置选择扫描工具
+		scannerName := "portscan" // 默认TCP扫描
+		if config.PortScan != nil && config.PortScan.Tool != "" {
+			switch config.PortScan.Tool {
+			case "masscan":
+				scannerName = "masscan"
+			case "nmap":
+				scannerName = "nmap"
+			default:
+				scannerName = "portscan"
+			}
+		}
+
+		if s, ok := w.scanners[scannerName]; ok {
+			logx.Infof("Running %s port scan on target: %s", scannerName, target)
+			result, err := s.Scan(ctx, &scanner.ScanConfig{
+				Target:  target,
+				Options: config.PortScan,
+			})
+			if err != nil {
+				logx.Errorf("Port scan error: %v", err)
+			} else if result != nil {
+				// 应用端口阈值过滤
+				filteredAssets := filterByPortThreshold(result.Assets, config.PortScan.PortThreshold)
+				allAssets = append(allAssets, filteredAssets...)
+				logx.Infof("Port scan found %d assets (filtered from %d)", len(filteredAssets), len(result.Assets))
+				
+				// 端口扫描完成后立即保存结果，让用户实时看到
+				if len(filteredAssets) > 0 {
+					logx.Infof("Saving port scan results immediately...")
+					w.saveAssetResult(ctx, task.WorkspaceId, task.MainTaskId, filteredAssets)
+				}
+			}
+		}
+		completedPhases["portscan"] = true
+	}
+
+	// 检查控制信号
+	if ctrl := w.checkTaskControl(ctx, task.TaskId); ctrl == "STOP" {
+		logx.Infof("Task %s stopped after port scan", task.TaskId)
+		return
+	} else if ctrl == "PAUSE" {
+		logx.Infof("Task %s paused after port scan, saving state...", task.TaskId)
+		w.saveTaskProgress(ctx, task, completedPhases, allAssets)
+		return
+	}
+
+	// 执行指纹识别
+	if config.Fingerprint != nil && config.Fingerprint.Enable && len(allAssets) > 0 && !completedPhases["fingerprint"] {
+		if s, ok := w.scanners["fingerprint"]; ok {
+			logx.Infof("Running fingerprint scan on %d assets", len(allAssets))
+			
+			// 如果启用自定义指纹引擎，加载自定义指纹
+			if config.Fingerprint.CustomEngine {
+				w.loadCustomFingerprints(ctx, s.(*scanner.FingerprintScanner))
+			}
+			
+			result, err := s.Scan(ctx, &scanner.ScanConfig{
+				Assets:  allAssets,
+				Options: config.Fingerprint,
+			})
+			if err == nil && result != nil {
+				// 构建 Host:Port -> Asset 的映射，用于匹配指纹结果
+				assetMap := make(map[string]*scanner.Asset)
+				for _, asset := range allAssets {
+					key := fmt.Sprintf("%s:%d", asset.Host, asset.Port)
+					assetMap[key] = asset
+				}
+				
+				// 通过 Host:Port 匹配来更新资产信息，而不是按索引
+				for _, fpAsset := range result.Assets {
+					key := fmt.Sprintf("%s:%d", fpAsset.Host, fpAsset.Port)
+					if originalAsset, ok := assetMap[key]; ok {
+						originalAsset.Service = fpAsset.Service
+						originalAsset.Title = fpAsset.Title
+						originalAsset.App = fpAsset.App
+						originalAsset.HttpStatus = fpAsset.HttpStatus
+						originalAsset.HttpHeader = fpAsset.HttpHeader
+						originalAsset.HttpBody = fpAsset.HttpBody
+						originalAsset.Server = fpAsset.Server
+						originalAsset.IconHash = fpAsset.IconHash
+						originalAsset.Screenshot = fpAsset.Screenshot
+					}
+				}
+				
+				// 指纹识别完成后保存更新结果（会以更新方式合并到已有资产）
+				logx.Infof("Saving fingerprint results...")
+				w.saveAssetResult(ctx, task.WorkspaceId, task.MainTaskId, allAssets)
+			}
+		}
+		completedPhases["fingerprint"] = true
+	}
+
+	// 检查控制信号
+	if ctrl := w.checkTaskControl(ctx, task.TaskId); ctrl == "STOP" {
+		logx.Infof("Task %s stopped after fingerprint scan", task.TaskId)
+		return
+	} else if ctrl == "PAUSE" {
+		logx.Infof("Task %s paused after fingerprint scan, saving state...", task.TaskId)
+		w.saveTaskProgress(ctx, task, completedPhases, allAssets)
+		return
+	}
+
+	// 执行POC扫描 (使用Nuclei引擎)
+	if config.PocScan != nil && config.PocScan.Enable && len(allAssets) > 0 && !completedPhases["pocscan"] {
+		if s, ok := w.scanners["nuclei"]; ok {
+			logx.Infof("Running Nuclei POC scan on %d assets", len(allAssets))
+
+			// 从数据库获取模板（所有模板都存储在数据库中）
+			var templates []string
+			var autoTags []string
+
+			// 检查是否有模板ID列表（任务创建时已筛选好的模板）
+			if len(config.PocScan.NucleiTemplateIds) > 0 || len(config.PocScan.CustomPocIds) > 0 {
+				// 通过RPC根据ID获取模板内容（包括默认模板和自定义POC）
+				templates = w.getTemplatesByIds(ctx, config.PocScan.NucleiTemplateIds, config.PocScan.CustomPocIds)
+				logx.Infof("Fetched %d templates by IDs from database (nuclei: %d, custom: %d)", 
+					len(templates), len(config.PocScan.NucleiTemplateIds), len(config.PocScan.CustomPocIds))
+			} else {
+				// 没有预设的模板ID，根据自动扫描配置生成标签并获取模板
+				if config.PocScan.AutoScan || config.PocScan.AutomaticScan {
+					autoTags = w.generateAutoTags(allAssets, config.PocScan)
+					logx.Infof("Auto-scan generated tags: %v", autoTags)
+				}
+
+				if len(autoTags) > 0 {
+					// 有自动生成的标签，通过RPC获取符合标签的模板
+					severities := []string{}
+					if config.PocScan.Severity != "" {
+						severities = strings.Split(config.PocScan.Severity, ",")
+					}
+					templates = w.getTemplatesByTags(ctx, autoTags, severities)
+					logx.Infof("Fetched %d templates by tags from database", len(templates))
+				} else {
+					// 没有模板ID也没有自动标签，记录警告
+					logx.Errorf("No template IDs or auto-scan tags provided, POC scan will be skipped")
+				}
+			}
+
+			// 只有在有模板时才执行扫描
+			if len(templates) > 0 {
+				// 用于统计漏洞数量
+				var vulCount int
+
+				// 构建Nuclei扫描选项，设置回调函数实时保存漏洞
+				nucleiOpts := &scanner.NucleiOptions{
+					Severity:        config.PocScan.Severity,
+					Tags:            autoTags,
+					ExcludeTags:     config.PocScan.ExcludeTags,
+					RateLimit:       config.PocScan.RateLimit,
+					Concurrency:     config.PocScan.Concurrency,
+					AutoScan:        false, // 标签已在Worker端生成，不需要nuclei再生成
+					AutomaticScan:   false,
+					CustomPocOnly:   config.PocScan.CustomPocOnly,
+					CustomTemplates: templates,
+					TagMappings:     config.PocScan.TagMappings,
+					// 设置回调函数，发现漏洞时实时保存到数据库
+					OnVulnerabilityFound: func(vul *scanner.Vulnerability) {
+						vulCount++
+						logx.Infof("Found vulnerability #%d: %s on %s", vulCount, vul.PocFile, vul.Url)
+						// 实时保存单个漏洞到数据库
+						w.saveVulResult(ctx, task.WorkspaceId, task.MainTaskId, []*scanner.Vulnerability{vul})
+					},
+				}
+				// 设置默认值
+				if nucleiOpts.RateLimit == 0 {
+					nucleiOpts.RateLimit = 150
+				}
+				if nucleiOpts.Concurrency == 0 {
+					nucleiOpts.Concurrency = 25
+				}
+				logx.Infof("Nuclei options: Templates=%d, Tags=%v", len(nucleiOpts.CustomTemplates), nucleiOpts.Tags)
+
+				result, err := s.Scan(ctx, &scanner.ScanConfig{
+					Assets:  allAssets,
+					Options: nucleiOpts,
+				})
+				if err != nil {
+					logx.Errorf("POC scan error: %v", err)
+				}
+				if result != nil {
+					allVuls = append(allVuls, result.Vulnerabilities...)
+					if vulCount > 0 {
+						logx.Infof("POC scan completed: %d vulnerabilities found and saved", vulCount)
+					} else {
+						logx.Info("POC scan completed, no vulnerabilities found")
+					}
+				}
+			} else {
+				logx.Info("No templates available, skipping POC scan")
+			}
+		}
+	}
+
+	// 更新任务状态为完成
+	duration := time.Since(startTime).Seconds()
+	result := fmt.Sprintf("资产:%d 漏洞:%d 耗时:%.0fs", len(allAssets), len(allVuls), duration)
+	w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusSuccess, result)
+	logx.Infof("Task %s completed: %s", task.TaskId, result)
+
+	w.mu.Lock()
+	w.taskExecuted++
+	w.mu.Unlock()
+}
+
+// updateTaskStatus 更新任务状态
+func (w *Worker) updateTaskStatus(ctx context.Context, taskId, status, result string) {
+	_, err := w.rpcClient.UpdateTask(ctx, &pb.UpdateTaskReq{
+		TaskId: taskId,
+		State:  status,
+		Worker: w.config.Name,
+		Result: result,
+	})
+	if err != nil {
+		logx.Errorf("update task status failed: %v", err)
+	}
+}
+
+// saveAssetResult 保存资产结果
+func (w *Worker) saveAssetResult(ctx context.Context, workspaceId, mainTaskId string, assets []*scanner.Asset) {
+	if len(assets) == 0 {
+		return
+	}
+
+	logx.Infof("Saving %d assets to workspace: %s, mainTaskId: %s", len(assets), workspaceId, mainTaskId)
+	
+
+	pbAssets := make([]*pb.AssetDocument, 0, len(assets))
+	for _, asset := range assets {
+		pbAsset := &pb.AssetDocument{
+			Authority:  asset.Authority,
+			Host:       asset.Host,
+			Port:       int32(asset.Port),
+			Category:   asset.Category,
+			Service:    asset.Service,
+			Title:      asset.Title,
+			App:        asset.App,
+			HttpStatus: asset.HttpStatus,
+			HttpHeader: asset.HttpHeader,
+			HttpBody:   asset.HttpBody,
+			IconHash:   asset.IconHash,
+			Screenshot: asset.Screenshot,
+			Server:     asset.Server,
+			Banner:     asset.Banner,
+		}
+		pbAssets = append(pbAssets, pbAsset)
+	}
+
+	resp, err := w.rpcClient.SaveTaskResult(ctx, &pb.SaveTaskResultReq{
+		WorkspaceId: workspaceId,
+		MainTaskId:  mainTaskId,
+		Assets:      pbAssets,
+	})
+	if err != nil {
+		logx.Errorf("save asset result failed: %v", err)
+	} else {
+		logx.Infof("Save asset result: %s", resp.Message)
+	}
+}
+
+// saveVulResult 保存漏洞结果
+func (w *Worker) saveVulResult(ctx context.Context, workspaceId, mainTaskId string, vuls []*scanner.Vulnerability) {
+	if len(vuls) == 0 {
+		return
+	}
+
+	pbVuls := make([]*pb.VulDocument, 0, len(vuls))
+	for _, vul := range vuls {
+		pbVuls = append(pbVuls, &pb.VulDocument{
+			Authority: vul.Authority,
+			Host:      vul.Host,
+			Port:      int32(vul.Port),
+			Url:       vul.Url,
+			PocFile:   vul.PocFile,
+			Source:    vul.Source,
+			Severity:  vul.Severity,
+			Result:    vul.Result,
+		})
+	}
+
+	_, err := w.rpcClient.SaveVulResult(ctx, &pb.SaveVulResultReq{
+		WorkspaceId: workspaceId,
+		MainTaskId:  mainTaskId,
+		Vuls:        pbVuls,
+	})
+	if err != nil {
+		logx.Errorf("save vul result failed: %v", err)
+	}
+}
+
+// reportResult 上报结果
+func (w *Worker) reportResult() {
+	defer w.wg.Done()
+
+	for {
+		select {
+		case <-w.stopChan:
+			return
+		case result := <-w.resultChan:
+			w.handleResult(result)
+		}
+	}
+}
+
+// handleResult 处理结果
+func (w *Worker) handleResult(result *scanner.ScanResult) {
+	ctx := context.Background()
+	w.saveAssetResult(ctx, result.WorkspaceId, result.MainTaskId, result.Assets)
+	w.saveVulResult(ctx, result.WorkspaceId, result.MainTaskId, result.Vulnerabilities)
+}
+
+// keepAlive 心跳
+func (w *Worker) keepAlive() {
+	defer w.wg.Done()
+
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-w.stopChan:
+			return
+		case <-ticker.C:
+			w.sendHeartbeat()
+		}
+	}
+}
+
+// sendHeartbeat 发送心跳
+func (w *Worker) sendHeartbeat() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// 获取系统资源使用情况
+	cpuPercent, _ := cpu.Percent(time.Second, false)
+	memInfo, _ := mem.VirtualMemory()
+
+	cpuLoad := 0.0
+	if len(cpuPercent) > 0 {
+		cpuLoad = cpuPercent[0]
+	}
+	memUsed := 0.0
+	if memInfo != nil {
+		memUsed = memInfo.UsedPercent
+	}
+
+	// 确保数值有效
+	if cpuLoad < 0 || cpuLoad > 100 {
+		cpuLoad = 0.0
+	}
+	if memUsed < 0 || memUsed > 100 {
+		memUsed = 0.0
+	}
+
+	resp, err := w.rpcClient.KeepAlive(ctx, &pb.KeepAliveReq{
+		WorkerName:         w.config.Name,
+		CpuLoad:            0.5,  // Fixed value for testing
+		MemUsed:            50.0, // Fixed value for testing
+		TaskStartedNumber:  int32(w.taskStarted),
+		TaskExecutedNumber: int32(w.taskExecuted),
+		IsDaemon:           false,
+	})
+	if err != nil {
+		logx.Errorf("keepalive failed: %v", err)
+		return
+	}
+
+	// 处理控制指令
+	if resp.ManualStopFlag {
+		logx.Info("received stop signal, stopping worker...")
+		w.Stop()
+		os.Exit(0)
+	}
+	if resp.ManualReloadFlag {
+		logx.Info("received reload signal")
+		// 重新加载配置
+	}
+}
+
+// GetWorkerName 获取Worker名称
+func GetWorkerName() string {
+	hostname, _ := os.Hostname()
+	return fmt.Sprintf("%s-%d", hostname, os.Getpid())
+}
+
+// GetSystemInfo 获取系统信息
+func GetSystemInfo() map[string]interface{} {
+	return map[string]interface{}{
+		"os":       runtime.GOOS,
+		"arch":     runtime.GOARCH,
+		"cpus":     runtime.NumCPU(),
+		"hostname": func() string { h, _ := os.Hostname(); return h }(),
+	}
+}
+
+// generateAutoTags 根据资产的应用信息生成Nuclei标签
+func (w *Worker) generateAutoTags(assets []*scanner.Asset, pocConfig *scheduler.PocScanConfig) []string {
+	tagSet := make(map[string]bool)
+
+	for _, asset := range assets {
+		for _, app := range asset.App {
+			appName := parseAppName(app)
+			appNameLower := strings.ToLower(appName)
+
+			// 模式1: 基于自定义标签映射
+			if pocConfig.AutoScan && pocConfig.TagMappings != nil {
+				for mappedApp, tags := range pocConfig.TagMappings {
+					if strings.ToLower(mappedApp) == appNameLower {
+						for _, tag := range tags {
+							tagSet[tag] = true
+						}
+						break
+					}
+				}
+			}
+
+			// 模式2: 基于Wappalyzer内置映射（类似nuclei -as）
+			if pocConfig.AutomaticScan {
+				if tags, ok := wappalyzerNucleiMapping[appNameLower]; ok {
+					for _, tag := range tags {
+						tagSet[tag] = true
+					}
+				}
+			}
+		}
+	}
+
+	tags := make([]string, 0, len(tagSet))
+	for tag := range tagSet {
+		tags = append(tags, tag)
+	}
+	return tags
+}
+
+// getTemplatesByTags 通过RPC从数据库获取符合标签的模板
+func (w *Worker) getTemplatesByTags(ctx context.Context, tags []string, severities []string) []string {
+	if len(tags) == 0 {
+		return nil
+	}
+
+	resp, err := w.rpcClient.GetTemplatesByTags(ctx, &pb.GetTemplatesByTagsReq{
+		Tags:       tags,
+		Severities: severities,
+	})
+	if err != nil {
+		logx.Errorf("GetTemplatesByTags RPC failed: %v", err)
+		return nil
+	}
+
+	if !resp.Success {
+		logx.Errorf("GetTemplatesByTags failed: %s", resp.Message)
+		return nil
+	}
+
+	logx.Infof("GetTemplatesByTags: fetched %d templates for tags %v", resp.Count, tags)
+	return resp.Templates
+}
+
+// getTemplatesByIds 通过RPC根据ID列表获取模板内容
+func (w *Worker) getTemplatesByIds(ctx context.Context, nucleiTemplateIds, customPocIds []string) []string {
+	if len(nucleiTemplateIds) == 0 && len(customPocIds) == 0 {
+		return nil
+	}
+
+	resp, err := w.rpcClient.GetTemplatesByIds(ctx, &pb.GetTemplatesByIdsReq{
+		NucleiTemplateIds: nucleiTemplateIds,
+		CustomPocIds:      customPocIds,
+	})
+	if err != nil {
+		logx.Errorf("GetTemplatesByIds RPC failed: %v", err)
+		return nil
+	}
+
+	if !resp.Success {
+		logx.Errorf("GetTemplatesByIds failed: %s", resp.Message)
+		return nil
+	}
+
+	logx.Infof("GetTemplatesByIds: fetched %d templates", resp.Count)
+	return resp.Templates
+}
+
+// parseAppName 解析应用名称，去除版本号和来源标识
+func parseAppName(app string) string {
+	appName := app
+	// 先去掉 [source] 后缀
+	if idx := strings.Index(appName, "["); idx > 0 {
+		appName = appName[:idx]
+	}
+	// 再去掉 :version 后缀
+	if idx := strings.Index(appName, ":"); idx > 0 {
+		appName = appName[:idx]
+	}
+	return strings.TrimSpace(appName)
+}
+
+// wappalyzerNucleiMapping Wappalyzer技术到Nuclei标签的内置映射
+var wappalyzerNucleiMapping = map[string][]string{
+	// Web服务器
+	"nginx":              {"nginx"},
+	"apache":             {"apache"},
+	"apache http server": {"apache"},
+	"microsoft iis":      {"iis"},
+	"iis":                {"iis"},
+	"lighttpd":           {"lighttpd"},
+	"tomcat":             {"tomcat"},
+	"apache tomcat":      {"tomcat"},
+	"jetty":              {"jetty"},
+	"caddy":              {"caddy"},
+	"openresty":          {"nginx", "openresty"},
+
+	// CMS
+	"wordpress":   {"wordpress", "wp"},
+	"joomla":      {"joomla"},
+	"drupal":      {"drupal"},
+	"magento":     {"magento"},
+	"shopify":     {"shopify"},
+	"woocommerce": {"woocommerce", "wordpress"},
+	"prestashop":  {"prestashop"},
+	"opencart":    {"opencart"},
+	"typo3":       {"typo3"},
+	"ghost":       {"ghost"},
+	"mediawiki":   {"mediawiki"},
+	"confluence":  {"confluence", "atlassian"},
+	"sharepoint":  {"sharepoint", "microsoft"},
+
+	// 框架
+	"spring":          {"spring"},
+	"spring boot":     {"springboot", "spring"},
+	"spring framework": {"spring"},
+	"struts":          {"struts", "apache-struts"},
+	"apache struts":   {"struts", "apache-struts"},
+	"django":          {"django"},
+	"flask":           {"flask"},
+	"fastapi":         {"fastapi"},
+	"laravel":         {"laravel"},
+	"symfony":         {"symfony"},
+	"codeigniter":     {"codeigniter"},
+	"yii":             {"yii"},
+	"rails":           {"rails", "ruby-on-rails"},
+	"ruby on rails":   {"rails", "ruby-on-rails"},
+	"express":         {"express", "nodejs"},
+	"express.js":      {"express", "nodejs"},
+	"next.js":         {"nextjs", "nodejs"},
+	"nuxt.js":         {"nuxtjs", "nodejs"},
+	"asp.net":         {"asp.net", "microsoft"},
+	"thinkphp":        {"thinkphp"},
+
+	// 前端框架
+	"react":     {"react"},
+	"vue.js":    {"vuejs"},
+	"vue":       {"vuejs"},
+	"angular":   {"angular"},
+	"angularjs": {"angular"},
+	"jquery":    {"jquery"},
+	"bootstrap": {"bootstrap"},
+
+	// 应用服务器
+	"weblogic":        {"weblogic", "oracle"},
+	"oracle weblogic": {"weblogic", "oracle"},
+	"websphere":       {"websphere", "ibm"},
+	"ibm websphere":   {"websphere", "ibm"},
+	"jboss":           {"jboss"},
+	"wildfly":         {"wildfly", "jboss"},
+	"glassfish":       {"glassfish"},
+	"coldfusion":      {"coldfusion", "adobe"},
+
+	// 数据库
+	"mysql":         {"mysql"},
+	"postgresql":    {"postgresql"},
+	"mongodb":       {"mongodb"},
+	"redis":         {"redis"},
+	"elasticsearch": {"elasticsearch", "elastic"},
+	"memcached":     {"memcached"},
+	"oracle":        {"oracle"},
+	"mssql":         {"mssql", "microsoft"},
+
+	// 代理/负载均衡
+	"cloudflare": {"cloudflare"},
+	"varnish":    {"varnish"},
+	"haproxy":    {"haproxy"},
+	"f5 big-ip":  {"f5", "bigip"},
+	"citrix":     {"citrix"},
+	"aws":        {"aws", "amazon"},
+
+	// 安全设备
+	"fortinet":   {"fortinet", "fortigate"},
+	"fortigate":  {"fortinet", "fortigate"},
+	"palo alto":  {"paloalto"},
+	"cisco":      {"cisco"},
+	"sonicwall":  {"sonicwall"},
+	"checkpoint": {"checkpoint"},
+
+	// 版本控制
+	"gitlab":    {"gitlab"},
+	"github":    {"github"},
+	"bitbucket": {"bitbucket", "atlassian"},
+	"gitea":     {"gitea"},
+	"gogs":      {"gogs"},
+
+	// CI/CD
+	"jenkins":  {"jenkins"},
+	"bamboo":   {"bamboo", "atlassian"},
+	"teamcity": {"teamcity"},
+	"drone":    {"drone"},
+
+	// 容器/编排
+	"docker":     {"docker"},
+	"kubernetes": {"kubernetes", "k8s"},
+	"rancher":    {"rancher"},
+	"portainer":  {"portainer"},
+
+	// 监控
+	"grafana":    {"grafana"},
+	"prometheus": {"prometheus"},
+	"zabbix":     {"zabbix"},
+	"nagios":     {"nagios"},
+	"kibana":     {"kibana", "elastic"},
+
+	// 消息队列
+	"rabbitmq": {"rabbitmq"},
+	"kafka":    {"kafka"},
+	"activemq": {"activemq"},
+
+	// 其他常见应用
+	"phpmyadmin": {"phpmyadmin"},
+	"php":        {"php"},
+	"python":     {"python"},
+	"node.js":    {"nodejs"},
+	"java":       {"java"},
+	"solr":       {"solr", "apache"},
+	"nexus":      {"nexus"},
+	"jira":       {"jira", "atlassian"},
+	"webmin":     {"webmin"},
+	"cpanel":     {"cpanel"},
+	"plesk":      {"plesk"},
+	"keycloak":   {"keycloak"},
+	"moodle":     {"moodle"},
+	"odoo":       {"odoo"},
+	"redmine":    {"redmine"},
+	"owncloud":   {"owncloud"},
+	"nextcloud":  {"nextcloud"},
+	"rocketchat": {"rocketchat"},
+	"mattermost": {"mattermost"},
+	"discourse":  {"discourse"},
+	"phpbb":      {"phpbb"},
+	"vbulletin":  {"vbulletin"},
+}
+
+// loadCustomFingerprints 加载自定义指纹到指纹扫描器
+func (w *Worker) loadCustomFingerprints(ctx context.Context, fpScanner *scanner.FingerprintScanner) {
+	resp, err := w.rpcClient.GetCustomFingerprints(ctx, &pb.GetCustomFingerprintsReq{
+		EnabledOnly: true,
+	})
+	if err != nil {
+		logx.Errorf("GetCustomFingerprints RPC failed: %v", err)
+		return
+	}
+
+	if !resp.Success {
+		logx.Errorf("GetCustomFingerprints failed: %s", resp.Message)
+		return
+	}
+
+	if len(resp.Fingerprints) == 0 {
+		logx.Info("No custom fingerprints found")
+		return
+	}
+
+	// 转换为model.Fingerprint
+	var fingerprints []*model.Fingerprint
+	for _, fp := range resp.Fingerprints {
+		mfp := &model.Fingerprint{
+			Name:      fp.Name,
+			Category:  fp.Category,
+			Rule:      fp.Rule,
+			Source:    fp.Source,
+			Headers:   fp.Headers,
+			Cookies:   fp.Cookies,
+			HTML:      fp.Html,
+			Scripts:   fp.Scripts,
+			ScriptSrc: fp.ScriptSrc,
+			Meta:      fp.Meta,
+			CSS:       fp.Css,
+			URL:       fp.Url,
+			IsBuiltin: fp.IsBuiltin,
+			Enabled:   fp.Enabled,
+		}
+		// 解析ID
+		if fp.Id != "" {
+			if oid, err := primitive.ObjectIDFromHex(fp.Id); err == nil {
+				mfp.Id = oid
+			}
+		}
+		fingerprints = append(fingerprints, mfp)
+	}
+
+	// 创建自定义指纹引擎并设置到扫描器
+	customEngine := scanner.NewCustomFingerprintEngine(fingerprints)
+	fpScanner.SetCustomFingerprintEngine(customEngine)
+	logx.Infof("Loaded %d fingerprints (builtin + custom) into fingerprint scanner", len(fingerprints))
+}
+
+// filterByPortThreshold 根据端口阈值过滤资产
+// 如果某个主机开放的端口数量超过阈值，则过滤掉该主机的所有资产（可能是防火墙或蜜罐）
+func filterByPortThreshold(assets []*scanner.Asset, threshold int) []*scanner.Asset {
+	if threshold <= 0 {
+		return assets // 阈值为0或负数表示不过滤
+	}
+
+	// 统计每个主机的开放端口数量
+	hostPortCount := make(map[string]int)
+	for _, asset := range assets {
+		hostPortCount[asset.Host]++
+	}
+
+	// 找出需要过滤的主机
+	filteredHosts := make(map[string]bool)
+	for host, count := range hostPortCount {
+		if count > threshold {
+			filteredHosts[host] = true
+			logx.Infof("Host %s has %d open ports (threshold: %d), filtered as potential honeypot/firewall", host, count, threshold)
+		}
+	}
+
+	// 过滤资产
+	if len(filteredHosts) == 0 {
+		return assets
+	}
+
+	result := make([]*scanner.Asset, 0, len(assets))
+	for _, asset := range assets {
+		if !filteredHosts[asset.Host] {
+			result = append(result, asset)
+		}
+	}
+	return result
+}
+
+// executePocValidateTask 执行POC验证任务
+func (w *Worker) executePocValidateTask(ctx context.Context, task *scheduler.TaskInfo, taskConfig map[string]interface{}, startTime time.Time) {
+	// 解析配置
+	url, _ := taskConfig["url"].(string)
+	pocId, _ := taskConfig["pocId"].(string)
+	pocType, _ := taskConfig["pocType"].(string)
+	timeout, _ := taskConfig["timeout"].(float64)
+	batchId, _ := taskConfig["batchId"].(string)
+
+	// 立即输出任务接收日志
+	logx.Infof("[%s] 收到POC验证任务, 目标: %s", task.TaskId, url)
+
+	if url == "" {
+		logx.Errorf("[%s] POC验证失败: URL为空", task.TaskId)
+		w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusFailure, "URL为空")
+		w.savePocValidationResult(ctx, task.TaskId, batchId, nil, "URL为空")
+		return
+	}
+
+	if timeout == 0 {
+		timeout = 30
+	}
+
+	// 获取Nuclei扫描器
+	nucleiScanner, ok := w.scanners["nuclei"]
+	if !ok {
+		logx.Errorf("[%s] POC验证失败: Nuclei扫描器未初始化", task.TaskId)
+		w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusFailure, "Nuclei扫描器未初始化")
+		w.savePocValidationResult(ctx, task.TaskId, batchId, nil, "Nuclei扫描器未初始化")
+		return
+	}
+
+	// 获取POC模板
+	var templates []string
+	var pocName string
+	var pocSeverity string
+
+	// 如果指定了pocId，通过RPC获取POC内容
+	if pocId != "" {
+		logx.Infof("[%s] 正在加载POC模板...", task.TaskId)
+		resp, err := w.rpcClient.GetPocById(ctx, &pb.GetPocByIdReq{
+			PocId:   pocId,
+			PocType: pocType,
+		})
+		if err != nil {
+			logx.Errorf("[%s] POC验证失败: 获取POC失败 - %v", task.TaskId, err)
+			w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusFailure, "获取POC失败: "+err.Error())
+			w.savePocValidationResult(ctx, task.TaskId, batchId, nil, "获取POC失败: "+err.Error())
+			return
+		}
+		if !resp.Success {
+			logx.Errorf("[%s] POC验证失败: POC不存在 - %s", task.TaskId, resp.Message)
+			w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusFailure, "POC不存在: "+resp.Message)
+			w.savePocValidationResult(ctx, task.TaskId, batchId, nil, "POC不存在: "+resp.Message)
+			return
+		}
+		if resp.Content == "" {
+			logx.Errorf("[%s] POC验证失败: POC内容为空", task.TaskId)
+			w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusFailure, "POC内容为空")
+			w.savePocValidationResult(ctx, task.TaskId, batchId, nil, "POC内容为空")
+			return
+		}
+		templates = []string{resp.Content}
+		pocName = resp.Name
+		pocSeverity = resp.Severity
+		pocType = resp.PocType
+		logx.Infof("[%s] POC模板加载完成: %s", task.TaskId, pocName)
+	} else {
+		// 没有指定pocId，尝试通过标签获取模板
+		var severities []string
+		var tags []string
+
+		// 解析严重级别
+		if sevList, ok := taskConfig["severities"].([]interface{}); ok {
+			for _, s := range sevList {
+				if str, ok := s.(string); ok {
+					severities = append(severities, str)
+				}
+			}
+		}
+
+		// 解析标签
+		if tagList, ok := taskConfig["tags"].([]interface{}); ok {
+			for _, t := range tagList {
+				if str, ok := t.(string); ok {
+					tags = append(tags, str)
+				}
+			}
+		}
+
+		// 根据标签获取模板
+		if len(tags) > 0 {
+			templates = w.getTemplatesByTags(ctx, tags, severities)
+		}
+
+		if len(templates) == 0 {
+			logx.Errorf("[%s] POC验证失败: 未找到POC模板", task.TaskId)
+			w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusFailure, "未找到POC模板")
+			w.savePocValidationResult(ctx, task.TaskId, batchId, nil, "未找到POC模板")
+			return
+		}
+	}
+
+	// 输出开始扫描日志
+	logx.Infof("[%s] 正在初始化Nuclei扫描引擎...", task.TaskId)
+
+	// 构建Nuclei扫描选项
+	nucleiOpts := &scanner.NucleiOptions{
+		RateLimit:       50,
+		Concurrency:     10,
+		CustomTemplates: templates,
+		CustomPocOnly:   true, // 只使用自定义POC
+	}
+
+	logx.Infof("[%s] 开始扫描目标: %s", task.TaskId, url)
+
+	// 执行扫描 - 直接传递URL作为目标，不通过Asset构建
+	result, err := nucleiScanner.Scan(ctx, &scanner.ScanConfig{
+		Targets: []string{url}, // 直接使用URL作为目标
+		Options: nucleiOpts,
+	})
+
+	duration := time.Since(startTime).Seconds()
+
+	if err != nil {
+		logx.Errorf("[%s] POC验证失败: %v", task.TaskId, err)
+		w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusFailure, fmt.Sprintf("扫描失败: %v", err))
+		w.savePocValidationResult(ctx, task.TaskId, batchId, nil, fmt.Sprintf("扫描失败: %v", err))
+		return
+	}
+
+	// 构建验证结果
+	var validationResults []*PocValidationResult
+	matched := false
+	vulCount := 0
+	if result != nil {
+		vulCount = len(result.Vulnerabilities)
+	}
+
+	logx.Infof("[%s] 扫描完成, 耗时: %.2fs", task.TaskId, duration)
+
+	if result != nil && len(result.Vulnerabilities) > 0 {
+		matched = true
+		for _, vul := range result.Vulnerabilities {
+			// 优先使用配置中的POC信息
+			resultPocName := pocName
+			resultSeverity := pocSeverity
+			if resultPocName == "" {
+				resultPocName = vul.PocFile
+			}
+			if resultSeverity == "" {
+				resultSeverity = vul.Severity
+			}
+			validationResults = append(validationResults, &PocValidationResult{
+				PocId:      pocId,
+				PocName:    resultPocName,
+				TemplateId: pocId,
+				Severity:   resultSeverity,
+				Matched:    true,
+				MatchedUrl: vul.Url,
+				Details:    vul.Result,
+				Output:     vul.Extra,
+				PocType:    pocType,
+			})
+			logx.Infof("[%s] 发现漏洞! 匹配URL: %s", task.TaskId, vul.Url)
+		}
+	} else {
+		// 没有发现漏洞，添加一个未匹配的结果
+		resultPocName := pocName
+		if resultPocName == "" {
+			resultPocName = pocId
+		}
+		validationResults = append(validationResults, &PocValidationResult{
+			PocId:      pocId,
+			PocName:    resultPocName,
+			Severity:   pocSeverity,
+			Matched:    false,
+			MatchedUrl: url,
+			Details:    "未发现漏洞",
+			PocType:    pocType,
+		})
+		logx.Infof("[%s] 未发现漏洞", task.TaskId)
+	}
+
+	// 保存结果到Redis
+	w.savePocValidationResult(ctx, task.TaskId, batchId, validationResults, "")
+
+	// 更新任务状态
+	resultMsg := fmt.Sprintf("验证完成: 匹配=%v, 漏洞=%d, 耗时=%.2fs", matched, vulCount, duration)
+	w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusSuccess, resultMsg)
+
+	w.mu.Lock()
+	w.taskExecuted++
+	w.mu.Unlock()
+}
+
+// PocValidationResult POC验证结果
+type PocValidationResult struct {
+	PocId      string   `json:"pocId"`
+	PocName    string   `json:"pocName"`
+	TemplateId string   `json:"templateId"`
+	Severity   string   `json:"severity"`
+	Matched    bool     `json:"matched"`
+	MatchedUrl string   `json:"matchedUrl"`
+	Details    string   `json:"details"`
+	Output     string   `json:"output"`
+	PocType    string   `json:"pocType"`
+	Tags       []string `json:"tags"`
+}
+
+// savePocValidationResult 保存POC验证结果到Redis
+func (w *Worker) savePocValidationResult(ctx context.Context, taskId, batchId string, results []*PocValidationResult, errorMsg string) {
+	if w.redisClient == nil {
+		logx.Error("Redis client not available, cannot save POC validation result")
+		return
+	}
+
+	// 构建结果数据
+	resultData := map[string]interface{}{
+		"taskId":     taskId,
+		"batchId":    batchId,
+		"status":     "SUCCESS",
+		"results":    results,
+		"updateTime": time.Now().Format("2006-01-02 15:04:05"),
+	}
+
+	if errorMsg != "" {
+		resultData["status"] = "FAILURE"
+		resultData["error"] = errorMsg
+	}
+
+	resultJson, err := json.Marshal(resultData)
+	if err != nil {
+		logx.Errorf("Failed to marshal POC validation result: %v", err)
+		return
+	}
+
+	// 保存到Redis
+	resultKey := fmt.Sprintf("cscan:task:result:%s", taskId)
+	err = w.redisClient.Set(ctx, resultKey, resultJson, 24*time.Hour).Err()
+	if err != nil {
+		logx.Errorf("Failed to save POC validation result to Redis: %v", err)
+		return
+	}
+
+	// 更新任务信息状态
+	taskInfoKey := fmt.Sprintf("cscan:task:info:%s", taskId)
+	taskInfoData, err := w.redisClient.Get(ctx, taskInfoKey).Result()
+	if err == nil && taskInfoData != "" {
+		var taskInfo map[string]string
+		if json.Unmarshal([]byte(taskInfoData), &taskInfo) == nil {
+			if errorMsg != "" {
+				taskInfo["status"] = "FAILURE"
+			} else {
+				taskInfo["status"] = "SUCCESS"
+			}
+			taskInfo["updateTime"] = time.Now().Format("2006-01-02 15:04:05")
+			updatedInfo, _ := json.Marshal(taskInfo)
+			w.redisClient.Set(ctx, taskInfoKey, updatedInfo, 24*time.Hour)
+		}
+	}
+}
