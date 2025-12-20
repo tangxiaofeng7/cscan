@@ -1,174 +1,88 @@
-# CSCAN - 网络安全资产扫描平台
+# CSCAN
 
-<p align="center">
-  <img src="web/public/logo.png" width="120" alt="CSCAN Logo">
-</p>
+**分布式网络资产扫描平台** | Go-Zero + Vue3
 
-<p align="center">
-  基于 Go-Zero + Vue3 构建的分布式网络安全资产扫描平台
-</p>
+[![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://golang.org)
+[![Vue](https://img.shields.io/badge/Vue-3.x-4FC08D?style=flat&logo=vue.js)](https://vuejs.org)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-<p align="center">
-  <a href="#快速部署">快速部署</a> •
-  <a href="#功能特性">功能特性</a> •
-  <a href="#技术架构">技术架构</a> •
-  <a href="#开发指南">开发指南</a>
-</p>
+---
 
-## 功能特性
+## 特性
 
-- 🔍 **资产发现** - 端口扫描、服务识别、指纹识别
-- 🎯 **漏洞扫描** - 集成 Nuclei，支持自定义 POC
-- 📊 **可视化工作台** - 实时统计、安全评分、趋势分析
-- 🏢 **多工作空间** - 支持多项目隔离管理
-- 🔌 **分布式架构** - Worker 节点可水平扩展
-- 🌐 **在线搜索** - 集成 FOFA、Hunter、Quake API
-- 🎨 **深色主题** - 支持深色/浅色主题切换
+- **资产发现** - Masscan + Nmap 端口扫描，Wappalyzer 指纹识别
+- **漏洞检测** - 集成 Nuclei，支持自定义 POC
+- **在线数据源** - FOFA / Hunter / Quake API 聚合
+- **分布式架构** - Worker 节点水平扩展，Redis 任务队列
+- **多工作空间** - 项目隔离，团队协作
 
-## 快速部署
-
-### Docker 一键部署 (推荐)
+## 快速开始
 
 ```bash
-# 克隆项目
 git clone https://github.com/tangxiaofeng7/cscan.git
 cd cscan
-
-# 启动所有服务
 docker-compose up -d --build
-
-# 查看服务状态
-docker-compose ps
 ```
 
-访问 http://localhost:3000
+访问 `http://localhost:3000`，默认账号 `admin / 123456`
 
-**默认账号**: `admin` / `123456`
+## 架构
 
-### 自定义配置
+```
+Vue3 Web ──▶ API Server ──▶ MongoDB
+                │
+                ▼
+              Redis
+                │
+                ▼
+            RPC Server
+                │
+    ┌───────────┼───────────┐
+    ▼           ▼           ▼
+ Worker 1   Worker 2   Worker N
+```
+
+| 组件 | 技术栈 |
+|------|--------|
+| 后端 | Go-Zero, gRPC |
+| 存储 | MongoDB, Redis |
+| 前端 | Vue 3, Element Plus |
+| 扫描 | Nuclei, Nmap, Masscan |
+
+## 本地开发
 
 ```bash
-# 启动
-docker-compose up -d
-```
-
-## 技术架构
-
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Vue3 Web  │────▶│  API Server │────▶│   MongoDB   │
-│  (Nginx)    │     │  (go-zero)  │     │             │
-└─────────────┘     └──────┬──────┘     └─────────────┘
-                          │
-                          ▼
-                   ┌─────────────┐
-                   │    Redis    │
-                   │  (队列/缓存) │
-                   └──────┬──────┘
-                          │
-                          ▼
-                   ┌─────────────┐
-                   │ RPC Server  │
-                   │   (gRPC)    │
-                   └──────┬──────┘
-                          │
-          ┌───────────────┼───────────────┐
-          ▼               ▼               ▼
-    ┌──────────┐    ┌──────────┐    ┌──────────┐
-    │ Worker 1 │    │ Worker 2 │    │ Worker N │
-    │(Nuclei)  │    │(Nmap)    │    │(Masscan) │
-    └──────────┘    └──────────┘    └──────────┘
-```
-
-### 技术栈
-
-| 组件 | 技术 |
-|------|------|
-| 后端框架 | Go-Zero |
-| RPC通信 | gRPC + Protobuf |
-| 数据库 | MongoDB |
-| 缓存/队列 | Redis |
-| 前端框架 | Vue 3 + Vite |
-| UI组件 | Element Plus |
-| 图表 | ECharts |
-
-## 开发指南
-
-### 环境要求
-
-- Go 1.21+
-- Node.js 20+
-- MongoDB 6.0+
-- Redis 7.0+
-
-### 本地开发
-
-1. **启动依赖服务**
-```bash
+# 1. 启动依赖
 docker-compose up -d redis mongodb
-```
 
-2. **启动 RPC 服务**
-```bash
+# 2. 启动服务
 go run rpc/task/task.go -f rpc/task/etc/task.yaml
-```
-
-3. **启动 API 服务**
-```bash
 go run api/cscan.go -f api/etc/cscan.yaml
-```
-
-4. **启动 Worker**
-```bash
 go run cmd/worker/main.go -s localhost:9000 -r localhost:6379 -n worker1
+
+# 3. 启动前端
+cd web && npm install && npm run dev
 ```
 
-5. **启动前端**
-```bash
-cd web
-npm install
-npm run dev
-```
-
-6. 访问 http://localhost:5173
-
-### 项目结构
+## 项目结构
 
 ```
-cscan/
-├── api/                 # API 服务
-│   ├── etc/            # 配置文件
-│   └── internal/       # 内部实现
-├── cmd/
-│   └── worker/         # Worker 入口
-├── docker/             # Docker 相关文件
-├── model/              # 数据模型
-├── onlineapi/          # 在线 API 集成
-├── rpc/                # RPC 服务
-├── scanner/            # 扫描器实现
-├── scheduler/          # 调度器
-├── web/                # 前端项目
-│   ├── src/
-│   │   ├── api/       # API 请求
-│   │   ├── layouts/   # 布局组件
-│   │   ├── stores/    # Pinia 状态
-│   │   └── views/     # 页面组件
-│   └── public/        # 静态资源
-├── worker/             # Worker 实现
-├── docker-compose.yaml
-└── README.md
+├── api/          # HTTP API 服务
+├── rpc/          # gRPC 服务
+├── worker/       # 扫描 Worker
+├── scanner/      # 扫描器实现 (nuclei/nmap/masscan)
+├── model/        # 数据模型
+├── onlineapi/    # FOFA/Hunter/Quake 集成
+├── web/          # Vue3 前端
+└── docker/       # Docker 配置
 ```
-
-## 截图预览
-
-> 待补充
-
-## License
-
-MIT License
 
 ## 致谢
 
-- [go-zero](https://github.com/zeromicro/go-zero)
-- [Nuclei](https://github.com/projectdiscovery/nuclei)
-- [Element Plus](https://github.com/element-plus/element-plus)
+- [go-zero](https://github.com/zeromicro/go-zero) - 微服务框架
+- [Nuclei](https://github.com/projectdiscovery/nuclei) - 漏洞扫描引擎
+- [nemo_go](https://github.com/hanc00l/nemo_go) - 灵感来源
+
+## License
+
+MIT
