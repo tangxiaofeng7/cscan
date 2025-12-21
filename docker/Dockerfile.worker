@@ -45,6 +45,13 @@ RUN unzip /tmp/nuclei_3.6.1_linux_amd64.zip -d /tmp/ \
     && rm -rf /tmp/nuclei* \
     && chmod +x /usr/local/bin/nuclei
 
+# 从本地 poc 目录复制 httpx 安装包并安装
+COPY poc/httpx_1.7.4_linux_amd64.zip /tmp/
+RUN unzip /tmp/httpx_1.7.4_linux_amd64.zip -d /tmp/ \
+    && mv /tmp/httpx /usr/local/bin/ \
+    && rm -rf /tmp/httpx* \
+    && chmod +x /usr/local/bin/httpx
+
 # 更新 nuclei 模板
 RUN nuclei -update-templates || true
 

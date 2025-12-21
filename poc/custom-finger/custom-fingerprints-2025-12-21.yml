@@ -73381,9 +73381,6 @@
 - name: "iball-Baton-Wireless-N-Router"
   rule: 'title="iball baton wireless-n router"'
 
-- name: "ibm-chassis-management"
-  rule: 'body=","chassis_name":"'
-
 - name: "ibm-cics-transaction-server"
   rule: 'header="Server" && header="ibm_cics_transaction_server"'
 
