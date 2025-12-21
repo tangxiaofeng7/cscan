@@ -1,0 +1,24 @@
+id: poc-yaml-hadoop-yarn-unauthorized-access
+
+info:
+  name: poc-yaml-hadoop-yarn-unauthorized-access
+  author: xray-converter
+  severity: critical
+  tags: xray-converted,unauth,ct-157873
+  reference:
+    - https://xz.aliyun.com/t/6103
+
+http:
+  - raw:
+      - |
+        GET /ws/v1/cluster/info HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "clusterInfo"
+          - "resourceManagerVersion"
+          - "hadoopBuildVersion"

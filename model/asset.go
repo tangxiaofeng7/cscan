@@ -53,6 +53,7 @@ type Asset struct {
 	IsCDN         bool               `bson:"cdn,omitempty" json:"isCdn"`
 	CName         string             `bson:"cname,omitempty" json:"cname"`
 	IsCloud       bool               `bson:"cloud,omitempty" json:"isCloud"`
+	IsHTTP        bool               `bson:"is_http" json:"isHttp"`
 	IsNewAsset    bool               `bson:"new" json:"isNew"`
 	IsUpdated     bool               `bson:"update" json:"isUpdated"`
 	TaskId        string             `bson:"taskId" json:"taskId"`
@@ -66,8 +67,21 @@ type AssetModel struct {
 }
 
 func NewAssetModel(db *mongo.Database, workspaceId string) *AssetModel {
+	coll := db.Collection(workspaceId + "_asset")
+
+	// 创建索引
+	ctx := context.Background()
+	indexes := []mongo.IndexModel{
+		{Keys: bson.D{{Key: "host", Value: 1}, {Key: "port", Value: 1}}},
+		{Keys: bson.D{{Key: "authority", Value: 1}}},
+		{Keys: bson.D{{Key: "update_time", Value: -1}}},
+		{Keys: bson.D{{Key: "service", Value: 1}}},
+		{Keys: bson.D{{Key: "app", Value: 1}}},
+	}
+	coll.Indexes().CreateMany(ctx, indexes)
+
 	return &AssetModel{
-		coll: db.Collection(workspaceId + "_asset"),
+		coll: coll,
 	}
 }
 
@@ -327,6 +341,7 @@ func (m *AssetModel) Upsert(ctx context.Context, doc *Asset) error {
 			"title":       doc.Title,
 			"app":         doc.App,
 			"source":      doc.Source,
+			"is_http":     doc.IsHTTP,
 			"update_time": now,
 		},
 		"$setOnInsert": bson.M{
@@ -339,4 +354,52 @@ func (m *AssetModel) Upsert(ctx context.Context, doc *Asset) error {
 	opts := options.Update().SetUpsert(true)
 	_, err := m.coll.UpdateOne(ctx, filter, update, opts)
 	return err
+}
+
+
+// BulkUpsert 批量插入或更新资产
+func (m *AssetModel) BulkUpsert(ctx context.Context, assets []*Asset) (*mongo.BulkWriteResult, error) {
+	if len(assets) == 0 {
+		return nil, nil
+	}
+
+	now := time.Now()
+	var models []mongo.WriteModel
+	for _, asset := range assets {
+		filter := bson.M{"host": asset.Host, "port": asset.Port}
+		update := bson.M{
+			"$set": bson.M{
+				"authority":   asset.Authority,
+				"category":    asset.Category,
+				"service":     asset.Service,
+				"server":      asset.Server,
+				"banner":      asset.Banner,
+				"title":       asset.Title,
+				"app":         asset.App,
+				"status":      asset.HttpStatus,
+				"header":      asset.HttpHeader,
+				"body":        asset.HttpBody,
+				"cert":        asset.Cert,
+				"icon_hash":   asset.IconHash,
+				"screenshot":  asset.Screenshot,
+				"cdn":         asset.IsCDN,
+				"cname":       asset.CName,
+				"cloud":       asset.IsCloud,
+				"is_http":     asset.IsHTTP,
+				"taskId":      asset.TaskId,
+				"source":      asset.Source,
+				"update_time": now,
+				"update":      true,
+			},
+			"$setOnInsert": bson.M{
+				"_id":         primitive.NewObjectID(),
+				"create_time": now,
+				"new":         true,
+			},
+		}
+		models = append(models, mongo.NewUpdateOneModel().SetFilter(filter).SetUpdate(update).SetUpsert(true))
+	}
+
+	opts := options.BulkWrite().SetOrdered(false)
+	return m.coll.BulkWrite(ctx, models, opts)
 }

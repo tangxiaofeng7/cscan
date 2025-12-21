@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"cscan/model"
-	"github.com/zeromicro/go-zero/core/logx"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
 )
@@ -298,11 +297,6 @@ func (e *CustomFingerprintEngine) matchSingleCondition(condition string, data *F
 		headerResult := containsInHeaders(data.Headers, value)
 		headerStrResult := containsInHeaderString(data.HeaderString, value)
 		result = headerResult || headerStrResult
-		// 调试日志 - 对rememberMe相关的header匹配打印详细信息
-		if strings.Contains(strings.ToLower(value), "remember") {
-			logx.Debugf("[CustomFP] header match for '%s': headerResult=%v, headerStrResult=%v, headerStrLen=%d, headersNil=%v",
-				value, headerResult, headerStrResult, len(data.HeaderString), data.Headers == nil)
-		}
 	case "server":
 		result = containsIgnoreCase(data.Server, value)
 	case "url":
@@ -311,7 +305,7 @@ func (e *CustomFingerprintEngine) matchSingleCondition(condition string, data *F
 		result = matchRegex(data.Body, value)
 	case "title_regex", "title_re":
 		result = matchRegex(data.Title, value)
-	// ARL特有的icon_hash匹配（Shodan风格MMH3 hash）
+	// ARL特有的icon_hash匹配
 	case "icon_hash", "favicon_hash":
 		result = e.matchIconHash(data, value)
 	// Cookie匹配（用于识别Shiro等框架）

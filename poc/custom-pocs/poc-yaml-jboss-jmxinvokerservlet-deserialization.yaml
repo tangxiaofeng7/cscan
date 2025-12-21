@@ -1,0 +1,25 @@
+id: poc-yaml-jboss-jmxinvokerservlet-deserialization
+
+info:
+  name: poc-yaml-jboss-jmxinvokerservlet-deserialization
+  author: xray-converter
+  severity: critical
+  tags: xray-converted,deserialization,ct-41074
+  reference:
+    - https://github.com/vulhub/vulhub/tree/master/jboss/JMXInvokerServlet-deserialization
+
+http:
+  - raw:
+      - |
+        GET /invoker/JMXInvokerServlet HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "MarshalledValue"

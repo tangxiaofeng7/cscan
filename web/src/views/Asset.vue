@@ -65,7 +65,6 @@
             </div>
             <div class="stat-column filter-column">
               <div class="filter-options">
-                <el-checkbox v-model="searchForm.excludeCdn">不看CDN/Cloud资产</el-checkbox>
                 <el-checkbox v-model="searchForm.onlyNew">只看新资产</el-checkbox>
                 <el-checkbox v-model="searchForm.onlyUpdated">只看有更新</el-checkbox>
                 <el-checkbox v-model="searchForm.sortByUpdate">按更新时间排序</el-checkbox>
@@ -267,7 +266,6 @@ const searchForm = reactive({
   app: '',
   onlyNew: false,
   onlyUpdated: false,
-  excludeCdn: false,
   sortByUpdate: true
 })
 
@@ -302,7 +300,6 @@ async function loadData() {
       pageSize: pagination.pageSize,
       onlyNew: searchForm.onlyNew,
       onlyUpdated: searchForm.onlyUpdated,
-      excludeCdn: searchForm.excludeCdn,
       sortByUpdate: searchForm.sortByUpdate,
       workspaceId: workspaceStore.currentWorkspaceId || ''
     }
@@ -433,7 +430,6 @@ function handleReset() {
     app: '',
     onlyNew: false,
     onlyUpdated: false,
-    excludeCdn: false,
     sortByUpdate: true
   })
   handleSearch()

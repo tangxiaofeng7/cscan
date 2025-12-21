@@ -1,111 +1,126 @@
 package handler
 
 import (
+	"net/http"
+
+	"cscan/api/internal/handler/asset"
+	"cscan/api/internal/handler/fingerprint"
+	"cscan/api/internal/handler/onlineapi"
+	"cscan/api/internal/handler/poc"
+	"cscan/api/internal/handler/report"
+	"cscan/api/internal/handler/task"
+	"cscan/api/internal/handler/user"
+	"cscan/api/internal/handler/vul"
+	"cscan/api/internal/handler/worker"
+	"cscan/api/internal/handler/workspace"
 	"cscan/api/internal/middleware"
 	"cscan/api/internal/svc"
-	"net/http"
 
 	"github.com/zeromicro/go-zero/rest"
 )
 
-func RegisterHandlers(server *rest.Server, ctx *svc.ServiceContext) {
+func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 	// 公开路由（无需认证）
 	server.AddRoutes(
 		[]rest.Route{
-			{
-				Method:  "POST",
-				Path:    "/api/v1/login",
-				Handler: LoginHandler(ctx),
-			},
-			{
-				Method:  "GET",
-				Path:    "/api/v1/worker/logs/stream",
-				Handler: WorkerLogsHandler(ctx),
-			},
-			{
-				Method:  "POST",
-				Path:    "/api/v1/worker/logs/history",
-				Handler: WorkerLogsHistoryHandler(ctx),
-			},
-			{
-				Method:  "POST",
-				Path:    "/api/v1/worker/logs/clear",
-				Handler: WorkerLogsClearHandler(ctx),
-			},
+			{Method: http.MethodPost, Path: "/api/v1/login", Handler: user.LoginHandler(svcCtx)},
+			{Method: http.MethodGet, Path: "/api/v1/worker/logs/stream", Handler: worker.WorkerLogsHandler(svcCtx)},
+			{Method: http.MethodPost, Path: "/api/v1/worker/logs/history", Handler: worker.WorkerLogsHistoryHandler(svcCtx)},
+			{Method: http.MethodPost, Path: "/api/v1/worker/logs/clear", Handler: worker.WorkerLogsClearHandler(svcCtx)},
 		},
 	)
 
-	// 需要认证的路由 - 使用中间件包装
-	authMiddleware := middleware.NewAuthMiddleware(ctx.Config.Auth.AccessSecret)
+	// 需要认证的路由
+	authMiddleware := middleware.NewAuthMiddleware(svcCtx.Config.Auth.AccessSecret)
 	authRoutes := []rest.Route{
 		// 用户管理
-		{Method: "POST", Path: "/api/v1/user/list", Handler: UserListHandler(ctx)},
+		{Method: http.MethodPost, Path: "/api/v1/user/list", Handler: user.UserListHandler(svcCtx)},
+
 		// 工作空间
-		{Method: "POST", Path: "/api/v1/workspace/list", Handler: WorkspaceListHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/workspace/save", Handler: WorkspaceSaveHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/workspace/delete", Handler: WorkspaceDeleteHandler(ctx)},
+		{Method: http.MethodPost, Path: "/api/v1/workspace/list", Handler: workspace.WorkspaceListHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/workspace/save", Handler: workspace.WorkspaceSaveHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/workspace/delete", Handler: workspace.WorkspaceDeleteHandler(svcCtx)},
+
 		// 资产管理
-		{Method: "POST", Path: "/api/v1/asset/list", Handler: AssetListHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/asset/stat", Handler: AssetStatHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/asset/delete", Handler: AssetDeleteHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/asset/batchDelete", Handler: AssetBatchDeleteHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/asset/history", Handler: AssetHistoryHandler(ctx)},
+		{Method: http.MethodPost, Path: "/api/v1/asset/list", Handler: asset.AssetListHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/asset/stat", Handler: asset.AssetStatHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/asset/delete", Handler: asset.AssetDeleteHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/asset/batchDelete", Handler: asset.AssetBatchDeleteHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/asset/history", Handler: asset.AssetHistoryHandler(svcCtx)},
+
 		// 任务管理
-		{Method: "POST", Path: "/api/v1/task/list", Handler: MainTaskListHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/task/create", Handler: MainTaskCreateHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/task/delete", Handler: MainTaskDeleteHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/task/batchDelete", Handler: MainTaskBatchDeleteHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/task/retry", Handler: MainTaskRetryHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/task/start", Handler: MainTaskStartHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/task/pause", Handler: MainTaskPauseHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/task/resume", Handler: MainTaskResumeHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/task/stop", Handler: MainTaskStopHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/task/profile/list", Handler: TaskProfileListHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/task/profile/save", Handler: TaskProfileSaveHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/task/profile/delete", Handler: TaskProfileDeleteHandler(ctx)},
+		{Method: http.MethodPost, Path: "/api/v1/task/list", Handler: task.MainTaskListHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/task/create", Handler: task.MainTaskCreateHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/task/delete", Handler: task.MainTaskDeleteHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/task/batchDelete", Handler: task.MainTaskBatchDeleteHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/task/retry", Handler: task.MainTaskRetryHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/task/start", Handler: task.MainTaskStartHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/task/pause", Handler: task.MainTaskPauseHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/task/resume", Handler: task.MainTaskResumeHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/task/stop", Handler: task.MainTaskStopHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/task/profile/list", Handler: task.TaskProfileListHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/task/profile/save", Handler: task.TaskProfileSaveHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/task/profile/delete", Handler: task.TaskProfileDeleteHandler(svcCtx)},
+
 		// 漏洞管理
-		{Method: "POST", Path: "/api/v1/vul/list", Handler: VulListHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/vul/delete", Handler: VulDeleteHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/vul/batchDelete", Handler: VulBatchDeleteHandler(ctx)},
+		{Method: http.MethodPost, Path: "/api/v1/vul/list", Handler: vul.VulListHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/vul/delete", Handler: vul.VulDeleteHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/vul/batchDelete", Handler: vul.VulBatchDeleteHandler(svcCtx)},
+
 		// Worker管理
-		{Method: "POST", Path: "/api/v1/worker/list", Handler: WorkerListHandler(ctx)},
+		{Method: http.MethodPost, Path: "/api/v1/worker/list", Handler: worker.WorkerListHandler(svcCtx)},
+
 		// 在线API搜索
-		{Method: "POST", Path: "/api/v1/onlineapi/search", Handler: OnlineSearchHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/onlineapi/import", Handler: OnlineImportHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/onlineapi/config/list", Handler: APIConfigListHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/onlineapi/config/save", Handler: APIConfigSaveHandler(ctx)},
+		{Method: http.MethodPost, Path: "/api/v1/onlineapi/search", Handler: onlineapi.OnlineSearchHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/onlineapi/import", Handler: onlineapi.OnlineImportHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/onlineapi/config/list", Handler: onlineapi.APIConfigListHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/onlineapi/config/save", Handler: onlineapi.APIConfigSaveHandler(svcCtx)},
+
 		// POC标签映射
-		{Method: "POST", Path: "/api/v1/poc/tagmapping/list", Handler: TagMappingListHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/poc/tagmapping/save", Handler: TagMappingSaveHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/poc/tagmapping/delete", Handler: TagMappingDeleteHandler(ctx)},
+		{Method: http.MethodPost, Path: "/api/v1/poc/tagmapping/list", Handler: poc.TagMappingListHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/poc/tagmapping/save", Handler: poc.TagMappingSaveHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/poc/tagmapping/delete", Handler: poc.TagMappingDeleteHandler(svcCtx)},
+
 		// 自定义POC
-		{Method: "POST", Path: "/api/v1/poc/custom/list", Handler: CustomPocListHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/poc/custom/save", Handler: CustomPocSaveHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/poc/custom/delete", Handler: CustomPocDeleteHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/poc/custom/batchImport", Handler: CustomPocBatchImportHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/poc/custom/clearAll", Handler: CustomPocClearAllHandler(ctx)},
+		{Method: http.MethodPost, Path: "/api/v1/poc/custom/list", Handler: poc.CustomPocListHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/poc/custom/save", Handler: poc.CustomPocSaveHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/poc/custom/delete", Handler: poc.CustomPocDeleteHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/poc/custom/batchImport", Handler: poc.CustomPocBatchImportHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/poc/custom/clearAll", Handler: poc.CustomPocClearAllHandler(svcCtx)},
+
 		// Nuclei默认模板
-		{Method: "POST", Path: "/api/v1/poc/nuclei/templates", Handler: NucleiTemplateListHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/poc/nuclei/categories", Handler: NucleiTemplateCategoriesHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/poc/nuclei/sync", Handler: NucleiTemplateSyncHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/poc/nuclei/updateEnabled", Handler: NucleiTemplateUpdateEnabledHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/poc/nuclei/detail", Handler: NucleiTemplateDetailHandler(ctx)},
+		{Method: http.MethodPost, Path: "/api/v1/poc/nuclei/templates", Handler: poc.NucleiTemplateListHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/poc/nuclei/categories", Handler: poc.NucleiTemplateCategoriesHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/poc/nuclei/sync", Handler: poc.NucleiTemplateSyncHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/poc/nuclei/updateEnabled", Handler: poc.NucleiTemplateUpdateEnabledHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/poc/nuclei/detail", Handler: poc.NucleiTemplateDetailHandler(svcCtx)},
+
 		// 指纹管理
-		{Method: "POST", Path: "/api/v1/fingerprint/list", Handler: FingerprintListHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/fingerprint/save", Handler: FingerprintSaveHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/fingerprint/delete", Handler: FingerprintDeleteHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/fingerprint/categories", Handler: FingerprintCategoriesHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/fingerprint/sync", Handler: FingerprintSyncHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/fingerprint/updateEnabled", Handler: FingerprintUpdateEnabledHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/fingerprint/import", Handler: FingerprintImportHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/fingerprint/importFromFile", Handler: FingerprintImportFromFileHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/fingerprint/clearCustom", Handler: FingerprintClearCustomHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/fingerprint/validate", Handler: FingerprintValidateHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/fingerprint/batchValidate", Handler: FingerprintBatchValidateHandler(ctx)},
+		{Method: http.MethodPost, Path: "/api/v1/fingerprint/list", Handler: fingerprint.FingerprintListHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/fingerprint/save", Handler: fingerprint.FingerprintSaveHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/fingerprint/delete", Handler: fingerprint.FingerprintDeleteHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/fingerprint/categories", Handler: fingerprint.FingerprintCategoriesHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/fingerprint/sync", Handler: fingerprint.FingerprintSyncHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/fingerprint/updateEnabled", Handler: fingerprint.FingerprintUpdateEnabledHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/fingerprint/import", Handler: fingerprint.FingerprintImportHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/fingerprint/importFromFile", Handler: fingerprint.FingerprintImportFromFileHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/fingerprint/clearCustom", Handler: fingerprint.FingerprintClearCustomHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/fingerprint/validate", Handler: fingerprint.FingerprintValidateHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/fingerprint/batchValidate", Handler: fingerprint.FingerprintBatchValidateHandler(svcCtx)},
+
 		// POC验证
-		{Method: "POST", Path: "/api/v1/poc/custom/validate", Handler: PocValidateHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/poc/batchValidate", Handler: PocBatchValidateHandler(ctx)},
-		{Method: "POST", Path: "/api/v1/poc/queryResult", Handler: PocValidationResultQueryHandler(ctx)},
+		{Method: http.MethodPost, Path: "/api/v1/poc/custom/validate", Handler: poc.PocValidateHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/poc/batchValidate", Handler: poc.PocBatchValidateHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/poc/queryResult", Handler: poc.PocValidationResultQueryHandler(svcCtx)},
+
+		// HTTP服务映射
+		{Method: http.MethodPost, Path: "/api/v1/fingerprint/httpservice/list", Handler: fingerprint.HttpServiceMappingListHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/fingerprint/httpservice/save", Handler: fingerprint.HttpServiceMappingSaveHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/fingerprint/httpservice/delete", Handler: fingerprint.HttpServiceMappingDeleteHandler(svcCtx)},
+
+		// 报告管理
+		{Method: http.MethodPost, Path: "/api/v1/report/detail", Handler: report.ReportDetailHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/report/export", Handler: report.ReportExportHandler(svcCtx)},
 	}
 
 	// 为每个路由包装认证中间件

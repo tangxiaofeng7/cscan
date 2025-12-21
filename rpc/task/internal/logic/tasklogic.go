@@ -326,6 +326,7 @@ func convertPbAssetToModel(pb *pb.AssetDocument, taskId string) *model.Asset {
 		IsCDN:      pb.IsCdn,
 		CName:      pb.Cname,
 		IsCloud:    pb.IsCloud,
+		IsHTTP:     pb.IsHttp,
 		TaskId:     taskId,
 	}
 
@@ -352,6 +353,7 @@ func buildAssetUpdate(doc *model.Asset) bson.M {
 		"update_time": time.Now(),
 		"new":         false,
 		"update":      true,
+		"is_http":     doc.IsHTTP,
 	}
 	if doc.Service != "" {
 		update["service"] = doc.Service
@@ -914,9 +916,7 @@ func (e *SingleFingerprintEngine) MatchWithDetails(data *FingerprintData) (bool,
 	return matchWappalyzerRulesWithDetails(fp, data)
 }
 
-// ==================== ARL规则匹配 ====================
-
-// matchRuleWithDetails 匹配ARL格式规则并返回匹配的条件
+// matchRuleWithDetails 匹配自定义格式规则并返回匹配的条件
 func matchRuleWithDetails(rule string, data *FingerprintData) (bool, []string) {
 	rule = strings.TrimSpace(rule)
 	if rule == "" {
@@ -2163,5 +2163,47 @@ func (l *TaskLogic) GetTemplatesByIds(in *pb.GetTemplatesByIdsReq) (*pb.GetTempl
 		Message:   "success",
 		Templates: templates,
 		Count:     int32(len(templates)),
+	}, nil
+}
+
+// GetHttpServiceMappings 获取HTTP服务映射
+func (l *TaskLogic) GetHttpServiceMappings(in *pb.GetHttpServiceMappingsReq) (*pb.GetHttpServiceMappingsResp, error) {
+	l.Logger.Infof("GetHttpServiceMappings: enabledOnly=%v", in.EnabledOnly)
+
+	var docs []model.HttpServiceMapping
+	var err error
+
+	if in.EnabledOnly {
+		docs, err = l.svcCtx.HttpServiceMappingModel.FindEnabled(l.ctx)
+	} else {
+		docs, err = l.svcCtx.HttpServiceMappingModel.FindAll(l.ctx)
+	}
+
+	if err != nil {
+		l.Logger.Errorf("Failed to get http service mappings: %v", err)
+		return &pb.GetHttpServiceMappingsResp{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
+	var pbMappings []*pb.HttpServiceMappingDocument
+	for _, doc := range docs {
+		pbMappings = append(pbMappings, &pb.HttpServiceMappingDocument{
+			Id:          doc.Id.Hex(),
+			ServiceName: doc.ServiceName,
+			IsHttp:      doc.IsHttp,
+			Description: doc.Description,
+			Enabled:     doc.Enabled,
+		})
+	}
+
+	l.Logger.Infof("Found %d http service mappings", len(pbMappings))
+
+	return &pb.GetHttpServiceMappingsResp{
+		Success:  true,
+		Message:  "success",
+		Mappings: pbMappings,
+		Count:    int32(len(pbMappings)),
 	}, nil
 }

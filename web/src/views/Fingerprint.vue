@@ -130,12 +130,6 @@
           </p>
           <!-- 筛选条件 -->
           <el-form :inline="true" class="filter-form">
-            <el-form-item label="来源">
-              <el-select v-model="customFilter.source" placeholder="全部来源" clearable style="width: 120px" @change="loadCustomFingerprints">
-                <el-option label="ARL导入" value="arl" />
-                <el-option label="手动添加" value="custom" />
-              </el-select>
-            </el-form-item>
             <el-form-item label="搜索">
               <el-input v-model="customFilter.keyword" placeholder="应用名称或ID" clearable style="width: 200px" @keyup.enter="loadCustomFingerprints" />
             </el-form-item>
@@ -153,15 +147,11 @@
               </template>
             </el-table-column>
             <el-table-column prop="name" label="应用名称" width="180" />
-            <el-table-column prop="source" label="来源" width="80">
-              <template #default="{ row }">
-                <el-tag size="small" :type="row.source === 'arl' ? 'warning' : 'info'">{{ row.source || 'custom' }}</el-tag>
-              </template>
-            </el-table-column>
+
             <el-table-column label="匹配规则" min-width="300">
               <template #default="{ row }">
                 <template v-if="row.rule">
-                  <el-tag size="small" type="warning">ARL规则</el-tag>
+                  <el-tag size="small" type="warning">自定义规则</el-tag>
                   <span style="margin-left: 5px; color: #909399; font-size: 12px">{{ truncateRule(row.rule) }}</span>
                 </template>
                 <template v-else>
@@ -196,6 +186,69 @@
             @size-change="loadCustomFingerprints"
             @current-change="loadCustomFingerprints"
           />
+        </el-card>
+      </el-tab-pane>
+
+      <!-- HTTP服务映射 -->
+      <el-tab-pane label="HTTP服务映射" name="httpServiceMapping">
+        <el-card>
+          <template #header>
+            <div class="card-header">
+              <span>HTTP服务映射配置</span>
+              <el-button type="primary" size="small" @click="showHttpServiceMappingForm()">
+                <el-icon><Plus /></el-icon>新增映射
+              </el-button>
+            </div>
+          </template>
+          <p class="tip-text">
+            配置端口扫描识别的 Service 名称与 HTTP/非HTTP 服务的映射关系。指纹识别时会根据此配置判断是否对该端口进行 HTTP 探测。
+            <br/>
+            <span style="color: #e6a23c">注意：每次扫描前会实时从数据库获取最新配置，修改后立即生效。</span>
+          </p>
+          <!-- 筛选条件 -->
+          <el-form :inline="true" class="filter-form">
+            <el-form-item label="类型">
+              <el-select v-model="httpServiceFilter.isHttp" placeholder="全部类型" clearable style="width: 150px" @change="loadHttpServiceMappings">
+                <el-option label="HTTP服务" :value="true" />
+                <el-option label="非HTTP服务" :value="false" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="搜索">
+              <el-input v-model="httpServiceFilter.keyword" placeholder="服务名称" clearable style="width: 180px" @keyup.enter="loadHttpServiceMappings" />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="loadHttpServiceMappings">搜索</el-button>
+            </el-form-item>
+          </el-form>
+          <!-- 统计信息 -->
+          <div class="stats-bar">
+            <el-tag type="success" size="small">HTTP服务: {{ httpServiceStats.httpCount || 0 }}</el-tag>
+            <el-tag type="info" size="small">非HTTP服务: {{ httpServiceStats.nonHttpCount || 0 }}</el-tag>
+            <el-tag size="small">总计: {{ httpServiceStats.total || 0 }}</el-tag>
+          </div>
+          <!-- 映射列表 -->
+          <el-table :data="httpServiceMappings" stripe v-loading="httpServiceLoading">
+            <el-table-column prop="serviceName" label="服务名称" width="180" />
+            <el-table-column prop="isHttp" label="服务类型" width="120">
+              <template #default="{ row }">
+                <el-tag :type="row.isHttp ? 'success' : 'info'" size="small">
+                  {{ row.isHttp ? 'HTTP服务' : '非HTTP服务' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="description" label="描述" min-width="200" />
+            <el-table-column prop="enabled" label="状态" width="80">
+              <template #default="{ row }">
+                <el-switch v-model="row.enabled" @change="handleToggleHttpServiceEnabled(row)" size="small" />
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="120">
+              <template #default="{ row }">
+                <el-button type="primary" link size="small" @click="showHttpServiceMappingForm(row)">编辑</el-button>
+                <el-button type="danger" link size="small" @click="handleDeleteHttpServiceMapping(row)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
         </el-card>
       </el-tab-pane>
     </el-tabs>
@@ -235,7 +288,7 @@
       <div class="rules-container" v-else>
         <!-- ARL格式规则 -->
         <div class="rule-section" v-if="currentFingerprint.rule">
-          <div class="rule-title"><el-tag size="small" type="warning">ARL规则</el-tag> 简化规则语法</div>
+          <div class="rule-title"><el-tag size="small" type="warning">自定义规则</el-tag> 简化规则语法</div>
           <pre class="rule-content">{{ currentFingerprint.rule }}</pre>
           <div class="rule-help">
             <p>语法说明：</p>
@@ -350,7 +403,7 @@
         <el-divider content-position="left">匹配规则</el-divider>
         
         <!-- ARL简化规则 -->
-        <el-form-item label="ARL规则" prop="rule">
+        <el-form-item label="自定义规则" prop="rule">
           <el-input
             v-model="fingerprintForm.rule"
             type="textarea"
@@ -553,6 +606,34 @@
         <el-button type="primary" @click="handleBatchValidate" :loading="batchValidateLoading" :disabled="!batchValidateUrl">开始验证</el-button>
       </template>
     </el-dialog>
+
+    <!-- HTTP服务映射编辑对话框 -->
+    <el-dialog v-model="httpServiceMappingDialogVisible" :title="httpServiceMappingForm.id ? '编辑映射' : '新增映射'" width="500px">
+      <el-form ref="httpServiceMappingFormRef" :model="httpServiceMappingForm" :rules="httpServiceMappingRules" label-width="100px">
+        <el-form-item label="服务名称" prop="serviceName">
+          <el-input v-model="httpServiceMappingForm.serviceName" placeholder="端口扫描识别的服务名称，如: http, ssh, mysql" />
+          <div style="color: #909399; font-size: 12px; margin-top: 4px;">
+            服务名称应与 nmap/masscan 识别的 Service 字段一致（小写）
+          </div>
+        </el-form-item>
+        <el-form-item label="服务类型" prop="isHttp">
+          <el-radio-group v-model="httpServiceMappingForm.isHttp">
+            <el-radio :value="true">HTTP服务（会进行HTTP指纹识别）</el-radio>
+            <el-radio :value="false">非HTTP服务（跳过HTTP探测）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input v-model="httpServiceMappingForm.description" placeholder="可选描述" />
+        </el-form-item>
+        <el-form-item label="启用">
+          <el-switch v-model="httpServiceMappingForm.enabled" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="httpServiceMappingDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSaveHttpServiceMapping">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -560,8 +641,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, ArrowDown, Delete, Upload, Search, Download } from '@element-plus/icons-vue'
-import { getFingerprintList, saveFingerprint, deleteFingerprint, getFingerprintCategories, syncFingerprints, updateFingerprintEnabled, importFingerprints, clearCustomFingerprints, validateFingerprint as validateFingerprintApi, batchValidateFingerprints } from '@/api/fingerprint'
-import JSZip from 'jszip'
+import { getFingerprintList, saveFingerprint, deleteFingerprint, getFingerprintCategories, syncFingerprints, updateFingerprintEnabled, importFingerprints, clearCustomFingerprints, validateFingerprint as validateFingerprintApi, batchValidateFingerprints, getHttpServiceMappingList, saveHttpServiceMapping, deleteHttpServiceMapping } from '@/api/fingerprint'
 import { saveAs } from 'file-saver'
 
 const activeTab = ref('builtin')
@@ -584,7 +664,6 @@ const customFingerprints = ref([])
 const customLoading = ref(false)
 const customFilter = reactive({
   category: '',
-  source: '',
   keyword: ''
 })
 const customPagination = reactive({
@@ -650,6 +729,33 @@ const fingerprintRules = {
   rule: [{ required: true, message: '请输入匹配规则', trigger: 'blur' }]
 }
 
+// HTTP服务映射
+const httpServiceMappings = ref([])
+const httpServiceLoading = ref(false)
+const httpServiceFilter = reactive({
+  isHttp: null,
+  keyword: ''
+})
+const httpServiceStats = ref({
+  total: 0,
+  httpCount: 0,
+  nonHttpCount: 0
+})
+
+// HTTP服务映射编辑对话框
+const httpServiceMappingDialogVisible = ref(false)
+const httpServiceMappingFormRef = ref()
+const httpServiceMappingForm = reactive({
+  id: '',
+  serviceName: '',
+  isHttp: true,
+  description: '',
+  enabled: true
+})
+const httpServiceMappingRules = {
+  serviceName: [{ required: true, message: '请输入服务名称', trigger: 'blur' }]
+}
+
 onMounted(() => {
   loadCategories()
   loadBuiltinFingerprints()
@@ -660,6 +766,8 @@ function handleTabChange(tab) {
     loadBuiltinFingerprints()
   } else if (tab === 'custom' && customFingerprints.value.length === 0) {
     loadCustomFingerprints()
+  } else if (tab === 'httpServiceMapping' && httpServiceMappings.value.length === 0) {
+    loadHttpServiceMappings()
   }
 }
 
@@ -700,7 +808,6 @@ async function loadCustomFingerprints() {
     const res = await getFingerprintList({
       isBuiltin: false,
       category: customFilter.category,
-      source: customFilter.source,
       keyword: customFilter.keyword,
       page: customPagination.page,
       pageSize: customPagination.pageSize
@@ -716,7 +823,6 @@ async function loadCustomFingerprints() {
 
 function resetCustomFilter() {
   customFilter.category = ''
-  customFilter.source = ''
   customFilter.keyword = ''
   customPagination.page = 1
   loadCustomFingerprints()
@@ -1059,25 +1165,25 @@ async function handleClearCustomFingerprints() {
   }
 }
 
-// 导出自定义指纹（每个指纹一个文件，打包成ZIP）
+// 导出自定义指纹（导出为单个yml文件）
 async function handleExportFingerprints() {
   if (customFingerprints.value.length === 0 && customPagination.total === 0) {
     ElMessage.warning('没有可导出的指纹')
     return
   }
-  
+
   exportLoading.value = true
-  
+
   try {
     // 获取所有自定义指纹
     let allFingerprints = []
-    
+
     if (customPagination.total > customFingerprints.value.length) {
       // 需要获取全部数据
-      const res = await getFingerprintList({ 
-        type: 'custom', 
-        page: 1, 
-        pageSize: customPagination.total 
+      const res = await getFingerprintList({
+        type: 'custom',
+        page: 1,
+        pageSize: customPagination.total
       })
       if (res.code === 0) {
         allFingerprints = res.list || []
@@ -1087,51 +1193,24 @@ async function handleExportFingerprints() {
     } else {
       allFingerprints = customFingerprints.value
     }
-    
+
     if (allFingerprints.length === 0) {
       ElMessage.warning('没有可导出的指纹')
       return
     }
-    
-    // 创建ZIP文件
-    const zip = new JSZip()
-    
-    // 每个指纹创建一个单独的YAML文件（ARL finger.yml 兼容格式）
-    for (const fp of allFingerprints) {
-      // 构建导出数据（ARL finger.yml 格式 - 数组格式）
-      const exportData = [{
-        name: fp.name,
-        rule: fp.rule || ''
-      }]
-      
-      // 转换为YAML格式
-      const yamlContent = exportData.map(item => {
-        return `- name: "${item.name}"\n  rule: '${item.rule}'`
-      }).join('\n')
-      
-      // 使用名称作为文件名，清理非法字符
-      const fileName = (fp.name || 'fingerprint')
-        .replace(/[<>:"/\\|?*]/g, '-')
-        .replace(/\s+/g, '_')
-      
-      zip.file(`${fileName}.yml`, yamlContent)
-    }
-    
-    // 同时生成一个合并的文件，方便一次性导入
-    const allExportData = allFingerprints.map(fp => ({
-      name: fp.name,
-      rule: fp.rule || ''
-    }))
-    const allYamlContent = allExportData.map(item => {
-      return `- name: "${item.name}"\n  rule: '${item.rule}'`
-    }).join('\n')
-    zip.file('_all_fingerprints.yml', allYamlContent)
-    
-    // 生成ZIP并下载
-    const content = await zip.generateAsync({ type: 'blob' })
+
+    // 生成YAML内容（ARL finger.yml 兼容格式）
+    const yamlContent = allFingerprints.map(fp => {
+      // 转义规则中的单引号
+      const rule = (fp.rule || '').replace(/'/g, "''")
+      return `- name: "${fp.name}"\n  rule: '${rule}'`
+    }).join('\n\n')
+
+    // 创建Blob并下载
+    const blob = new Blob([yamlContent], { type: 'text/yaml;charset=utf-8' })
     const dateStr = new Date().toISOString().slice(0, 10)
-    saveAs(content, `custom-fingerprints-${dateStr}.zip`)
-    
+    saveAs(blob, `custom-fingerprints-${dateStr}.yml`)
+
     ElMessage.success(`成功导出 ${allFingerprints.length} 个指纹`)
   } catch (e) {
     console.error('Export error:', e)
@@ -1283,6 +1362,103 @@ async function handleBatchValidate() {
     ElMessage.error('验证请求失败: ' + e.message)
   } finally {
     batchValidateLoading.value = false
+  }
+}
+
+// ==================== HTTP服务映射相关方法 ====================
+
+// 加载HTTP服务映射列表
+async function loadHttpServiceMappings() {
+  httpServiceLoading.value = true
+  try {
+    // 构建请求参数，过滤掉 null 值
+    const params = {}
+    if (httpServiceFilter.isHttp !== null && httpServiceFilter.isHttp !== undefined && httpServiceFilter.isHttp !== '') {
+      params.isHttp = httpServiceFilter.isHttp
+    }
+    if (httpServiceFilter.keyword) {
+      params.keyword = httpServiceFilter.keyword
+    }
+    
+    const res = await getHttpServiceMappingList(params)
+    if (res.code === 0) {
+      httpServiceMappings.value = res.list || []
+      // 计算统计信息（基于当前筛选结果）
+      const list = res.list || []
+      httpServiceStats.value = {
+        total: list.length,
+        httpCount: list.filter(item => item.isHttp).length,
+        nonHttpCount: list.filter(item => !item.isHttp).length
+      }
+    }
+  } finally {
+    httpServiceLoading.value = false
+  }
+}
+
+// 显示HTTP服务映射编辑对话框
+function showHttpServiceMappingForm(row = null) {
+  if (row) {
+    Object.assign(httpServiceMappingForm, {
+      id: row.id,
+      serviceName: row.serviceName,
+      isHttp: row.isHttp,
+      description: row.description || '',
+      enabled: row.enabled
+    })
+  } else {
+    Object.assign(httpServiceMappingForm, {
+      id: '',
+      serviceName: '',
+      isHttp: true,
+      description: '',
+      enabled: true
+    })
+  }
+  httpServiceMappingDialogVisible.value = true
+}
+
+// 保存HTTP服务映射
+async function handleSaveHttpServiceMapping() {
+  await httpServiceMappingFormRef.value.validate()
+  const res = await saveHttpServiceMapping(httpServiceMappingForm)
+  if (res.code === 0) {
+    ElMessage.success('保存成功')
+    httpServiceMappingDialogVisible.value = false
+    loadHttpServiceMappings()
+  } else {
+    ElMessage.error(res.msg || '保存失败')
+  }
+}
+
+// 切换HTTP服务映射启用状态
+async function handleToggleHttpServiceEnabled(row) {
+  try {
+    const res = await saveHttpServiceMapping({
+      id: row.id,
+      serviceName: row.serviceName,
+      isHttp: row.isHttp,
+      description: row.description,
+      enabled: row.enabled
+    })
+    if (res.code !== 0) {
+      row.enabled = !row.enabled
+      ElMessage.error(res.msg || '更新失败')
+    }
+  } catch {
+    row.enabled = !row.enabled
+  }
+}
+
+// 删除HTTP服务映射
+async function handleDeleteHttpServiceMapping(row) {
+  await ElMessageBox.confirm('确定删除该映射吗？', '提示', { type: 'warning' })
+  const res = await deleteHttpServiceMapping({ id: row.id })
+  if (res.code === 0) {
+    ElMessage.success('删除成功')
+    loadHttpServiceMappings()
+  } else {
+    ElMessage.error(res.msg || '删除失败')
   }
 }
 </script>

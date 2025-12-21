@@ -1,0 +1,26 @@
+id: poc-yaml-spark-api-unauth
+
+info:
+  name: poc-yaml-spark-api-unauth
+  author: betta(https://github.com/betta-cyber)
+  severity: high
+  tags: xray-converted,unauth,ct-158705
+  reference:
+    - https://xz.aliyun.com/t/2490
+
+http:
+  - raw:
+      - |
+        GET /v1/submissions HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 400
+      - type: word
+        part: body
+        words:
+          - "Missing an action"
+          - "serverSparkVersion"

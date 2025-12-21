@@ -1,0 +1,39 @@
+id: poc-yaml-elasticsearch-unauthorized-access
+
+info:
+  name: poc-yaml-elasticsearch-unauthorized-access
+  author: xray-converter
+  severity: high
+  tags: xray-converted,unauth,ct-157803
+  reference:
+    - https://xz.aliyun.com/t/2320
+
+http:
+  - raw:
+      - |
+        GET / HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "You Know, for Search"
+  - raw:
+      - |
+        GET /_count HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - ":\\d+"

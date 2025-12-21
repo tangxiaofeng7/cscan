@@ -213,6 +213,16 @@ func (m *CustomPocModel) FindById(ctx context.Context, id string) (*CustomPoc, e
 	return &doc, err
 }
 
+// FindByTemplateId 根据模板ID查找自定义POC
+func (m *CustomPocModel) FindByTemplateId(ctx context.Context, templateId string) (*CustomPoc, error) {
+	var doc CustomPoc
+	err := m.coll.FindOne(ctx, bson.M{"template_id": templateId}).Decode(&doc)
+	if err != nil {
+		return nil, err
+	}
+	return &doc, nil
+}
+
 func (m *CustomPocModel) Count(ctx context.Context) (int64, error) {
 	return m.coll.CountDocuments(ctx, bson.M{})
 }

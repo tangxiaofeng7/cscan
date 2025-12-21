@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/zeromicro/go-zero/core/stores/redis"
 	"github.com/zeromicro/go-zero/rest"
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -15,9 +16,6 @@ type Config struct {
 		Uri    string
 		DbName string
 	}
-	Redis struct {
-		Host string
-		Pass string
-	}
+	Redis   redis.RedisConf
 	TaskRpc zrpc.RpcClientConf
 }

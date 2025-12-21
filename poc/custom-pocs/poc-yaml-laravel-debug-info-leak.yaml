@@ -1,0 +1,28 @@
+id: poc-yaml-laravel-debug-info-leak
+
+info:
+  name: poc-yaml-laravel-debug-info-leak
+  author: Dem0ns (https://github.com/dem0ns)
+  severity: medium
+  tags: xray-converted,exposure,ct-158642
+  reference:
+    - https://github.com/dem0ns/improper/tree/master/laravel/5_debug
+
+http:
+  - raw:
+      - |
+        POST / HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 405
+      - type: word
+        part: body
+        words:
+          - "MethodNotAllowedHttpException"
+          - "Environment &amp; details"
+          - "vendor\\laravel\\framework\\src\\Illuminate\\Routing\\RouteCollection.php"
+          - "vendor/laravel/framework/src/Illuminate/Routing/RouteCollection.php"

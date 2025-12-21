@@ -2,9 +2,10 @@ package svc
 
 import (
 	"context"
+	"time"
+
 	"cscan/model"
 	"cscan/rpc/task/internal/config"
-	"time"
 
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -12,13 +13,14 @@ import (
 )
 
 type ServiceContext struct {
-	Config              config.Config
-	MongoClient         *mongo.Client
-	MongoDB             *mongo.Database
-	RedisClient         *redis.Client
-	NucleiTemplateModel *model.NucleiTemplateModel
-	FingerprintModel    *model.FingerprintModel
-	CustomPocModel      *model.CustomPocModel
+	Config                  config.Config
+	MongoClient             *mongo.Client
+	MongoDB                 *mongo.Database
+	RedisClient             *redis.Client
+	NucleiTemplateModel     *model.NucleiTemplateModel
+	FingerprintModel        *model.FingerprintModel
+	CustomPocModel          *model.CustomPocModel
+	HttpServiceMappingModel *model.HttpServiceMappingModel
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -32,6 +34,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 
 	mongoDB := mongoClient.Database(c.Mongo.DbName)
 
+	// 使用go-zero Redis配置
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     c.RedisConf.Host,
 		Password: c.RedisConf.Pass,
@@ -39,13 +42,14 @@ func NewServiceContext(c config.Config) *ServiceContext {
 	})
 
 	return &ServiceContext{
-		Config:              c,
-		MongoClient:         mongoClient,
-		MongoDB:             mongoDB,
-		RedisClient:         rdb,
-		NucleiTemplateModel: model.NewNucleiTemplateModel(mongoDB),
-		FingerprintModel:    model.NewFingerprintModel(mongoDB),
-		CustomPocModel:      model.NewCustomPocModel(mongoDB),
+		Config:                  c,
+		MongoClient:             mongoClient,
+		MongoDB:                 mongoDB,
+		RedisClient:             rdb,
+		NucleiTemplateModel:     model.NewNucleiTemplateModel(mongoDB),
+		FingerprintModel:        model.NewFingerprintModel(mongoDB),
+		CustomPocModel:          model.NewCustomPocModel(mongoDB),
+		HttpServiceMappingModel: model.NewHttpServiceMappingModel(mongoDB),
 	}
 }
 

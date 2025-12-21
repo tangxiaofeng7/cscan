@@ -71,7 +71,7 @@ type FingerprintOptions struct {
 	Screenshot   bool `json:"screenshot"`
 	IconHash     bool `json:"iconHash"`
 	Wappalyzer   bool `json:"wappalyzer"`
-	CustomEngine bool `json:"customEngine"` // 使用自定义指纹引擎（ARL格式）
+	CustomEngine bool `json:"customEngine"` // 使用自定义指纹引擎
 	Timeout      int  `json:"timeout"`
 	Concurrency  int  `json:"concurrency"`
 }
@@ -177,9 +177,22 @@ func filterHttpAssets(assets []*Asset) []*Asset {
 func isHttpAsset(asset *Asset) bool {
 	// 1. 优先根据Service字段判断（端口扫描阶段已识别）
 	service := strings.ToLower(asset.Service)
-	if service == "http" || service == "https" || service == "http-proxy" || 
-	   service == "https-alt" || service == "http-alt" || service == "ajp12" || service == "esmagent" {
-		return true
+	
+	// 使用全局HTTP服务检查器（如果已设置）
+	if globalHttpServiceChecker != nil {
+		isHttp, found := globalHttpServiceChecker.IsHttpService(service)
+		if found {
+			return isHttp
+		}
+	} else {
+		// 回退到默认的HTTP服务列表
+		defaultHttpServices := map[string]bool{
+			"http": true, "https": true, "http-proxy": true,
+			"https-alt": true, "http-alt": true, "ajp12": true, "esmagent": true,
+		}
+		if defaultHttpServices[service] {
+			return true
+		}
 	}
 	
 	// 2. 明确的非HTTP服务，直接排除
@@ -191,7 +204,14 @@ func isHttpAsset(asset *Asset) bool {
 		"rdp": true, "vnc": true, "telnet": true, "rpc": true,
 		"ntp": true, "tftp": true, "sip": true, "rtsp": true,
 	}
-	if nonHttpServices[service] {
+	
+	// 使用全局检查器判断非HTTP服务
+	if globalHttpServiceChecker != nil {
+		isHttp, found := globalHttpServiceChecker.IsHttpService(service)
+		if found && !isHttp {
+			return false
+		}
+	} else if nonHttpServices[service] {
 		return false
 	}
 	
@@ -219,6 +239,19 @@ func isHttpAsset(asset *Asset) bool {
 	}
 	
 	return false
+}
+
+// HttpServiceChecker HTTP服务检查器接口
+type HttpServiceChecker interface {
+	IsHttpService(serviceName string) (isHttp bool, found bool)
+}
+
+// 全局HTTP服务检查器
+var globalHttpServiceChecker HttpServiceChecker
+
+// SetHttpServiceChecker 设置全局HTTP服务检查器
+func SetHttpServiceChecker(checker HttpServiceChecker) {
+	globalHttpServiceChecker = checker
 }
 
 // runAdditionalFingerprint 执行额外的指纹识别功能（httpx已执行后）
@@ -721,20 +754,8 @@ func (s *FingerprintScanner) runHttpx(ctx context.Context, assets []*Asset, opts
 			if asset.HttpHeader == "" && len(result.ResponseHeader) > 0 {
 				asset.HttpHeader = formatHttpxHeaders(result.ResponseHeader)
 			}
-			// 填充HttpBody字段（限制大小为50KB）
-			// httpx -irr 输出的字段名是 "body"
+			// 填充HttpBody字段
 			bodyContent := result.ResponseBody
-			// logx.Infof("httpx识别到的bodyContent:\n %s",bodyContent)
-			// if bodyContent == "" {
-			// 	bodyContent = result.Response
-			// }
-			// if bodyContent != "" {
-			// 	if len(bodyContent) > 50*1024 {
-			// 		asset.HttpBody = bodyContent[:50*1024] + "\n...[truncated]"
-			// 	} else {
-			// 		asset.HttpBody = bodyContent
-			// 	}
-			// }
 			asset.HttpBody = bodyContent
 			logx.Debugf("Matched httpx result for %s: title=%s, status=%d", key, result.Title, result.StatusCode)
 		}
@@ -766,7 +787,6 @@ func checkHttpxInstalled() bool {
 	cmd := exec.Command("httpx", "-version")
 	output, _ := cmd.CombinedOutput()
 	return strings.Contains(string(output), "Version")
-	// return strings.Contains(string(output), "httpx")
 }
 
 
@@ -820,9 +840,8 @@ func (s *FingerprintScanner) getIconHash(baseUrl string) string {
 	return ""
 }
 
-// calculateIconHash 计算icon hash (兼容Shodan的MMH3算法简化版)
+// calculateIconHash 计算icon hash
 func calculateIconHash(data []byte) string {
-	// 使用MD5计算hash
 	sum := md5.Sum(data)
 	return hex.EncodeToString(sum[:])
 }
@@ -833,15 +852,21 @@ func (s *FingerprintScanner) takeScreenshot(ctx context.Context, targetUrl strin
 	screenshotCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	// 配置chromedp选项
+	// 配置chromedp选项，支持 Docker 环境中的 Chromium
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Flag("headless", true),
 		chromedp.Flag("disable-gpu", true),
 		chromedp.Flag("no-sandbox", true),
 		chromedp.Flag("disable-dev-shm-usage", true),
 		chromedp.Flag("ignore-certificate-errors", true),
+		chromedp.Flag("disable-software-rasterizer", true),
 		chromedp.WindowSize(1920, 1080),
 	)
+
+	// 检查环境变量中是否指定了 Chrome 路径
+	if chromePath := os.Getenv("CHROME_BIN"); chromePath != "" {
+		opts = append(opts, chromedp.ExecPath(chromePath))
+	}
 
 	allocCtx, allocCancel := chromedp.NewExecAllocator(screenshotCtx, opts...)
 	defer allocCancel()
@@ -852,7 +877,7 @@ func (s *FingerprintScanner) takeScreenshot(ctx context.Context, targetUrl strin
 	var buf []byte
 	err := chromedp.Run(taskCtx,
 		chromedp.Navigate(targetUrl),
-		chromedp.Sleep(2*time.Second), // 等待页面加载
+		chromedp.Sleep(2*time.Second),
 		chromedp.FullScreenshot(&buf, 90),
 	)
 

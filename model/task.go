@@ -74,8 +74,19 @@ type MainTaskModel struct {
 }
 
 func NewMainTaskModel(db *mongo.Database, workspaceId string) *MainTaskModel {
+	coll := db.Collection(workspaceId + "_maintask")
+
+	// 创建索引
+	ctx := context.Background()
+	indexes := []mongo.IndexModel{
+		{Keys: bson.D{{Key: "task_id", Value: 1}}, Options: options.Index().SetUnique(true)},
+		{Keys: bson.D{{Key: "status", Value: 1}}},
+		{Keys: bson.D{{Key: "create_time", Value: -1}}},
+	}
+	coll.Indexes().CreateMany(ctx, indexes)
+
 	return &MainTaskModel{
-		coll: db.Collection(workspaceId + "_maintask"),
+		coll: coll,
 	}
 }
 

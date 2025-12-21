@@ -1,0 +1,21 @@
+id: poc-yaml-e-office-welink-upload
+
+info:
+  name: poc-yaml-e-office-welink-upload
+  author: Chaitin
+  severity: medium
+  tags: xray-converted,fileupload
+  reference:
+    - https://stack.chaitin.com/techblog/detail/158
+
+http:
+  - raw:
+      - |
+        POST /eoffice10/server/public/api/welink/welink-move HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

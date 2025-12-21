@@ -11,7 +11,7 @@
       <el-switch
         v-model="autoRefresh"
         style="margin-left: 20px"
-        active-text="自动刷新(间隔3秒)"
+        active-text="自动刷新(间隔30秒)"
         inactive-text=""
         @change="handleAutoRefreshChange"
       />
@@ -46,7 +46,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="160" />
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="320" fixed="right">
           <template #default="{ row }">
             <!-- 启动按钮：仅CREATED状态显示 -->
             <el-button v-if="row.status === 'CREATED'" type="success" link size="small" @click="handleStart(row)">启动</el-button>
@@ -57,6 +57,7 @@
             <!-- 停止按钮：STARTED/PAUSED/PENDING状态显示 -->
             <el-button v-if="['STARTED', 'PAUSED', 'PENDING'].includes(row.status)" type="danger" link size="small" @click="handleStop(row)">停止</el-button>
             <el-button type="primary" link size="small" @click="showDetail(row)">详情</el-button>
+            <el-button type="info" link size="small" @click="viewReport(row)">报告</el-button>
             <el-button 
               v-if="['SUCCESS', 'FAILURE', 'STOPPED'].includes(row.status)" 
               type="warning" 
@@ -156,10 +157,10 @@
         </el-form-item>
         <el-form-item v-if="profileForm.portscanEnable" label="扫描工具">
           <el-radio-group v-model="profileForm.portscanTool">
-            <el-radio label="tcp">TCP扫描(默认)</el-radio>
+            <el-radio label="naabu">Naabu (推荐)</el-radio>
             <el-radio label="masscan">Masscan</el-radio>
-            <el-radio label="nmap">Nmap</el-radio>
           </el-radio-group>
+          <span style="margin-left: 10px; color: #909399; font-size: 12px">不支持域名</span>
         </el-form-item>
         <el-form-item v-if="profileForm.portscanEnable" label="端口范围">
           <el-select v-model="profileForm.ports" filterable allow-create default-first-option placeholder="选择或输入端口" style="width: 100%">
@@ -172,7 +173,7 @@
         </el-form-item>
         <el-form-item v-if="profileForm.portscanEnable" label="扫描速率">
           <el-input-number v-model="profileForm.portscanRate" :min="100" :max="100000" :step="100" />
-          <span style="margin-left: 10px; color: #909399; font-size: 12px">包/秒 (仅masscan有效)</span>
+          <span style="margin-left: 10px; color: #909399; font-size: 12px">包/秒</span>
         </el-form-item>
         <el-form-item v-if="profileForm.portscanEnable" label="端口阈值">
           <el-input-number v-model="profileForm.portThreshold" :min="0" :max="65535" :step="10" />
@@ -290,11 +291,13 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Setting, Delete } from '@element-plus/icons-vue'
 import { getTaskList, createTask, deleteTask, batchDeleteTask, getTaskProfileList, saveTaskProfile, deleteTaskProfile, retryTask, startTask, pauseTask, resumeTask, stopTask } from '@/api/task'
 import { useWorkspaceStore } from '@/stores/workspace'
 
+const router = useRouter()
 const workspaceStore = useWorkspaceStore()
 const loading = ref(false)
 const submitting = ref(false)
@@ -316,7 +319,7 @@ const profileForm = reactive({
   name: '',
   description: '',
   portscanEnable: true,
-  portscanTool: 'tcp',
+  portscanTool: 'naabu',
   portscanRate: 1000,
   ports: '80,443,8080',
   portThreshold: 100,
@@ -392,7 +395,7 @@ function startAutoRefresh() {
   stopAutoRefresh()
   refreshTimer = setInterval(() => {
     loadData()
-  }, 3000)
+  }, 30000)
 }
 
 function stopAutoRefresh() {
@@ -476,7 +479,7 @@ function showProfileForm(row = null) {
       name: row.name,
       description: row.description,
       portscanEnable: config.portscan?.enable ?? true,
-      portscanTool: config.portscan?.tool || 'tcp',
+      portscanTool: config.portscan?.tool || 'naabu',
       portscanRate: config.portscan?.rate || 1000,
       ports: config.portscan?.ports || '80,443,8080',
       portThreshold: config.portscan?.portThreshold || 100,
@@ -498,7 +501,7 @@ function showProfileForm(row = null) {
       name: '',
       description: '',
       portscanEnable: true,
-      portscanTool: 'tcp',
+      portscanTool: 'naabu',
       portscanRate: 1000,
       ports: '80,443,8080',
       portThreshold: 100,
@@ -667,6 +670,10 @@ async function handleStop(row) {
   } else {
     ElMessage.error(res.msg)
   }
+}
+
+function viewReport(row) {
+  router.push({ path: '/report', query: { taskId: row.id } })
 }
 </script>
 

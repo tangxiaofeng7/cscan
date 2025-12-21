@@ -1,36 +1,8 @@
-# 依赖目录
 web/node_modules/
-vendor/
-
-# 构建产物
 web/dist/
 *.exe
-*.dll
-*.so
-*.dylib
-
-# IDE
 .idea/
 .vscode/
-*.swp
-*.swo
-
-# 日志
-*.log
 output/
-
-# 环境配置
-.env
-.env.local
-
-# 系统文件
 .DS_Store
-Thumbs.db
-
-# 测试
-*.test
-coverage.out
-
-# 临时文件
-tmp/
-temp/
+.gitignore

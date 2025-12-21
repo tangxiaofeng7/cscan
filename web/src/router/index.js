@@ -69,6 +69,12 @@ const routes = [
         meta: { title: '指纹管理', icon: 'Stamp' }
       },
       {
+        path: 'report',
+        name: 'Report',
+        component: () => import('@/views/Report.vue'),
+        meta: { title: '扫描报告', icon: 'Document', hidden: true }
+      },
+      {
         path: 'user',
         name: 'User',
         component: () => import('@/views/User.vue'),

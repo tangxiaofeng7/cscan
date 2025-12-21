@@ -189,12 +189,20 @@ func (s *NucleiScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResu
 	return result, nil
 }
 
-// prepareTargets 准备目标URL列表
+// prepareTargets 准备目标URL列表（跳过非HTTP资产）
 func (s *NucleiScanner) prepareTargets(assets []*Asset) []string {
 	targets := make([]string, 0, len(assets))
 	seen := make(map[string]bool)
+	skipped := 0
 
 	for _, asset := range assets {
+		// 使用 IsHTTP 字段判断（端口扫描阶段已设置）
+		if !asset.IsHTTP {
+			skipped++
+			logx.Debugf("Skipping non-HTTP asset: %s:%d (service: %s, isHttp: %v)", asset.Host, asset.Port, asset.Service, asset.IsHTTP)
+			continue
+		}
+
 		scheme := "http"
 		if asset.Service == "https" || asset.Port == 443 || asset.Port == 8443 {
 			scheme = "https"
@@ -206,6 +214,10 @@ func (s *NucleiScanner) prepareTargets(assets []*Asset) []string {
 			seen[target] = true
 			targets = append(targets, target)
 		}
+	}
+
+	if skipped > 0 {
+		logx.Infof("Nuclei: skipped %d non-HTTP assets, scanning %d HTTP targets", skipped, len(targets))
 	}
 
 	return targets

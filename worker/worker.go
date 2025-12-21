@@ -105,6 +105,9 @@ func NewWorker(config WorkerConfig) (*Worker, error) {
 	// 注册扫描器
 	w.registerScanners()
 
+	// 加载HTTP服务映射配置
+	w.loadHttpServiceMappings()
+
 	return w, nil
 }
 
@@ -113,6 +116,7 @@ func (w *Worker) registerScanners() {
 	w.scanners["portscan"] = scanner.NewPortScanner()
 	w.scanners["masscan"] = scanner.NewMasscanScanner()
 	w.scanners["nmap"] = scanner.NewNmapScanner()
+	w.scanners["naabu"] = scanner.NewNaabuScanner()
 	w.scanners["domainscan"] = scanner.NewDomainScanner()
 	w.scanners["fingerprint"] = scanner.NewFingerprintScanner()
 	w.scanners["nuclei"] = scanner.NewNucleiScanner()
@@ -140,6 +144,12 @@ func (w *Worker) Start() {
 	w.wg.Add(1)
 	go w.keepAlive()
 
+	// 启动状态查询订阅协程
+	if w.redisClient != nil {
+		w.wg.Add(1)
+		go w.subscribeStatusQuery()
+	}
+
 	logx.Infof("Worker %s started with %d workers", w.config.Name, w.config.Concurrency)
 }
 
@@ -148,8 +158,8 @@ func (w *Worker) fetchTasks() {
 	defer w.wg.Done()
 
 	emptyCount := 0
-	baseInterval := 3 * time.Second
-	maxInterval := 30 * time.Second
+	baseInterval := 1 * time.Second  // 基础间隔改为1秒
+	maxInterval := 5 * time.Second   // 最大间隔改为5秒，确保任务能在5秒内被拉取
 
 	for {
 		select {
@@ -162,7 +172,7 @@ func (w *Worker) fetchTasks() {
 				time.Sleep(100 * time.Millisecond) // 有任务时快速拉取
 			} else {
 				emptyCount++
-				// 没有任务时逐渐增加等待时间，最多30秒
+				// 没有任务时逐渐增加等待时间，最多5秒
 				interval := baseInterval * time.Duration(emptyCount)
 				if interval > maxInterval {
 					interval = maxInterval
@@ -355,40 +365,115 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			return
 		}
 
-		// 根据配置选择扫描工具
-		scannerName := "portscan" // 默认TCP扫描
+		// 根据配置选择端口发现工具（默认使用Naabu）
+		portDiscoveryTool := "naabu"
 		if config.PortScan != nil && config.PortScan.Tool != "" {
-			switch config.PortScan.Tool {
-			case "masscan":
-				scannerName = "masscan"
-			case "nmap":
-				scannerName = "nmap"
-			default:
-				scannerName = "portscan"
-			}
+			portDiscoveryTool = config.PortScan.Tool
 		}
 
-		if s, ok := w.scanners[scannerName]; ok {
-			logx.Infof("Running %s port scan on target: %s", scannerName, target)
-			result, err := s.Scan(ctx, &scanner.ScanConfig{
+		var openPorts []*scanner.Asset
+		
+		// 第一步：端口发现（Naabu 或 Masscan）
+		switch portDiscoveryTool {
+		case "masscan":
+			logx.Infof("Phase 1: Running Masscan for fast port discovery on target: %s", target)
+			masscanScanner := w.scanners["masscan"]
+			masscanResult, err := masscanScanner.Scan(ctx, &scanner.ScanConfig{
 				Target:  target,
 				Options: config.PortScan,
 			})
 			if err != nil {
-				logx.Errorf("Port scan error: %v", err)
-			} else if result != nil {
-				// 应用端口阈值过滤
-				filteredAssets := filterByPortThreshold(result.Assets, config.PortScan.PortThreshold)
-				allAssets = append(allAssets, filteredAssets...)
-				logx.Infof("Port scan found %d assets (filtered from %d)", len(filteredAssets), len(result.Assets))
-				
-				// 端口扫描完成后立即保存结果，让用户实时看到
-				if len(filteredAssets) > 0 {
-					logx.Infof("Saving port scan results immediately...")
-					w.saveAssetResult(ctx, task.WorkspaceId, task.MainTaskId, filteredAssets)
-				}
+				logx.Errorf("Masscan error: %v", err)
+			}
+			if masscanResult != nil && len(masscanResult.Assets) > 0 {
+				openPorts = filterByPortThreshold(masscanResult.Assets, config.PortScan.PortThreshold)
+				logx.Infof("Masscan found %d open ports (filtered from %d)", len(openPorts), len(masscanResult.Assets))
+			}
+		default: // naabu
+			logx.Infof("Phase 1: Running Naabu for fast port discovery on target: %s", target)
+			naabuScanner := w.scanners["naabu"]
+			naabuResult, err := naabuScanner.Scan(ctx, &scanner.ScanConfig{
+				Target:  target,
+				Options: config.PortScan,
+			})
+			if err != nil {
+				logx.Errorf("Naabu error: %v", err)
+			}
+			if naabuResult != nil && len(naabuResult.Assets) > 0 {
+				openPorts = filterByPortThreshold(naabuResult.Assets, config.PortScan.PortThreshold)
+				logx.Infof("Naabu found %d open ports (filtered from %d)", len(openPorts), len(naabuResult.Assets))
 			}
 		}
+		
+		// 第二步：Nmap 对存活端口进行服务识别
+		if len(openPorts) > 0 {
+			logx.Infof("Phase 2: Running Nmap for service detection on %d open ports", len(openPorts))
+			
+			// 按主机分组端口
+			hostPorts := make(map[string][]int)
+			for _, asset := range openPorts {
+				hostPorts[asset.Host] = append(hostPorts[asset.Host], asset.Port)
+			}
+			
+			nmapScanner := w.scanners["nmap"]
+			for host, ports := range hostPorts {
+				// 构建端口字符串
+				portStrs := make([]string, len(ports))
+				for i, p := range ports {
+					portStrs[i] = fmt.Sprintf("%d", p)
+				}
+				portsStr := strings.Join(portStrs, ",")
+				
+				logx.Infof("Running Nmap on %s with ports: %s", host, portsStr)
+				
+				nmapResult, err := nmapScanner.Scan(ctx, &scanner.ScanConfig{
+					Target: host,
+					Options: &scanner.NmapOptions{
+						Ports:   portsStr,
+						Timeout: config.PortScan.Timeout,
+					},
+				})
+				
+				if err != nil {
+					logx.Errorf("Nmap error for %s: %v", host, err)
+					// Nmap失败时，使用端口发现阶段的结果
+					for _, asset := range openPorts {
+						if asset.Host == host {
+							asset.IsHTTP = scanner.IsHTTPService(asset.Service, asset.Port)
+							allAssets = append(allAssets, asset)
+						}
+					}
+					continue
+				}
+				
+				if nmapResult != nil && len(nmapResult.Assets) > 0 {
+					// 设置 IsHTTP 字段
+					for _, asset := range nmapResult.Assets {
+						asset.IsHTTP = scanner.IsHTTPService(asset.Service, asset.Port)
+					}
+					allAssets = append(allAssets, nmapResult.Assets...)
+				} else {
+					// Nmap没有结果时，使用端口发现阶段的结果
+					for _, asset := range openPorts {
+						if asset.Host == host {
+							asset.IsHTTP = scanner.IsHTTPService(asset.Service, asset.Port)
+							allAssets = append(allAssets, asset)
+						}
+					}
+				}
+			}
+			
+			logx.Infof("Port scan completed: %d assets with service info", len(allAssets))
+			
+			// 端口扫描完成后立即保存结果
+			if len(allAssets) > 0 {
+				logx.Infof("Saving port scan results immediately...")
+				w.saveAssetResult(ctx, task.WorkspaceId, task.MainTaskId, allAssets)
+			}
+		} else {
+			logx.Infof("No open ports found by %s", portDiscoveryTool)
+		}
+		
 		completedPhases["portscan"] = true
 	}
 
@@ -406,6 +491,9 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 	if config.Fingerprint != nil && config.Fingerprint.Enable && len(allAssets) > 0 && !completedPhases["fingerprint"] {
 		if s, ok := w.scanners["fingerprint"]; ok {
 			logx.Infof("Running fingerprint scan on %d assets", len(allAssets))
+			
+			// 每次扫描前实时加载HTTP服务映射配置（类似POC扫描方式）
+			w.loadHttpServiceMappings()
 			
 			// 如果启用自定义指纹引擎，加载自定义指纹
 			if config.Fingerprint.CustomEngine {
@@ -599,6 +687,7 @@ func (w *Worker) saveAssetResult(ctx context.Context, workspaceId, mainTaskId st
 			Screenshot: asset.Screenshot,
 			Server:     asset.Server,
 			Banner:     asset.Banner,
+			IsHttp:     asset.IsHTTP,
 		}
 		pbAssets = append(pbAssets, pbAsset)
 	}
@@ -709,10 +798,18 @@ func (w *Worker) sendHeartbeat() {
 		memUsed = 0.0
 	}
 
+	// 计算正在执行的任务数（已开始但未完成的任务）
+	w.mu.Lock()
+	runningTasks := w.taskStarted - w.taskExecuted
+	if runningTasks < 0 {
+		runningTasks = 0
+	}
+	w.mu.Unlock()
+
 	resp, err := w.rpcClient.KeepAlive(ctx, &pb.KeepAliveReq{
 		WorkerName:         w.config.Name,
-		CpuLoad:            0.5,  // Fixed value for testing
-		MemUsed:            50.0, // Fixed value for testing
+		CpuLoad:            cpuLoad,
+		MemUsed:            memUsed,
 		TaskStartedNumber:  int32(w.taskStarted),
 		TaskExecutedNumber: int32(w.taskExecuted),
 		IsDaemon:           false,
@@ -732,6 +829,80 @@ func (w *Worker) sendHeartbeat() {
 		logx.Info("received reload signal")
 		// 重新加载配置
 	}
+}
+
+// subscribeStatusQuery 订阅状态查询请求
+func (w *Worker) subscribeStatusQuery() {
+	defer w.wg.Done()
+
+	ctx := context.Background()
+	pubsub := w.redisClient.Subscribe(ctx, "cscan:worker:query")
+	defer pubsub.Close()
+
+	ch := pubsub.Channel()
+	logx.Infof("Worker %s subscribed to status query channel", w.config.Name)
+
+	for {
+		select {
+		case <-w.stopChan:
+			return
+		case msg := <-ch:
+			if msg != nil {
+				// 收到查询请求，立即上报状态
+				w.reportStatusToRedis()
+			}
+		}
+	}
+}
+
+// reportStatusToRedis 立即上报状态到Redis
+func (w *Worker) reportStatusToRedis() {
+	if w.redisClient == nil {
+		return
+	}
+
+	ctx := context.Background()
+
+	// 快速获取CPU使用率（不等待1秒）
+	cpuPercent, _ := cpu.Percent(0, false)
+	memInfo, _ := mem.VirtualMemory()
+
+	cpuLoad := 0.0
+	if len(cpuPercent) > 0 {
+		cpuLoad = cpuPercent[0]
+	}
+	memUsed := 0.0
+	if memInfo != nil {
+		memUsed = memInfo.UsedPercent
+	}
+
+	// 确保数值有效
+	if cpuLoad < 0 || cpuLoad > 100 {
+		cpuLoad = 0.0
+	}
+	if memUsed < 0 || memUsed > 100 {
+		memUsed = 0.0
+	}
+
+	w.mu.Lock()
+	taskStarted := w.taskStarted
+	taskExecuted := w.taskExecuted
+	w.mu.Unlock()
+
+	// 保存状态到Redis
+	key := fmt.Sprintf("worker:%s", w.config.Name)
+	status := map[string]interface{}{
+		"workerName":         w.config.Name,
+		"cpuLoad":            cpuLoad,
+		"memUsed":            memUsed,
+		"taskStartedNumber":  taskStarted,
+		"taskExecutedNumber": taskExecuted,
+		"isDaemon":           false,
+		"updateTime":         time.Now().Format("2006-01-02 15:04:05"),
+	}
+
+	data, _ := json.Marshal(status)
+	w.redisClient.Set(ctx, key, data, 10*time.Minute)
 }
 
 // GetWorkerName 获取Worker名称
@@ -1355,4 +1526,65 @@ func (w *Worker) savePocValidationResult(ctx context.Context, taskId, batchId st
 			w.redisClient.Set(ctx, taskInfoKey, updatedInfo, 24*time.Hour)
 		}
 	}
+}
+
+// WorkerHttpServiceChecker Worker端的HTTP服务检查器实现
+type WorkerHttpServiceChecker struct {
+	cache map[string]bool // serviceName -> isHttp
+	mu    sync.RWMutex
+}
+
+// NewWorkerHttpServiceChecker 创建HTTP服务检查器
+func NewWorkerHttpServiceChecker() *WorkerHttpServiceChecker {
+	return &WorkerHttpServiceChecker{
+		cache: make(map[string]bool),
+	}
+}
+
+// IsHttpService 判断服务是否为HTTP服务
+func (c *WorkerHttpServiceChecker) IsHttpService(serviceName string) (isHttp bool, found bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	isHttp, found = c.cache[serviceName]
+	return
+}
+
+// SetMapping 设置服务映射
+func (c *WorkerHttpServiceChecker) SetMapping(serviceName string, isHttp bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cache[serviceName] = isHttp
+}
+
+// loadHttpServiceMappings 从RPC服务加载HTTP服务映射配置
+func (w *Worker) loadHttpServiceMappings() {
+	ctx := context.Background()
+
+	resp, err := w.rpcClient.GetHttpServiceMappings(ctx, &pb.GetHttpServiceMappingsReq{
+		EnabledOnly: true,
+	})
+	if err != nil {
+		logx.Errorf("GetHttpServiceMappings RPC failed: %v, using default mappings", err)
+		return
+	}
+
+	if !resp.Success {
+		logx.Errorf("GetHttpServiceMappings failed: %s, using default mappings", resp.Message)
+		return
+	}
+
+	if len(resp.Mappings) == 0 {
+		logx.Info("No HTTP service mappings found, using default mappings")
+		return
+	}
+
+	// 创建检查器并设置映射
+	checker := NewWorkerHttpServiceChecker()
+	for _, mapping := range resp.Mappings {
+		checker.SetMapping(mapping.ServiceName, mapping.IsHttp)
+	}
+
+	// 设置全局检查器
+	scanner.SetHttpServiceChecker(checker)
+	logx.Infof("Loaded %d HTTP service mappings from database", len(resp.Mappings))
 }

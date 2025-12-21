@@ -3,8 +3,8 @@ FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
-# 安装依赖
-RUN apk add --no-cache git
+# 安装编译依赖（gopacket/pcap 需要 libpcap-dev 和 CGO）
+RUN apk add --no-cache git gcc musl-dev libpcap-dev
 
 # 复制 go.mod 和 go.sum
 COPY go.mod go.sum ./
@@ -13,15 +13,15 @@ RUN go mod download
 # 复制源代码
 COPY . .
 
-# 编译 Worker 服务
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /cscan-worker ./cmd/worker/main.go
+# 编译 Worker 服务（启用 CGO 以支持 libpcap）
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o /cscan-worker ./cmd/worker/main.go
 
 # 运行镜像
 FROM alpine:3.18
 
 WORKDIR /app
 
-# 安装扫描工具和依赖
+# 安装扫描工具和依赖（包括 libpcap 运行时库和 Chromium 用于截图）
 RUN apk add --no-cache \
     ca-certificates \
     tzdata \
@@ -29,7 +29,14 @@ RUN apk add --no-cache \
     nmap \
     masscan \
     curl \
-    bind-tools
+    bind-tools \
+    libpcap \
+    chromium \
+    font-noto-cjk
+
+# 设置 Chromium 环境变量
+ENV CHROME_BIN=/usr/bin/chromium-browser
+ENV CHROMEDP_NO_SANDBOX=true
 
 # 从本地 poc 目录复制 nuclei 安装包并安装
 COPY poc/nuclei_3.6.1_linux_amd64.zip /tmp/

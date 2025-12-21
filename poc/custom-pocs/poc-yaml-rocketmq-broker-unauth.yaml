@@ -1,0 +1,21 @@
+id: poc-yaml-rocketmq-broker-unauth
+
+info:
+  name: poc-yaml-rocketmq-broker-unauth
+  author: Chaitin
+  severity: medium
+  tags: xray-converted,unauth
+  reference:
+    - https://stack.chaitin.com/techblog/detail?id=104
+
+http:
+  - raw:
+      - |
+        GET / HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

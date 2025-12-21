@@ -1695,3 +1695,91 @@ func (l *FingerprintBatchValidateLogic) FingerprintBatchValidate(req *types.Fing
 		Matched:      matched,
 	}, nil
 }
+
+// ==================== HTTP服务映射管理 ====================
+
+// HttpServiceMappingListLogic HTTP服务映射列表
+type HttpServiceMappingListLogic struct {
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewHttpServiceMappingListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *HttpServiceMappingListLogic {
+	return &HttpServiceMappingListLogic{ctx: ctx, svcCtx: svcCtx}
+}
+
+func (l *HttpServiceMappingListLogic) HttpServiceMappingList(req *types.HttpServiceMappingListReq) (*types.HttpServiceMappingListResp, error) {
+	docs, err := l.svcCtx.HttpServiceMappingModel.FindWithFilter(l.ctx, req.IsHttp, req.Keyword)
+	if err != nil {
+		return &types.HttpServiceMappingListResp{Code: 500, Msg: "查询失败"}, nil
+	}
+
+	list := make([]types.HttpServiceMapping, 0, len(docs))
+	for _, doc := range docs {
+		list = append(list, types.HttpServiceMapping{
+			Id:          doc.Id.Hex(),
+			ServiceName: doc.ServiceName,
+			IsHttp:      doc.IsHttp,
+			Description: doc.Description,
+			Enabled:     doc.Enabled,
+			CreateTime:  doc.CreateTime.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	return &types.HttpServiceMappingListResp{
+		Code: 0,
+		Msg:  "success",
+		List: list,
+	}, nil
+}
+
+// HttpServiceMappingSaveLogic 保存HTTP服务映射
+type HttpServiceMappingSaveLogic struct {
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewHttpServiceMappingSaveLogic(ctx context.Context, svcCtx *svc.ServiceContext) *HttpServiceMappingSaveLogic {
+	return &HttpServiceMappingSaveLogic{ctx: ctx, svcCtx: svcCtx}
+}
+
+func (l *HttpServiceMappingSaveLogic) HttpServiceMappingSave(req *types.HttpServiceMappingSaveReq) (*types.BaseResp, error) {
+	doc := &model.HttpServiceMapping{
+		ServiceName: strings.ToLower(strings.TrimSpace(req.ServiceName)),
+		IsHttp:      req.IsHttp,
+		Description: req.Description,
+		Enabled:     req.Enabled,
+	}
+
+	if req.Id != "" {
+		err := l.svcCtx.HttpServiceMappingModel.Update(l.ctx, req.Id, doc)
+		if err != nil {
+			return &types.BaseResp{Code: 500, Msg: "更新失败: " + err.Error()}, nil
+		}
+	} else {
+		err := l.svcCtx.HttpServiceMappingModel.Insert(l.ctx, doc)
+		if err != nil {
+			return &types.BaseResp{Code: 500, Msg: "创建失败: " + err.Error()}, nil
+		}
+	}
+
+	return &types.BaseResp{Code: 0, Msg: "保存成功"}, nil
+}
+
+// HttpServiceMappingDeleteLogic 删除HTTP服务映射
+type HttpServiceMappingDeleteLogic struct {
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewHttpServiceMappingDeleteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *HttpServiceMappingDeleteLogic {
+	return &HttpServiceMappingDeleteLogic{ctx: ctx, svcCtx: svcCtx}
+}
+
+func (l *HttpServiceMappingDeleteLogic) HttpServiceMappingDelete(req *types.HttpServiceMappingDeleteReq) (*types.BaseResp, error) {
+	err := l.svcCtx.HttpServiceMappingModel.Delete(l.ctx, req.Id)
+	if err != nil {
+		return &types.BaseResp{Code: 500, Msg: "删除失败"}, nil
+	}
+	return &types.BaseResp{Code: 0, Msg: "删除成功"}, nil
+}

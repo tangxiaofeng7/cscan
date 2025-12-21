@@ -97,3 +97,8 @@ func (s *TaskServiceServer) GetTemplatesByIds(ctx context.Context, in *pb.GetTem
 	l := logic.NewTaskLogic(ctx, s.svcCtx)
 	return l.GetTemplatesByIds(in)
 }
+
+func (s *TaskServiceServer) GetHttpServiceMappings(ctx context.Context, in *pb.GetHttpServiceMappingsReq) (*pb.GetHttpServiceMappingsResp, error) {
+	l := logic.NewTaskLogic(ctx, s.svcCtx)
+	return l.GetHttpServiceMappings(in)
+}

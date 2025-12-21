@@ -41,6 +41,8 @@ services:
     environment:
       - MONGO_URI=mongodb://mongodb:27017
       - REDIS_HOST=redis:6379
+    volumes:
+      - ./poc:/app/poc:ro
     depends_on:
       redis:
         condition: service_healthy

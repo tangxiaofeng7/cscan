@@ -1,0 +1,27 @@
+id: poc-yaml-bt742-pma-unauthorized-access
+
+info:
+  name: poc-yaml-bt742-pma-unauthorized-access
+  author: Facker007(https://github.com/Facker007)
+  severity: critical
+  tags: xray-converted,unauth,ct-157980
+  reference:
+    - https://mp.weixin.qq.com/s/KgAaFRKarMdycYzETyKS8A
+
+http:
+  - raw:
+      - |
+        GET /pma/ HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "information_schema"
+          - "phpMyAdmin"
+          - "server_sql.php"

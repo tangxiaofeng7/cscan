@@ -280,12 +280,13 @@ type VulBatchDeleteReq struct {
 
 // ==================== Worker管理 ====================
 type Worker struct {
-	Name       string  `json:"name"`
-	CPULoad    float64 `json:"cpuLoad"`
-	MemUsed    float64 `json:"memUsed"`
-	TaskCount  int     `json:"taskCount"`
-	Status     string  `json:"status"`
-	UpdateTime string  `json:"updateTime"`
+	Name         string  `json:"name"`
+	CPULoad      float64 `json:"cpuLoad"`
+	MemUsed      float64 `json:"memUsed"`
+	TaskCount    int     `json:"taskCount"`    // 已执行任务数
+	RunningCount int     `json:"runningCount"` // 正在执行任务数
+	Status       string  `json:"status"`
+	UpdateTime   string  `json:"updateTime"`
 }
 
 type WorkerListResp struct {
@@ -729,4 +730,93 @@ type MatchedFingerprintInfo struct {
 	Name              string `json:"name"`
 	IsBuiltin         bool   `json:"isBuiltin"`
 	MatchedConditions string `json:"matchedConditions"` // 命中的条件
+}
+
+// ==================== HTTP服务映射 ====================
+type HttpServiceMapping struct {
+	Id          string `json:"id"`
+	ServiceName string `json:"serviceName"` // 服务名称（小写）
+	IsHttp      bool   `json:"isHttp"`      // 是否为HTTP服务
+	Description string `json:"description"` // 描述
+	Enabled     bool   `json:"enabled"`     // 是否启用
+	CreateTime  string `json:"createTime"`
+}
+
+type HttpServiceMappingListReq struct {
+	IsHttp  *bool  `json:"isHttp,optional"`  // 筛选：是否为HTTP服务
+	Keyword string `json:"keyword,optional"` // 搜索：服务名称
+}
+
+type HttpServiceMappingListResp struct {
+	Code int                  `json:"code"`
+	Msg  string               `json:"msg"`
+	List []HttpServiceMapping `json:"list"`
+}
+
+type HttpServiceMappingSaveReq struct {
+	Id          string `json:"id,optional"`
+	ServiceName string `json:"serviceName"`
+	IsHttp      bool   `json:"isHttp"`
+	Description string `json:"description,optional"`
+	Enabled     bool   `json:"enabled"`
+}
+
+type HttpServiceMappingDeleteReq struct {
+	Id string `json:"id"`
+}
+
+
+// ==================== 报告管理 ====================
+type ReportDetailReq struct {
+	TaskId string `json:"taskId"`
+}
+
+type ReportAsset struct {
+	Authority  string   `json:"authority"`
+	Host       string   `json:"host"`
+	Port       int      `json:"port"`
+	Service    string   `json:"service"`
+	Title      string   `json:"title"`
+	App        []string `json:"app"`
+	HttpStatus string   `json:"httpStatus"`
+	Server     string   `json:"server"`
+	IconHash   string   `json:"iconHash"`
+	Screenshot string   `json:"screenshot"`
+	CreateTime string   `json:"createTime"`
+}
+
+type ReportVul struct {
+	Authority  string `json:"authority"`
+	Url        string `json:"url"`
+	PocFile    string `json:"pocFile"`
+	Severity   string `json:"severity"`
+	Result     string `json:"result"`
+	CreateTime string `json:"createTime"`
+}
+
+type ReportData struct {
+	TaskId      string         `json:"taskId"`
+	TaskName    string         `json:"taskName"`
+	Target      string         `json:"target"`
+	Status      string         `json:"status"`
+	CreateTime  string         `json:"createTime"`
+	AssetCount  int            `json:"assetCount"`
+	VulCount    int            `json:"vulCount"`
+	Assets      []ReportAsset  `json:"assets"`
+	Vuls        []ReportVul    `json:"vuls"`
+	TopPorts    []StatItem     `json:"topPorts"`
+	TopServices []StatItem     `json:"topServices"`
+	TopApps     []StatItem     `json:"topApps"`
+	VulStats    map[string]int `json:"vulStats"`
+}
+
+type ReportDetailResp struct {
+	Code int         `json:"code"`
+	Msg  string      `json:"msg"`
+	Data *ReportData `json:"data"`
+}
+
+type ReportExportReq struct {
+	TaskId string `json:"taskId"`
+	Format string `json:"format,optional"` // excel, pdf (默认excel)
 }

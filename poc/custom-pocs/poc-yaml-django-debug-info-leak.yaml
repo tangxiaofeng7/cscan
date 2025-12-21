@@ -1,0 +1,23 @@
+id: poc-yaml-django-debug-info-leak
+
+info:
+  name: poc-yaml-django-debug-info-leak
+  author: xray-converter
+  severity: medium
+  tags: xray-converted,exposure,ct-157837
+  reference:
+    - https://docs.djangoproject.com/en/2.2/_modules/django/views/debug/
+
+http:
+  - raw:
+      - |
+        GET /admin/iYH6Zjxq7GlLA HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "seeing this error because you have <code>DEBUG = True</code"
+          - "your Django settings file"

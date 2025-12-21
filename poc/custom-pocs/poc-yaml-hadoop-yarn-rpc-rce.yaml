@@ -1,0 +1,26 @@
+id: poc-yaml-hadoop-yarn-rpc-rce
+
+info:
+  name: poc-yaml-hadoop-yarn-rpc-rce
+  author: For3stCo1d (https://github.com/For3stCo1d)
+  severity: critical
+  tags: xray-converted,rce,ct-416480
+  reference:
+    - https://github.com/cckuailong/YarnRpcRCE
+
+http:
+  - raw:
+      - |
+        POST /ws/v1/cluster/apps/new-application HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "application-id"
+          - "memory"

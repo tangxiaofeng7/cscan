@@ -1,0 +1,23 @@
+id: poc-yaml-apache-flink-unauth
+
+info:
+  name: poc-yaml-apache-flink-unauth
+  author: xray-converter
+  severity: high
+  tags: xray-converted,unauth,ct-158146
+
+http:
+  - raw:
+      - |
+        GET / HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "Apache Flink Web Dashboard"

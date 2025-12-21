@@ -17,3 +17,4 @@ Mongo:
 RedisConf:
   Host: "localhost:6379"
   Pass: ""
+  Type: node

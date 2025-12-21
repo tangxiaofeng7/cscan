@@ -1,0 +1,21 @@
+id: poc-yaml-clickhouse-http-unauth
+
+info:
+  name: poc-yaml-clickhouse-http-unauth
+  author: sharecast
+  severity: high
+  tags: xray-converted,unauth,ct-416423
+  reference:
+    - https://github.com/luck-ying/Library-POC/blob/master/ClickHouse%E6%95%B0%E6%8D%AE%E5%BA%93/
+
+http:
+  - raw:
+      - |
+        GET /?query=select%20lower(hex(MD5('{{rand_int(1000, 9999)}}'))) HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

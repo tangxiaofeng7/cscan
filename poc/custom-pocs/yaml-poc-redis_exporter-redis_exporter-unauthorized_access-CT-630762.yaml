@@ -1,0 +1,19 @@
+id: yaml-poc-redis_exporter-redis_exporter-unauthorized_access-CT-630762
+
+info:
+  name: yaml-poc-redis_exporter-redis_exporter-unauthorized_access-CT-630762
+  author: lianjian.chen
+  severity: high
+  tags: xray-converted,unauth
+
+http:
+  - raw:
+      - |
+        GET /metrics HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

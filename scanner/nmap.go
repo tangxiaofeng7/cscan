@@ -6,7 +6,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"os/exec"
-	"strconv"
 	"strings"
 
 	"github.com/zeromicro/go-zero/core/logx"
@@ -156,16 +155,17 @@ func (s *NmapScanner) runNmap(ctx context.Context, targets []string, opts *NmapO
 		}
 	}
 
-	// 解析端口字符串，支持 top100/top1000
-	portsStr := expandPortsString(opts.Ports)
+	// 使用 parsePorts 解析端口，统一处理 top100/top1000 和其他格式
+	ports := parsePorts(opts.Ports)
+	portsStr := portsToString(ports)
 
 	// 构建nmap命令
-	// nmap -sS -Pn -p ports targets -oX -
+	// -sV: 服务版本探测
+	// -sS: SYN扫描（需要root权限）
+	// -Pn: 跳过主机发现（端口已由Masscan确认存活）
 	args := []string{
-		"-sS",                                       // SYN扫描
 		"-Pn",                                       // 跳过主机发现
 		"-p", portsStr,                              // 端口
-		"--host-timeout", strconv.Itoa(opts.Timeout) + "s",
 		"-oX", "-", // XML输出到stdout
 	}
 
@@ -229,7 +229,11 @@ func (s *NmapScanner) runNmap(ctx context.Context, targets []string, opts *NmapO
 				}
 				// 如果有产品信息，添加到App
 				if port.Service.Product != "" {
-					asset.App = []string{port.Service.Product}
+					productInfo := port.Service.Product
+					if port.Service.Version != "" {
+						productInfo += ":" + port.Service.Version
+					}
+					asset.App = []string{productInfo}
 				}
 				assets = append(assets, asset)
 			}

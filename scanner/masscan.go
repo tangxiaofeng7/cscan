@@ -110,15 +110,15 @@ func (s *MasscanScanner) runMasscan(ctx context.Context, targets []string, opts 
 		}
 	}
 
-	// 解析端口字符串，支持 top100/top1000
-	portsStr := expandPortsString(opts.Ports)
+	// 使用 parsePorts 解析端口，统一处理 top100/top1000 和其他格式
+	ports := parsePorts(opts.Ports)
+	portsStr := portsToString(ports)
 
 	// 构建masscan命令
 	// masscan -p ports targets --rate=rate -oJ -
 	args := []string{
 		"-p", portsStr,
 		"--rate", strconv.Itoa(opts.Rate),
-		"--wait", strconv.Itoa(opts.Timeout),
 		"-oJ", "-", // JSON输出到stdout
 	}
 	args = append(args, targets...)

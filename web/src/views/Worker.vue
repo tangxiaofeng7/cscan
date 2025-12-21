@@ -1,9 +1,16 @@
 <template>
   <div class="worker-page">
     <el-card class="action-card">
-      <el-button type="primary" @click="loadData">
-        <el-icon><Refresh /></el-icon>刷新
+      <el-button type="primary" @click="loadData" :loading="loading">
+        <el-icon><Refresh /></el-icon>刷新状态
       </el-button>
+      <span v-if="loading" style="margin-left: 10px; color: #909399; font-size: 12px;">正在查询Worker实时状态...</span>
+      <el-switch 
+        v-model="autoRefresh" 
+        active-text="自动刷新(10s)" 
+        style="margin-left: 15px"
+        @change="toggleAutoRefresh"
+      />
     </el-card>
 
     <el-card style="margin-bottom: 20px">
@@ -11,15 +18,21 @@
         <el-table-column prop="name" label="Worker名称" min-width="200" />
         <el-table-column prop="cpuLoad" label="CPU负载" width="120">
           <template #default="{ row }">
-            <el-progress :percentage="row.cpuLoad" :stroke-width="10" :color="getLoadColor(row.cpuLoad)" />
+            <el-progress :percentage="Math.round(row.cpuLoad)" :stroke-width="10" :color="getLoadColor(row.cpuLoad)" />
           </template>
         </el-table-column>
         <el-table-column prop="memUsed" label="内存使用" width="120">
           <template #default="{ row }">
-            <el-progress :percentage="row.memUsed" :stroke-width="10" :color="getLoadColor(row.memUsed)" />
+            <el-progress :percentage="Math.round(row.memUsed)" :stroke-width="10" :color="getLoadColor(row.memUsed)" />
           </template>
         </el-table-column>
-        <el-table-column prop="taskCount" label="执行任务数" width="100" />
+        <el-table-column prop="taskCount" label="已执行任务" width="100" />
+        <el-table-column prop="runningCount" label="正在执行" width="100">
+          <template #default="{ row }">
+            <el-tag v-if="row.runningCount > 0" type="warning">{{ row.runningCount }}</el-tag>
+            <span v-else>0</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.status === 'running' ? 'success' : 'danger'">
@@ -27,7 +40,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="updateTime" label="最后心跳" width="160" />
+        <el-table-column prop="updateTime" label="最后响应" width="160" />
       </el-table>
 
       <el-empty v-if="!loading && tableData.length === 0" description="暂无Worker节点" />
@@ -71,16 +84,20 @@ const logs = ref([])
 const logContainer = ref(null)
 const autoScroll = ref(true)
 const isConnected = ref(false)
+const autoRefresh = ref(true)
 let pollingTimer = null
+let workerRefreshTimer = null
 let logIdSet = new Set() // 用于去重
 
 onMounted(() => {
   loadData()
   startPolling()
+  startWorkerRefresh()
 })
 
 onUnmounted(() => {
   stopPolling()
+  stopWorkerRefresh()
 })
 
 watch(logs, () => {
@@ -100,6 +117,31 @@ async function loadData() {
     if (res.code === 0) tableData.value = res.list || []
   } finally {
     loading.value = false
+  }
+}
+
+function startWorkerRefresh() {
+  if (workerRefreshTimer) return
+  // 每10秒自动刷新Worker列表（因为每次查询需要约1.5秒等待Worker响应）
+  workerRefreshTimer = setInterval(() => {
+    if (autoRefresh.value && !loading.value) {
+      loadData()
+    }
+  }, 10000)
+}
+
+function stopWorkerRefresh() {
+  if (workerRefreshTimer) {
+    clearInterval(workerRefreshTimer)
+    workerRefreshTimer = null
+  }
+}
+
+function toggleAutoRefresh(val) {
+  if (val) {
+    startWorkerRefresh()
+  } else {
+    stopWorkerRefresh()
   }
 }
 

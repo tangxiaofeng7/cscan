@@ -22,6 +22,7 @@ Mongo:
 Redis:
   Host: "redis:6379"
   Pass: ""
+  Type: node
 
 TaskRpc:
   Endpoints:

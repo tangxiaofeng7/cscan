@@ -1,0 +1,25 @@
+id: poc-yaml-wanhu-ezoffice-file-upload
+
+info:
+  name: poc-yaml-wanhu-ezoffice-file-upload
+  author: Aurora
+  severity: critical
+  tags: xray-converted,fileupload,ct-456739
+  reference:
+    - https://github.com/onMey/WH/blob/main/poc.py
+
+http:
+  - raw:
+      - |
+        GET /defaultroot/officeserverservlet HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - "DBSTEP\\s+[v|V]3.0\\s+\\d+\\s+\\d+(.*)"

