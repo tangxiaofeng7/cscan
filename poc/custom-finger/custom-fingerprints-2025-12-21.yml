@@ -27451,9 +27451,6 @@
 - name: "IBM-Chassis-management"
   rule: 'header="server: ibm chassis management"'
 
-- name: "IBM-Chassis-management"
-  rule: 'body=""'
-
 - name: "IBM-Cognos"
   rule: 'body="<meta name="Trademark" content="Licensed Material - Property of IBM Corp. IBM, the IBM logo, and Cognos are trademarks of IBM Corp., registered in many jurisdictions worldwide."/>"'
 

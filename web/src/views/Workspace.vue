@@ -7,7 +7,7 @@
     </el-card>
 
     <el-card>
-      <el-table :data="tableData" v-loading="loading" stripe>
+      <el-table :data="tableData" v-loading="loading" stripe max-height="500">
         <el-table-column prop="name" label="名称" min-width="150" />
         <el-table-column prop="description" label="描述" min-width="250" />
         <el-table-column prop="status" label="状态" width="100">

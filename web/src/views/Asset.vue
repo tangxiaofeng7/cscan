@@ -86,7 +86,7 @@
           <el-icon><Delete /></el-icon>批量删除 ({{ selectedRows.length }})
         </el-button>
       </div>
-      <el-table :data="tableData" v-loading="loading" stripe size="small" @selection-change="handleSelectionChange">
+      <el-table :data="tableData" v-loading="loading" stripe size="small" max-height="500" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="40" />
         <el-table-column type="index" label="序号" width="60" />
         <el-table-column label="资产-组织" min-width="160">

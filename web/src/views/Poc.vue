@@ -121,7 +121,10 @@
           <template #header>
             <div class="card-header">
               <span>应用标签映射配置</span>
-              <el-button type="primary" size="small" @click="showTagMappingForm()">
+              <span style="color: #909399; font-size: 13px; margin-left: 10px">
+                共 {{ tagMappings.length || 0 }} 条映射
+              </span>
+              <el-button type="primary" size="small" style="margin-left: auto" @click="showTagMappingForm()">
                 <el-icon><Plus /></el-icon>新增映射
               </el-button>
             </div>
@@ -129,7 +132,7 @@
           <p class="tip-text">
             配置 Wappalyzer 识别的应用名称与 Nuclei 标签的映射关系，扫描时会根据识别到的应用自动选择对应的 POC 进行检测。
           </p>
-          <el-table :data="tagMappings" stripe v-loading="tagMappingLoading">
+          <el-table :data="tagMappings" stripe v-loading="tagMappingLoading" max-height="500">
             <el-table-column prop="appName" label="应用名称" width="180" />
             <el-table-column prop="nucleiTags" label="POC标签（Tag）" min-width="250">
               <template #default="{ row }">
@@ -162,7 +165,10 @@
           <template #header>
             <div class="card-header">
               <span>自定义 Nuclei POC</span>
-              <div>
+              <span style="color: #909399; font-size: 13px; margin-left: 10px">
+                共 {{ pocPagination.total || 0 }} 个POC
+              </span>
+              <div style="margin-left: auto">
                 <el-button type="danger" size="small" @click="handleClearAllPocs" :loading="clearPocLoading" style="margin-right: 10px">
                   <el-icon><Delete /></el-icon>清空
                 </el-button>
@@ -178,9 +184,6 @@
               </div>
             </div>
           </template>
-          <p class="tip-text">
-            上传自定义的 Nuclei YAML 模板，支持自定义标签，可与标签映射配合使用实现针对性扫描。
-          </p>
           <!-- 筛选条件 -->
           <el-form :inline="true" class="filter-form">
             <el-form-item label="名称">
@@ -212,7 +215,7 @@
               <el-button @click="resetCustomPocFilter">重置</el-button>
             </el-form-item>
           </el-form>
-          <el-table :data="customPocs" stripe v-loading="customPocLoading">
+          <el-table :data="customPocs" stripe v-loading="customPocLoading" max-height="500">
             <el-table-column prop="name" label="名称" width="250" />
             <el-table-column prop="templateId" label="模板ID" width="250" />
             <el-table-column prop="severity" label="严重级别" width="100">
@@ -2653,12 +2656,14 @@ function startBatchPolling(batchId, taskIds) {
   }
 
   .tip-text {
-    color: #909399;
+    color: var(--el-text-color-secondary);
     font-size: 13px;
     margin-bottom: 15px;
-    padding: 10px;
-    background: #f5f7fa;
+    padding: 10px 12px;
+    background: var(--el-fill-color-light);
     border-radius: 4px;
+    border-left: 3px solid var(--el-color-primary-light-5);
+    line-height: 1.6;
   }
 
   .filter-form {

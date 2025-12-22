@@ -20,13 +20,10 @@ import (
 )
 
 func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
-	// 公开路由（无需认证）
+	// 公开路由（无需认证）- 只保留登录接口
 	server.AddRoutes(
 		[]rest.Route{
 			{Method: http.MethodPost, Path: "/api/v1/login", Handler: user.LoginHandler(svcCtx)},
-			{Method: http.MethodGet, Path: "/api/v1/worker/logs/stream", Handler: worker.WorkerLogsHandler(svcCtx)},
-			{Method: http.MethodPost, Path: "/api/v1/worker/logs/history", Handler: worker.WorkerLogsHistoryHandler(svcCtx)},
-			{Method: http.MethodPost, Path: "/api/v1/worker/logs/clear", Handler: worker.WorkerLogsClearHandler(svcCtx)},
 		},
 	)
 
@@ -35,6 +32,11 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 	authRoutes := []rest.Route{
 		// 用户管理
 		{Method: http.MethodPost, Path: "/api/v1/user/list", Handler: user.UserListHandler(svcCtx)},
+
+		// Worker日志（需要认证）
+		{Method: http.MethodGet, Path: "/api/v1/worker/logs/stream", Handler: worker.WorkerLogsHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/worker/logs/history", Handler: worker.WorkerLogsHistoryHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/worker/logs/clear", Handler: worker.WorkerLogsClearHandler(svcCtx)},
 
 		// 工作空间
 		{Method: http.MethodPost, Path: "/api/v1/workspace/list", Handler: workspace.WorkspaceListHandler(svcCtx)},
@@ -134,4 +136,23 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 	}
 
 	server.AddRoutes(authRoutes)
+
+	// 需要管理员权限的路由（敏感操作）
+	adminRoutes := []rest.Route{
+		// 清除日志移到普通认证路由，如需管理员限制可移回此处
+	}
+
+	// 为管理员路由包装认证中间件
+	for i := range adminRoutes {
+		originalHandler := adminRoutes[i].Handler
+		adminRoutes[i].Handler = func(w http.ResponseWriter, r *http.Request) {
+			authMiddleware.Handle(http.HandlerFunc(originalHandler)).ServeHTTP(w, r)
+		}
+	}
+
+	if len(adminRoutes) > 0 {
+		server.AddRoutes(adminRoutes)
+	}
+
+	server.AddRoutes(adminRoutes)
 }

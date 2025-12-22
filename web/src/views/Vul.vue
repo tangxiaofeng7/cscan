@@ -36,6 +36,7 @@
         :data="tableData" 
         v-loading="loading" 
         stripe
+        max-height="500"
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="50" />

@@ -14,7 +14,7 @@
     </el-card>
 
     <el-card style="margin-bottom: 20px">
-      <el-table :data="tableData" v-loading="loading" stripe>
+      <el-table :data="tableData" v-loading="loading" stripe max-height="500">
         <el-table-column prop="name" label="Worker名称" min-width="200" />
         <el-table-column prop="cpuLoad" label="CPU负载" width="120">
           <template #default="{ row }">

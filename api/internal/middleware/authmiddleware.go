@@ -114,3 +114,20 @@ func GetWorkspaceId(ctx context.Context) string {
 	}
 	return ""
 }
+
+// RequireAdmin 管理员权限中间件，需要先经过认证中间件
+func RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		role := GetRole(r.Context())
+		if role != "admin" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"code": 403,
+				"msg":  "需要管理员权限",
+			})
+			return
+		}
+		next(w, r)
+	}
+}

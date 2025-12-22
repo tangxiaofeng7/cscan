@@ -109,7 +109,10 @@
           <template #header>
             <div class="card-header">
               <span>自定义指纹规则</span>
-              <div>
+              <span style="color: #909399; font-size: 13px; margin-left: 10px">
+                共 {{ customPagination.total || 0 }} 条规则
+              </span>
+              <div style="margin-left: auto">
                 <el-button type="danger" size="small" @click="handleClearCustomFingerprints">
                   <el-icon><Delete /></el-icon>清空
                 </el-button>
@@ -125,9 +128,7 @@
               </div>
             </div>
           </template>
-          <p class="tip-text">
-            支持 ARL finger.json / finger.yml 格式导入，也可手动添加。ARL格式规则语法：body="xxx" && title="xxx" || header="xxx" || icon_hash="xxx"
-          </p>
+
           <!-- 筛选条件 -->
           <el-form :inline="true" class="filter-form">
             <el-form-item label="搜索">
@@ -144,7 +145,7 @@
               <el-button @click="resetCustomFilter">重置</el-button>
             </el-form-item>
           </el-form>
-          <el-table :data="customFingerprints" stripe v-loading="customLoading">
+          <el-table :data="customFingerprints" stripe v-loading="customLoading" max-height="500">
             <el-table-column prop="id" label="ID" width="220">
               <template #default="{ row }">
                 <el-tooltip :content="'点击复制'" placement="top">
@@ -233,7 +234,7 @@
             <el-tag size="small">总计: {{ httpServiceStats.total || 0 }}</el-tag>
           </div>
           <!-- 映射列表 -->
-          <el-table :data="httpServiceMappings" stripe v-loading="httpServiceLoading">
+          <el-table :data="httpServiceMappings" stripe v-loading="httpServiceLoading" max-height="500">
             <el-table-column prop="serviceName" label="服务名称" width="180" />
             <el-table-column prop="isHttp" label="服务类型" width="120">
               <template #default="{ row }">
@@ -1486,12 +1487,14 @@ async function handleDeleteHttpServiceMapping(row) {
   }
 
   .tip-text {
-    color: #909399;
+    color: var(--el-text-color-secondary);
     font-size: 13px;
     margin-bottom: 15px;
-    padding: 10px;
-    background: #f5f7fa;
+    padding: 10px 12px;
+    background: var(--el-fill-color-light);
     border-radius: 4px;
+    border-left: 3px solid var(--el-color-primary-light-5);
+    line-height: 1.6;
   }
 
   .filter-form {

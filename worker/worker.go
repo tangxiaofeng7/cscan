@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"cscan/model"
+	"cscan/pkg/mapping"
 	"cscan/rpc/task/pb"
 	"cscan/scanner"
 	"cscan/scheduler"
@@ -38,6 +39,8 @@ type WorkerConfig struct {
 
 // Worker 工作节点
 type Worker struct {
+	ctx         context.Context
+	cancel      context.CancelFunc
 	config      WorkerConfig
 	rpcClient   pb.TaskServiceClient
 	redisClient *redis.Client
@@ -51,6 +54,50 @@ type Worker struct {
 	taskStarted  int
 	taskExecuted int
 	isRunning    bool
+}
+
+// VulnerabilityBuffer 批量缓冲保存漏洞
+type VulnerabilityBuffer struct {
+	vuls      []*scanner.Vulnerability
+	mu        sync.Mutex
+	maxSize   int
+	flushChan chan struct{}
+}
+
+// NewVulnerabilityBuffer 创建漏洞缓冲区
+func NewVulnerabilityBuffer(maxSize int) *VulnerabilityBuffer {
+	return &VulnerabilityBuffer{
+		vuls:      make([]*scanner.Vulnerability, 0, maxSize),
+		maxSize:   maxSize,
+		flushChan: make(chan struct{}, 1),
+	}
+}
+
+// Add 添加漏洞到缓冲区，返回是否需要刷新
+func (b *VulnerabilityBuffer) Add(vul *scanner.Vulnerability) {
+	b.mu.Lock()
+	b.vuls = append(b.vuls, vul)
+	shouldFlush := len(b.vuls) >= b.maxSize
+	b.mu.Unlock()
+
+	if shouldFlush {
+		select {
+		case b.flushChan <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// Flush 刷新缓冲区，批量保存
+func (b *VulnerabilityBuffer) Flush(ctx context.Context, saver func([]*scanner.Vulnerability)) {
+	b.mu.Lock()
+	vuls := b.vuls
+	b.vuls = nil
+	b.mu.Unlock()
+
+	if len(vuls) > 0 {
+		saver(vuls) // 批量保存
+	}
 }
 
 // NewWorker 创建Worker
@@ -92,7 +139,12 @@ func NewWorker(config WorkerConfig) (*Worker, error) {
 		fmt.Println("[Worker] Redis address not specified (-r flag), logs will not be streamed to Web")
 	}
 
+	// 创建可取消的Context
+	ctx, cancel := context.WithCancel(context.Background())
+
 	w := &Worker{
+		ctx:         ctx,
+		cancel:      cancel,
 		config:      config,
 		rpcClient:   pb.NewTaskServiceClient(client.Conn()),
 		redisClient: redisClient,
@@ -218,6 +270,7 @@ func (w *Worker) pullTask() bool {
 // Stop 停止Worker
 func (w *Worker) Stop() {
 	w.isRunning = false
+	w.cancel() // 通知所有 goroutine 停止
 	close(w.stopChan)
 	w.wg.Wait()
 	logx.Infof("Worker %s stopped", w.config.Name)
@@ -587,7 +640,34 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				// 用于统计漏洞数量
 				var vulCount int
 
-				// 构建Nuclei扫描选项，设置回调函数实时保存漏洞
+				// 创建漏洞缓冲区，每10个漏洞批量保存一次
+				vulBuffer := NewVulnerabilityBuffer(10)
+
+				// 启动后台刷新协程
+				flushDone := make(chan struct{})
+				go func() {
+					defer close(flushDone)
+					ticker := time.NewTicker(5 * time.Second) // 每5秒也刷新一次
+					defer ticker.Stop()
+					for {
+						select {
+						case <-ctx.Done():
+							return
+						case <-flushDone:
+							return
+						case <-vulBuffer.flushChan:
+							vulBuffer.Flush(ctx, func(vuls []*scanner.Vulnerability) {
+								w.saveVulResult(ctx, task.WorkspaceId, task.MainTaskId, vuls)
+							})
+						case <-ticker.C:
+							vulBuffer.Flush(ctx, func(vuls []*scanner.Vulnerability) {
+								w.saveVulResult(ctx, task.WorkspaceId, task.MainTaskId, vuls)
+							})
+						}
+					}
+				}()
+
+				// 构建Nuclei扫描选项，设置回调函数批量保存漏洞
 				nucleiOpts := &scanner.NucleiOptions{
 					Severity:        config.PocScan.Severity,
 					Tags:            autoTags,
@@ -599,12 +679,11 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 					CustomPocOnly:   config.PocScan.CustomPocOnly,
 					CustomTemplates: templates,
 					TagMappings:     config.PocScan.TagMappings,
-					// 设置回调函数，发现漏洞时实时保存到数据库
+					// 设置回调函数，发现漏洞时添加到缓冲区
 					OnVulnerabilityFound: func(vul *scanner.Vulnerability) {
 						vulCount++
 						logx.Infof("Found vulnerability #%d: %s on %s", vulCount, vul.PocFile, vul.Url)
-						// 实时保存单个漏洞到数据库
-						w.saveVulResult(ctx, task.WorkspaceId, task.MainTaskId, []*scanner.Vulnerability{vul})
+						vulBuffer.Add(vul)
 					},
 				}
 				// 设置默认值
@@ -620,6 +699,12 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 					Assets:  allAssets,
 					Options: nucleiOpts,
 				})
+
+				// 扫描完成后，刷新剩余的漏洞
+				vulBuffer.Flush(ctx, func(vuls []*scanner.Vulnerability) {
+					w.saveVulResult(ctx, task.WorkspaceId, task.MainTaskId, vuls)
+				})
+
 				if err != nil {
 					logx.Errorf("POC scan error: %v", err)
 				}
@@ -774,7 +859,7 @@ func (w *Worker) keepAlive() {
 
 // sendHeartbeat 发送心跳
 func (w *Worker) sendHeartbeat() {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(w.ctx, 10*time.Second) // 继承父Context
 	defer cancel()
 
 	// 获取系统资源使用情况
@@ -944,7 +1029,7 @@ func (w *Worker) generateAutoTags(assets []*scanner.Asset, pocConfig *scheduler.
 
 			// 模式2: 基于Wappalyzer内置映射（类似nuclei -as）
 			if pocConfig.AutomaticScan {
-				if tags, ok := wappalyzerNucleiMapping[appNameLower]; ok {
+				if tags, ok := mapping.WappalyzerNucleiMapping[appNameLower]; ok {
 					for _, tag := range tags {
 						tagSet[tag] = true
 					}
@@ -1020,159 +1105,6 @@ func parseAppName(app string) string {
 		appName = appName[:idx]
 	}
 	return strings.TrimSpace(appName)
-}
-
-// wappalyzerNucleiMapping Wappalyzer技术到Nuclei标签的内置映射
-var wappalyzerNucleiMapping = map[string][]string{
-	// Web服务器
-	"nginx":              {"nginx"},
-	"apache":             {"apache"},
-	"apache http server": {"apache"},
-	"microsoft iis":      {"iis"},
-	"iis":                {"iis"},
-	"lighttpd":           {"lighttpd"},
-	"tomcat":             {"tomcat"},
-	"apache tomcat":      {"tomcat"},
-	"jetty":              {"jetty"},
-	"caddy":              {"caddy"},
-	"openresty":          {"nginx", "openresty"},
-
-	// CMS
-	"wordpress":   {"wordpress", "wp"},
-	"joomla":      {"joomla"},
-	"drupal":      {"drupal"},
-	"magento":     {"magento"},
-	"shopify":     {"shopify"},
-	"woocommerce": {"woocommerce", "wordpress"},
-	"prestashop":  {"prestashop"},
-	"opencart":    {"opencart"},
-	"typo3":       {"typo3"},
-	"ghost":       {"ghost"},
-	"mediawiki":   {"mediawiki"},
-	"confluence":  {"confluence", "atlassian"},
-	"sharepoint":  {"sharepoint", "microsoft"},
-
-	// 框架
-	"spring":          {"spring"},
-	"spring boot":     {"springboot", "spring"},
-	"spring framework": {"spring"},
-	"struts":          {"struts", "apache-struts"},
-	"apache struts":   {"struts", "apache-struts"},
-	"django":          {"django"},
-	"flask":           {"flask"},
-	"fastapi":         {"fastapi"},
-	"laravel":         {"laravel"},
-	"symfony":         {"symfony"},
-	"codeigniter":     {"codeigniter"},
-	"yii":             {"yii"},
-	"rails":           {"rails", "ruby-on-rails"},
-	"ruby on rails":   {"rails", "ruby-on-rails"},
-	"express":         {"express", "nodejs"},
-	"express.js":      {"express", "nodejs"},
-	"next.js":         {"nextjs", "nodejs"},
-	"nuxt.js":         {"nuxtjs", "nodejs"},
-	"asp.net":         {"asp.net", "microsoft"},
-	"thinkphp":        {"thinkphp"},
-
-	// 前端框架
-	"react":     {"react"},
-	"vue.js":    {"vuejs"},
-	"vue":       {"vuejs"},
-	"angular":   {"angular"},
-	"angularjs": {"angular"},
-	"jquery":    {"jquery"},
-	"bootstrap": {"bootstrap"},
-
-	// 应用服务器
-	"weblogic":        {"weblogic", "oracle"},
-	"oracle weblogic": {"weblogic", "oracle"},
-	"websphere":       {"websphere", "ibm"},
-	"ibm websphere":   {"websphere", "ibm"},
-	"jboss":           {"jboss"},
-	"wildfly":         {"wildfly", "jboss"},
-	"glassfish":       {"glassfish"},
-	"coldfusion":      {"coldfusion", "adobe"},
-
-	// 数据库
-	"mysql":         {"mysql"},
-	"postgresql":    {"postgresql"},
-	"mongodb":       {"mongodb"},
-	"redis":         {"redis"},
-	"elasticsearch": {"elasticsearch", "elastic"},
-	"memcached":     {"memcached"},
-	"oracle":        {"oracle"},
-	"mssql":         {"mssql", "microsoft"},
-
-	// 代理/负载均衡
-	"cloudflare": {"cloudflare"},
-	"varnish":    {"varnish"},
-	"haproxy":    {"haproxy"},
-	"f5 big-ip":  {"f5", "bigip"},
-	"citrix":     {"citrix"},
-	"aws":        {"aws", "amazon"},
-
-	// 安全设备
-	"fortinet":   {"fortinet", "fortigate"},
-	"fortigate":  {"fortinet", "fortigate"},
-	"palo alto":  {"paloalto"},
-	"cisco":      {"cisco"},
-	"sonicwall":  {"sonicwall"},
-	"checkpoint": {"checkpoint"},
-
-	// 版本控制
-	"gitlab":    {"gitlab"},
-	"github":    {"github"},
-	"bitbucket": {"bitbucket", "atlassian"},
-	"gitea":     {"gitea"},
-	"gogs":      {"gogs"},
-
-	// CI/CD
-	"jenkins":  {"jenkins"},
-	"bamboo":   {"bamboo", "atlassian"},
-	"teamcity": {"teamcity"},
-	"drone":    {"drone"},
-
-	// 容器/编排
-	"docker":     {"docker"},
-	"kubernetes": {"kubernetes", "k8s"},
-	"rancher":    {"rancher"},
-	"portainer":  {"portainer"},
-
-	// 监控
-	"grafana":    {"grafana"},
-	"prometheus": {"prometheus"},
-	"zabbix":     {"zabbix"},
-	"nagios":     {"nagios"},
-	"kibana":     {"kibana", "elastic"},
-
-	// 消息队列
-	"rabbitmq": {"rabbitmq"},
-	"kafka":    {"kafka"},
-	"activemq": {"activemq"},
-
-	// 其他常见应用
-	"phpmyadmin": {"phpmyadmin"},
-	"php":        {"php"},
-	"python":     {"python"},
-	"node.js":    {"nodejs"},
-	"java":       {"java"},
-	"solr":       {"solr", "apache"},
-	"nexus":      {"nexus"},
-	"jira":       {"jira", "atlassian"},
-	"webmin":     {"webmin"},
-	"cpanel":     {"cpanel"},
-	"plesk":      {"plesk"},
-	"keycloak":   {"keycloak"},
-	"moodle":     {"moodle"},
-	"odoo":       {"odoo"},
-	"redmine":    {"redmine"},
-	"owncloud":   {"owncloud"},
-	"nextcloud":  {"nextcloud"},
-	"rocketchat": {"rocketchat"},
-	"mattermost": {"mattermost"},
-	"discourse":  {"discourse"},
-	"phpbb":      {"phpbb"},
-	"vbulletin":  {"vbulletin"},
 }
 
 // loadCustomFingerprints 加载自定义指纹到指纹扫描器

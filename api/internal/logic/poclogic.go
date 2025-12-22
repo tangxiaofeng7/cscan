@@ -403,12 +403,19 @@ func NewNucleiTemplateCategoriesLogic(ctx context.Context, svcCtx *svc.ServiceCo
 }
 
 func (l *NucleiTemplateCategoriesLogic) NucleiTemplateCategories() (resp *types.NucleiTemplateCategoriesResp, err error) {
-	// 使用缓存的数据
-	categories := l.svcCtx.TemplateCategories
-	tags := l.svcCtx.TemplateTags
-	stats := l.svcCtx.TemplateStats
+	// 直接从数据库查询，不使用缓存
+	categories, err := l.svcCtx.NucleiTemplateModel.GetCategories(l.ctx)
+	if err != nil {
+		categories = []string{}
+	}
 
-	if stats == nil {
+	tags, err := l.svcCtx.NucleiTemplateModel.GetTags(l.ctx, 100)
+	if err != nil {
+		tags = []string{}
+	}
+
+	stats, err := l.svcCtx.NucleiTemplateModel.GetStats(l.ctx)
+	if err != nil {
 		stats = map[string]int{"total": 0}
 	}
 

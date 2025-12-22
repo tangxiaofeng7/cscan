@@ -24,7 +24,7 @@
           <el-icon><Delete /></el-icon>批量删除 ({{ selectedRows.length }})
         </el-button>
       </div>
-      <el-table :data="tableData" v-loading="loading" stripe @selection-change="handleSelectionChange">
+      <el-table :data="tableData" v-loading="loading" stripe max-height="500" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="50" />
         <el-table-column prop="name" label="任务名称" min-width="150" />
         <el-table-column prop="target" label="扫描目标" min-width="200" show-overflow-tooltip />
@@ -112,7 +112,7 @@
       <div style="margin-bottom: 15px">
         <el-button type="primary" size="small" @click="showProfileForm()">新建配置</el-button>
       </div>
-      <el-table :data="profiles" stripe size="small">
+      <el-table :data="profiles" stripe size="small" max-height="300">
         <el-table-column prop="name" label="配置名称" width="120" />
         <el-table-column prop="description" label="描述" min-width="150" />
         <el-table-column label="端口扫描" width="100">
