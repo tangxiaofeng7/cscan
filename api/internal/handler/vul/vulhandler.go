@@ -80,3 +80,17 @@ func VulBatchDeleteHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		httpx.OkJson(w, resp)
 	}
 }
+
+// VulStatHandler 漏洞统计
+func VulStatHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		workspaceId := middleware.GetWorkspaceId(r.Context())
+		l := logic.NewVulStatLogic(r.Context(), svcCtx)
+		resp, err := l.VulStat(workspaceId)
+		if err != nil {
+			response.Error(w, err)
+			return
+		}
+		httpx.OkJson(w, resp)
+	}
+}

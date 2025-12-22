@@ -172,6 +172,33 @@ func (m *CustomPocModel) FindAll(ctx context.Context, page, pageSize int) ([]Cus
 	return docs, nil
 }
 
+// FindWithFilter 带筛选条件的查询
+func (m *CustomPocModel) FindWithFilter(ctx context.Context, filter bson.M, page, pageSize int) ([]CustomPoc, error) {
+	opts := options.Find()
+	if page > 0 && pageSize > 0 {
+		opts.SetSkip(int64((page - 1) * pageSize))
+		opts.SetLimit(int64(pageSize))
+	}
+	opts.SetSort(bson.D{{Key: "create_time", Value: -1}})
+
+	cursor, err := m.coll.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var docs []CustomPoc
+	if err = cursor.All(ctx, &docs); err != nil {
+		return nil, err
+	}
+	return docs, nil
+}
+
+// CountWithFilter 带筛选条件的计数
+func (m *CustomPocModel) CountWithFilter(ctx context.Context, filter bson.M) (int64, error) {
+	return m.coll.CountDocuments(ctx, filter)
+}
+
 func (m *CustomPocModel) FindEnabled(ctx context.Context) ([]CustomPoc, error) {
 	cursor, err := m.coll.Find(ctx, bson.M{"enabled": true})
 	if err != nil {

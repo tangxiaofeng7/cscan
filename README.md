@@ -25,9 +25,14 @@
 git clone https://github.com/tangxiaofeng7/cscan.git
 cd cscan
 docker-compose up -d --build
+
+
 ```
 
 访问 `http://localhost:3000`，默认账号 `admin / 123456`
+
+## 交流群
+![交流群](images/cscan.jpg)
 
 ## 截图
 
@@ -201,7 +206,7 @@ docker-compose up -d --scale cscan-worker=3
 - 搜索结果一键导入为扫描任务
 - API 配置管理
 
-## 致谢
+## 参考
 
 - [go-zero](https://github.com/zeromicro/go-zero) - 微服务框架
 - [Nuclei](https://github.com/projectdiscovery/nuclei) - 漏洞扫描引擎

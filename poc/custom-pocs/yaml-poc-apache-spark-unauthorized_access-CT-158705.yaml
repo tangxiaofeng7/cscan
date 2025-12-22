@@ -1,0 +1,22 @@
+id: yaml-poc-apache-spark-unauthorized_access-CT-158705
+info:
+  name: Yaml Poc Apache Spark Unauthorized_Access Ct 158705
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-apache-spark-unauthorized_access-CT-158705'
+  tags: apache,unauth
+  reference: []
+http:
+- method: GET
+  path:
+  - /v1/submissions
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 400
+  - type: word
+    part: body
+    words:
+    - Missing an action
+    - serverSparkVersion

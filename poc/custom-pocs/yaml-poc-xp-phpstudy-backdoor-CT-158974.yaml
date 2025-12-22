@@ -1,0 +1,16 @@
+id: yaml-poc-xp-phpstudy-backdoor-CT-158974
+info:
+  name: Yaml Poc Xp Phpstudy Backdoor Ct 158974
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-xp-phpstudy-backdoor-CT-158974'
+  tags: xpoc
+  reference: []
+http:
+- method: GET
+  path:
+  - /index.php
+  headers:
+    Accept-Charset: '{{payload}}'
+    Accept-Encoding: gzip,deflate
+  redirects: false

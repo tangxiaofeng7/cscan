@@ -58,12 +58,14 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 		{Method: http.MethodPost, Path: "/api/v1/task/pause", Handler: task.MainTaskPauseHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/task/resume", Handler: task.MainTaskResumeHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/task/stop", Handler: task.MainTaskStopHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/task/stat", Handler: task.TaskStatHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/task/profile/list", Handler: task.TaskProfileListHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/task/profile/save", Handler: task.TaskProfileSaveHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/task/profile/delete", Handler: task.TaskProfileDeleteHandler(svcCtx)},
 
 		// 漏洞管理
 		{Method: http.MethodPost, Path: "/api/v1/vul/list", Handler: vul.VulListHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/vul/stat", Handler: vul.VulStatHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/vul/delete", Handler: vul.VulDeleteHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/vul/batchDelete", Handler: vul.VulBatchDeleteHandler(svcCtx)},
 

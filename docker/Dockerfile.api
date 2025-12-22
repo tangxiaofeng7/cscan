@@ -27,7 +27,7 @@ RUN apk add --no-cache ca-certificates tzdata unzip
 # 从本地 poc 目录复制 nuclei 安装包并安装
 COPY poc/nuclei_3.6.1_linux_amd64.zip /tmp/
 RUN unzip /tmp/nuclei_3.6.1_linux_amd64.zip -d /tmp/ \
-    && mv /tmp/nuclei /usr/local/bin/ \
+    && mv /tmp/nuclei_3.6.1_linux_amd64/nuclei /usr/local/bin/ \
     && rm -rf /tmp/nuclei* \
     && chmod +x /usr/local/bin/nuclei
 

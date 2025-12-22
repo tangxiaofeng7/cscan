@@ -1,0 +1,24 @@
+id: yaml-poc-bt-bt_panel-unauthorized_access-CNVD-2021-14826
+info:
+  name: Yaml Poc Bt Bt_Panel Unauthorized_Access Cnvd 2021 14826
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-bt-bt_panel-unauthorized_access-CNVD-2021-14826'
+  tags: unauth
+  reference: []
+http:
+- method: GET
+  path:
+  - /pma/
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - information_schema
+    - phpMyAdmin
+    - server_sql.php

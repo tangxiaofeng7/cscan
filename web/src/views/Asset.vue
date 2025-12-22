@@ -65,7 +65,6 @@
             </div>
             <div class="stat-column filter-column">
               <div class="filter-options">
-                <el-checkbox v-model="searchForm.onlyNew">只看新资产</el-checkbox>
                 <el-checkbox v-model="searchForm.onlyUpdated">只看有更新</el-checkbox>
                 <el-checkbox v-model="searchForm.sortByUpdate">按更新时间排序</el-checkbox>
               </div>
@@ -264,7 +263,6 @@ const searchForm = reactive({
   service: '',
   title: '',
   app: '',
-  onlyNew: false,
   onlyUpdated: false,
   sortByUpdate: true
 })
@@ -298,7 +296,6 @@ async function loadData() {
     const params = {
       page: pagination.page,
       pageSize: pagination.pageSize,
-      onlyNew: searchForm.onlyNew,
       onlyUpdated: searchForm.onlyUpdated,
       sortByUpdate: searchForm.sortByUpdate,
       workspaceId: workspaceStore.currentWorkspaceId || ''
@@ -428,7 +425,6 @@ function handleReset() {
     service: '',
     title: '',
     app: '',
-    onlyNew: false,
     onlyUpdated: false,
     sortByUpdate: true
   })

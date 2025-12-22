@@ -1,0 +1,12 @@
+id: yaml-poc-apache-rocketmq_broker-unauthorized_access-CT-745346
+info:
+  name: Yaml Poc Apache Rocketmq_Broker Unauthorized_Access Ct 745346
+  author: yuxiang.cai
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-apache-rocketmq_broker-unauthorized_access-CT-745346'
+  tags: apache,unauth
+  reference: []
+http:
+- method: GET
+  path:
+  - /

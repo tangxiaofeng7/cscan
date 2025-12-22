@@ -1,0 +1,22 @@
+id: yaml-poc-yonyou-yonyou_nc_cloud-deserialization-CT-532094
+info:
+  name: Yaml Poc Yonyou Yonyou_Nc_Cloud Deserialization Ct 532094
+  author: lianjian.chen
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-yonyou-yonyou_nc_cloud-deserialization-CT-532094'
+  tags: deserialization
+  reference: []
+http:
+- method: GET
+  path:
+  - /servlet/~ncwebpub/nc.document.pub.fileSystem.servlet.UploadServlet
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - UploadServlet
+    - org.apache.catalina.core.ApplicationFilterChain

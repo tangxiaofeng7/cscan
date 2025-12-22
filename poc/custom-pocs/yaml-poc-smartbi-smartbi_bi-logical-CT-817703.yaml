@@ -1,0 +1,28 @@
+id: yaml-poc-smartbi-smartbi_bi-logical-CT-817703
+info:
+  name: Yaml Poc Smartbi Smartbi_Bi Logical Ct 817703
+  author: yuxiang.cai
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-smartbi-smartbi_bi-logical-CT-817703'
+  tags: xpoc
+  reference:
+  - https://www.smartbi.com.cn/patchinfo
+http:
+- method: GET
+  path:
+  - /{{value}}smartbix/api/monitor/token
+  matchers-condition: and
+  matchers:
+  - type: word
+    part: body
+    words:
+    - Request method 'GET' not supported
+- method: GET
+  path:
+  - /{{value}}smartbix/api/monitor/setEngineAddress
+  matchers-condition: and
+  matchers:
+  - type: word
+    part: body
+    words:
+    - Request method 'GET' not supported

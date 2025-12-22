@@ -1,0 +1,23 @@
+id: yaml-poc-yonyou-yonyou_nc-deserialization-CT-532073
+info:
+  name: Yaml Poc Yonyou Yonyou_Nc Deserialization Ct 532073
+  author: lianjian.chen
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-yonyou-yonyou_nc-deserialization-CT-532073'
+  tags: deserialization
+  reference:
+  - https://security.yonyou.com/#/noticeInfo?id=293
+http:
+- method: GET
+  path:
+  - /servlet/~baseapp/nc.message.bs.NCMessageServlet
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - NCMessageServlet
+    - org.apache.catalina.core.ApplicationFilterChain

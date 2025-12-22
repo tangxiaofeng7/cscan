@@ -1,0 +1,25 @@
+id: yaml-poc-laravel-laravel-unsafe_config-CT-158642
+info:
+  name: Yaml Poc Laravel Laravel Unsafe_Config Ct 158642
+  author: converted
+  severity: medium
+  description: 'Converted from xpoc: yaml-poc-laravel-laravel-unsafe_config-CT-158642'
+  tags: laravel
+  reference: []
+http:
+- method: POST
+  path:
+  - /
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 405
+  - type: word
+    part: body
+    words:
+    - MethodNotAllowedHttpException
+    - Environment &amp; details
+    - vendor\\laravel\\framework\\src\\Illuminate\\Routing\\RouteCollection.php
+    - vendor/laravel/framework/src/Illuminate/Routing/RouteCollection.php

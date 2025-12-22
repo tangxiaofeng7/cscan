@@ -1,0 +1,19 @@
+id: yaml-poc-djangoproject-django-unsafe_config-CT-157837
+info:
+  name: Yaml Poc Djangoproject Django Unsafe_Config Ct 157837
+  author: converted
+  severity: medium
+  description: 'Converted from xpoc: yaml-poc-djangoproject-django-unsafe_config-CT-157837'
+  tags: xpoc
+  reference: []
+http:
+- method: GET
+  path:
+  - /admin/iYH6Zjxq7GlLA
+  matchers-condition: and
+  matchers:
+  - type: word
+    part: body
+    words:
+    - seeing this error because you have <code>DEBUG = True</code
+    - your Django settings file

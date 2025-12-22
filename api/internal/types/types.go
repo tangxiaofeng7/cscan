@@ -278,6 +278,35 @@ type VulBatchDeleteReq struct {
 	Ids []string `json:"ids"`
 }
 
+// VulStatResp 漏洞统计响应
+type VulStatResp struct {
+	Code     int `json:"code"`
+	Msg      string `json:"msg"`
+	Total    int `json:"total"`
+	Critical int `json:"critical"`
+	High     int `json:"high"`
+	Medium   int `json:"medium"`
+	Low      int `json:"low"`
+	Info     int `json:"info"`
+	Week     int `json:"week"`   // 近7天
+	Month    int `json:"month"`  // 近30天
+}
+
+// TaskStatResp 任务统计响应
+type TaskStatResp struct {
+	Code      int `json:"code"`
+	Msg       string `json:"msg"`
+	Total     int `json:"total"`
+	Completed int `json:"completed"`
+	Running   int `json:"running"`
+	Failed    int `json:"failed"`
+	Pending   int `json:"pending"`
+	// 近7天每日趋势
+	TrendDays      []string `json:"trendDays"`      // 日期标签
+	TrendCompleted []int    `json:"trendCompleted"` // 每日完成数
+	TrendFailed    []int    `json:"trendFailed"`    // 每日失败数
+}
+
 // ==================== Worker管理 ====================
 type Worker struct {
 	Name         string  `json:"name"`
@@ -397,8 +426,13 @@ type CustomPoc struct {
 }
 
 type CustomPocListReq struct {
-	Page     int `json:"page,default=1"`
-	PageSize int `json:"pageSize,default=20"`
+	Page     int    `json:"page,default=1"`
+	PageSize int    `json:"pageSize,default=20"`
+	Name     string `json:"name,optional"`       // 按名称筛选
+	TemplateId string `json:"templateId,optional"` // 按模板ID筛选
+	Severity string `json:"severity,optional"`   // 按严重级别筛选
+	Tag      string `json:"tag,optional"`        // 按标签筛选
+	Enabled  *bool  `json:"enabled,optional"`    // 按状态筛选
 }
 
 type CustomPocListResp struct {

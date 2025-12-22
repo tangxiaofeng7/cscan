@@ -6,8 +6,8 @@
         <el-form-item label="目标">
           <el-input v-model="searchForm.authority" placeholder="IP:端口" clearable />
         </el-form-item>
-        <el-form-item label="危害等级" >
-          <el-select v-model="searchForm.severity" placeholder="全部" clearable >
+        <el-form-item label="危害等级">
+          <el-select v-model="searchForm.severity" placeholder="全部" clearable style="width: 120px">
             <el-option label="严重" value="critical" />
             <el-option label="高危" value="high" />
             <el-option label="中危" value="medium" />
@@ -15,8 +15,8 @@
             <el-option label="信息" value="info" />
           </el-select>
         </el-form-item>
-        <el-form-item label="来源" >
-          <el-select v-model="searchForm.source" placeholder="全部" clearable>
+        <el-form-item label="来源">
+          <el-select v-model="searchForm.source" placeholder="全部" clearable style="width: 120px">
             <el-option label="Nuclei" value="nuclei" />
           </el-select>
         </el-form-item>

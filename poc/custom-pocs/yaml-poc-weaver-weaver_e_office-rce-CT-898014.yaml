@@ -1,0 +1,18 @@
+id: yaml-poc-weaver-weaver_e_office-rce-CT-898014
+info:
+  name: Yaml Poc Weaver Weaver_E_Office Rce Ct 898014
+  author: xiao.xiao
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_office-rce-CT-898014'
+  tags: rce
+  reference: []
+http:
+- method: POST
+  path:
+  - /eoffice10/server/public/api/welink/welink-move
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

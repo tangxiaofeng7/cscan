@@ -1,0 +1,22 @@
+id: yaml-poc-elastic-kibana-unauthorized_access-CT-158507
+info:
+  name: Yaml Poc Elastic Kibana Unauthorized_Access Ct 158507
+  author: converted
+  severity: low
+  description: 'Converted from xpoc: yaml-poc-elastic-kibana-unauthorized_access-CT-158507'
+  tags: unauth
+  reference: []
+http:
+- method: GET
+  path:
+  - /app/kibana
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - .kibanaWelcomeView

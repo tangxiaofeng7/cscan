@@ -131,12 +131,30 @@ func NewCustomPocListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Cus
 }
 
 func (l *CustomPocListLogic) CustomPocList(req *types.CustomPocListReq) (resp *types.CustomPocListResp, err error) {
-	docs, err := l.svcCtx.CustomPocModel.FindAll(l.ctx, req.Page, req.PageSize)
+	// 构建筛选条件
+	filter := bson.M{}
+	if req.Name != "" {
+		filter["name"] = bson.M{"$regex": req.Name, "$options": "i"}
+	}
+	if req.TemplateId != "" {
+		filter["template_id"] = bson.M{"$regex": req.TemplateId, "$options": "i"}
+	}
+	if req.Severity != "" {
+		filter["severity"] = req.Severity
+	}
+	if req.Tag != "" {
+		filter["tags"] = bson.M{"$in": []string{req.Tag}}
+	}
+	if req.Enabled != nil {
+		filter["enabled"] = *req.Enabled
+	}
+
+	docs, err := l.svcCtx.CustomPocModel.FindWithFilter(l.ctx, filter, req.Page, req.PageSize)
 	if err != nil {
 		return &types.CustomPocListResp{Code: 500, Msg: "查询失败"}, nil
 	}
 
-	total, _ := l.svcCtx.CustomPocModel.Count(l.ctx)
+	total, _ := l.svcCtx.CustomPocModel.CountWithFilter(l.ctx, filter)
 
 	list := make([]types.CustomPoc, 0, len(docs))
 	for _, doc := range docs {

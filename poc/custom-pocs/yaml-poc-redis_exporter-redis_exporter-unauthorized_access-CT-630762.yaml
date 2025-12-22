@@ -1,19 +1,23 @@
 id: yaml-poc-redis_exporter-redis_exporter-unauthorized_access-CT-630762
-
 info:
-  name: yaml-poc-redis_exporter-redis_exporter-unauthorized_access-CT-630762
+  name: Yaml Poc Redis_Exporter Redis_Exporter Unauthorized_Access Ct 630762
   author: lianjian.chen
   severity: high
-  tags: xray-converted,unauth
-
+  description: 'Converted from xpoc: yaml-poc-redis_exporter-redis_exporter-unauthorized_access-CT-630762'
+  tags: redis,unauth
+  reference: []
 http:
-  - raw:
-      - |
-        GET /metrics HTTP/1.1
-        Host: {{Hostname}}
-
-    matchers-condition: and
-    matchers:
-      - type: status
-        status:
-          - 200
+- method: GET
+  path:
+  - /metrics
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - redis_exporter
+    - HELP go_gc_duration_seconds
+    - TYPE go_gc_duration_seconds

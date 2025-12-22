@@ -609,3 +609,74 @@ func (l *MainTaskStopLogic) MainTaskStop(req *types.MainTaskControlReq, workspac
 }
 
 
+
+
+// TaskStatLogic 任务统计逻辑
+type TaskStatLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewTaskStatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *TaskStatLogic {
+	return &TaskStatLogic{
+		Logger: logx.WithContext(ctx),
+		ctx:    ctx,
+		svcCtx: svcCtx,
+	}
+}
+
+func (l *TaskStatLogic) TaskStat(workspaceId string) (resp *types.TaskStatResp, err error) {
+	taskModel := l.svcCtx.GetMainTaskModel(workspaceId)
+
+	// 统计总数
+	total, _ := taskModel.Count(l.ctx, bson.M{})
+
+	// 按状态统计
+	completed, _ := taskModel.Count(l.ctx, bson.M{"status": model.TaskStatusSuccess})
+	running, _ := taskModel.Count(l.ctx, bson.M{"status": model.TaskStatusStarted})
+	failed, _ := taskModel.Count(l.ctx, bson.M{"status": model.TaskStatusFailure})
+	pending, _ := taskModel.Count(l.ctx, bson.M{"status": bson.M{"$in": []string{model.TaskStatusPending, model.TaskStatusCreated}}})
+
+	// 近7天每日趋势统计
+	now := time.Now()
+	trendDays := make([]string, 7)
+	trendCompleted := make([]int, 7)
+	trendFailed := make([]int, 7)
+
+	for i := 6; i >= 0; i-- {
+		day := now.AddDate(0, 0, -i)
+		dayStart := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, day.Location())
+		dayEnd := dayStart.AddDate(0, 0, 1)
+
+		idx := 6 - i
+		trendDays[idx] = dayStart.Format("01-02")
+
+		// 统计当天完成的任务
+		completedCount, _ := taskModel.Count(l.ctx, bson.M{
+			"status":      model.TaskStatusSuccess,
+			"update_time": bson.M{"$gte": dayStart, "$lt": dayEnd},
+		})
+		trendCompleted[idx] = int(completedCount)
+
+		// 统计当天失败的任务
+		failedCount, _ := taskModel.Count(l.ctx, bson.M{
+			"status":      model.TaskStatusFailure,
+			"update_time": bson.M{"$gte": dayStart, "$lt": dayEnd},
+		})
+		trendFailed[idx] = int(failedCount)
+	}
+
+	return &types.TaskStatResp{
+		Code:           0,
+		Msg:            "success",
+		Total:          int(total),
+		Completed:      int(completed),
+		Running:        int(running),
+		Failed:         int(failed),
+		Pending:        int(pending),
+		TrendDays:      trendDays,
+		TrendCompleted: trendCompleted,
+		TrendFailed:    trendFailed,
+	}, nil
+}

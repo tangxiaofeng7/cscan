@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"cscan/api/internal/svc"
 	"cscan/api/internal/types"
@@ -106,4 +107,55 @@ func (l *VulLogic) VulBatchDelete(req *types.VulBatchDeleteReq, workspaceId stri
 		return &types.BaseResp{Code: 500, Msg: "删除失败: " + err.Error()}, nil
 	}
 	return &types.BaseResp{Code: 0, Msg: "成功删除 " + strconv.FormatInt(deleted, 10) + " 条记录"}, nil
+}
+
+
+// VulStatLogic 漏洞统计逻辑
+type VulStatLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewVulStatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *VulStatLogic {
+	return &VulStatLogic{
+		Logger: logx.WithContext(ctx),
+		ctx:    ctx,
+		svcCtx: svcCtx,
+	}
+}
+
+func (l *VulStatLogic) VulStat(workspaceId string) (resp *types.VulStatResp, err error) {
+	vulModel := l.svcCtx.GetVulModel(workspaceId)
+
+	// 统计总数
+	total, _ := vulModel.Count(l.ctx, bson.M{})
+
+	// 按严重级别统计
+	critical, _ := vulModel.Count(l.ctx, bson.M{"severity": "critical"})
+	high, _ := vulModel.Count(l.ctx, bson.M{"severity": "high"})
+	medium, _ := vulModel.Count(l.ctx, bson.M{"severity": "medium"})
+	low, _ := vulModel.Count(l.ctx, bson.M{"severity": "low"})
+	info, _ := vulModel.Count(l.ctx, bson.M{"severity": "info"})
+
+	// 近7天和近30天统计
+	now := time.Now()
+	weekAgo := now.AddDate(0, 0, -7)
+	monthAgo := now.AddDate(0, 0, -30)
+
+	week, _ := vulModel.Count(l.ctx, bson.M{"create_time": bson.M{"$gte": weekAgo}})
+	month, _ := vulModel.Count(l.ctx, bson.M{"create_time": bson.M{"$gte": monthAgo}})
+
+	return &types.VulStatResp{
+		Code:     0,
+		Msg:      "success",
+		Total:    int(total),
+		Critical: int(critical),
+		High:     int(high),
+		Medium:   int(medium),
+		Low:      int(low),
+		Info:     int(info),
+		Week:     int(week),
+		Month:    int(month),
+	}, nil
 }

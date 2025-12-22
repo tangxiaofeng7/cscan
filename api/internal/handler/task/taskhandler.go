@@ -242,3 +242,17 @@ func TaskProfileDeleteHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		httpx.OkJson(w, resp)
 	}
 }
+
+// TaskStatHandler 任务统计
+func TaskStatHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		workspaceId := middleware.GetWorkspaceId(r.Context())
+		l := logic.NewTaskStatLogic(r.Context(), svcCtx)
+		resp, err := l.TaskStat(workspaceId)
+		if err != nil {
+			response.Error(w, err)
+			return
+		}
+		httpx.OkJson(w, resp)
+	}
+}

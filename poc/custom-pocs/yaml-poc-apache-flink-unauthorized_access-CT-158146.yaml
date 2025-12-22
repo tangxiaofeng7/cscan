@@ -1,0 +1,21 @@
+id: yaml-poc-apache-flink-unauthorized_access-CT-158146
+info:
+  name: Yaml Poc Apache Flink Unauthorized_Access Ct 158146
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-apache-flink-unauthorized_access-CT-158146'
+  tags: apache,unauth
+  reference: []
+http:
+- method: GET
+  path:
+  - /
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - Apache Flink Web Dashboard

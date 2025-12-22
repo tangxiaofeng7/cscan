@@ -133,6 +133,12 @@
             <el-form-item label="搜索">
               <el-input v-model="customFilter.keyword" placeholder="应用名称或ID" clearable style="width: 200px" @keyup.enter="loadCustomFingerprints" />
             </el-form-item>
+            <el-form-item label="状态">
+              <el-select v-model="customFilter.enabled" placeholder="全部状态" clearable style="width: 100px" @change="loadCustomFingerprints">
+                <el-option label="启用" :value="true" />
+                <el-option label="禁用" :value="false" />
+              </el-select>
+            </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="loadCustomFingerprints">搜索</el-button>
               <el-button @click="resetCustomFilter">重置</el-button>
@@ -664,7 +670,8 @@ const customFingerprints = ref([])
 const customLoading = ref(false)
 const customFilter = reactive({
   category: '',
-  keyword: ''
+  keyword: '',
+  enabled: null
 })
 const customPagination = reactive({
   page: 1,
@@ -805,13 +812,19 @@ async function loadBuiltinFingerprints() {
 async function loadCustomFingerprints() {
   customLoading.value = true
   try {
-    const res = await getFingerprintList({
+    const params = {
       isBuiltin: false,
       category: customFilter.category,
       keyword: customFilter.keyword,
       page: customPagination.page,
       pageSize: customPagination.pageSize
-    })
+    }
+    // 添加状态筛选
+    if (customFilter.enabled !== null && customFilter.enabled !== '') {
+      params.enabled = customFilter.enabled
+    }
+    
+    const res = await getFingerprintList(params)
     if (res.code === 0) {
       customFingerprints.value = res.list || []
       customPagination.total = res.total
@@ -824,6 +837,7 @@ async function loadCustomFingerprints() {
 function resetCustomFilter() {
   customFilter.category = ''
   customFilter.keyword = ''
+  customFilter.enabled = null
   customPagination.page = 1
   loadCustomFingerprints()
 }

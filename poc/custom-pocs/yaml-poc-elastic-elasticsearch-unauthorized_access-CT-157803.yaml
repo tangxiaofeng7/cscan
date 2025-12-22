@@ -1,0 +1,33 @@
+id: yaml-poc-elastic-elasticsearch-unauthorized_access-CT-157803
+info:
+  name: Yaml Poc Elastic Elasticsearch Unauthorized_Access Ct 157803
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-elastic-elasticsearch-unauthorized_access-CT-157803'
+  tags: elasticsearch,unauth
+  reference: []
+http:
+- method: GET
+  path:
+  - /
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - You Know, for Search
+- method: GET
+  path:
+  - /_count
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - :\\d+

@@ -181,6 +181,37 @@
           <p class="tip-text">
             上传自定义的 Nuclei YAML 模板，支持自定义标签，可与标签映射配合使用实现针对性扫描。
           </p>
+          <!-- 筛选条件 -->
+          <el-form :inline="true" class="filter-form">
+            <el-form-item label="名称">
+              <el-input v-model="customPocFilter.name" placeholder="POC名称" clearable style="width: 150px" @keyup.enter="loadCustomPocs" />
+            </el-form-item>
+            <el-form-item label="模板ID">
+              <el-input v-model="customPocFilter.templateId" placeholder="模板ID" clearable style="width: 150px" @keyup.enter="loadCustomPocs" />
+            </el-form-item>
+            <el-form-item label="级别">
+              <el-select v-model="customPocFilter.severity" placeholder="全部级别" clearable style="width: 120px" @change="loadCustomPocs">
+                <el-option label="Critical" value="critical" />
+                <el-option label="High" value="high" />
+                <el-option label="Medium" value="medium" />
+                <el-option label="Low" value="low" />
+                <el-option label="Info" value="info" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="标签">
+              <el-input v-model="customPocFilter.tag" placeholder="输入标签" clearable style="width: 120px" @keyup.enter="loadCustomPocs" />
+            </el-form-item>
+            <el-form-item label="状态">
+              <el-select v-model="customPocFilter.enabled" placeholder="全部状态" clearable style="width: 100px" @change="loadCustomPocs">
+                <el-option label="启用" :value="true" />
+                <el-option label="禁用" :value="false" />
+              </el-select>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="loadCustomPocs">搜索</el-button>
+              <el-button @click="resetCustomPocFilter">重置</el-button>
+            </el-form-item>
+          </el-form>
           <el-table :data="customPocs" stripe v-loading="customPocLoading">
             <el-table-column prop="name" label="名称" width="250" />
             <el-table-column prop="templateId" label="模板ID" width="250" />
@@ -701,6 +732,15 @@ const customPocs = ref([])
 const customPocLoading = ref(false)
 const customPocDialogVisible = ref(false)
 
+// 自定义POC筛选条件
+const customPocFilter = reactive({
+  name: '',
+  templateId: '',
+  severity: '',
+  tag: '',
+  enabled: null
+})
+
 // 导入POC
 const importPocDialogVisible = ref(false)
 const importPocType = ref('text')
@@ -893,10 +933,28 @@ async function loadTagMappings() {
 async function loadCustomPocs() {
   customPocLoading.value = true
   try {
-    const res = await getCustomPocList({
+    const params = {
       page: pocPagination.page,
       pageSize: pocPagination.pageSize
-    })
+    }
+    // 添加筛选条件
+    if (customPocFilter.name) {
+      params.name = customPocFilter.name
+    }
+    if (customPocFilter.templateId) {
+      params.templateId = customPocFilter.templateId
+    }
+    if (customPocFilter.severity) {
+      params.severity = customPocFilter.severity
+    }
+    if (customPocFilter.tag) {
+      params.tag = customPocFilter.tag
+    }
+    if (customPocFilter.enabled !== null && customPocFilter.enabled !== '') {
+      params.enabled = customPocFilter.enabled
+    }
+    
+    const res = await getCustomPocList(params)
     if (res.code === 0) {
       customPocs.value = res.list || []
       pocPagination.total = res.total
@@ -904,6 +962,17 @@ async function loadCustomPocs() {
   } finally {
     customPocLoading.value = false
   }
+}
+
+// 重置自定义POC筛选条件
+function resetCustomPocFilter() {
+  customPocFilter.name = ''
+  customPocFilter.templateId = ''
+  customPocFilter.severity = ''
+  customPocFilter.tag = ''
+  customPocFilter.enabled = null
+  pocPagination.page = 1
+  loadCustomPocs()
 }
 
 function showTagMappingForm(row = null) {

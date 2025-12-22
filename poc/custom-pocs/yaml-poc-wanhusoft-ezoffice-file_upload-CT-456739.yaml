@@ -1,0 +1,23 @@
+id: yaml-poc-wanhusoft-ezoffice-file_upload-CT-456739
+info:
+  name: Yaml Poc Wanhusoft Ezoffice File_Upload Ct 456739
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-wanhusoft-ezoffice-file_upload-CT-456739'
+  tags: fileupload
+  reference:
+  - https://www.whir.net/
+http:
+- method: GET
+  path:
+  - /defaultroot/officeserverservlet
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: regex
+    part: body
+    regex:
+    - DBSTEP\\s+[v|V]3.0\\s+\\d+\\s+\\d+(.*)

