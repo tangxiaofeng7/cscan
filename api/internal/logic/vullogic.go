@@ -56,7 +56,7 @@ func (l *VulListLogic) VulList(req *types.VulListReq, workspaceId string) (resp 
 	// 转换响应
 	list := make([]types.Vul, 0, len(vuls))
 	for _, v := range vuls {
-		list = append(list, types.Vul{
+		vul := types.Vul{
 			Id:         v.Id.Hex(),
 			Authority:  v.Authority,
 			Url:        v.Url,
@@ -65,7 +65,16 @@ func (l *VulListLogic) VulList(req *types.VulListReq, workspaceId string) (resp 
 			Severity:   v.Severity,
 			Result:     v.Result,
 			CreateTime: v.CreateTime.Format("2006-01-02 15:04:05"),
-		})
+			ScanCount:  v.ScanCount,
+		}
+		// 新增字段 - 时间追踪 
+		if !v.FirstSeenTime.IsZero() {
+			vul.FirstSeenTime = v.FirstSeenTime.Format("2006-01-02 15:04:05")
+		}
+		if !v.LastSeenTime.IsZero() {
+			vul.LastSeenTime = v.LastSeenTime.Format("2006-01-02 15:04:05")
+		}
+		list = append(list, vul)
 	}
 
 	return &types.VulListResp{
@@ -157,5 +166,80 @@ func (l *VulStatLogic) VulStat(workspaceId string) (resp *types.VulStatResp, err
 		Info:     int(info),
 		Week:     int(week),
 		Month:    int(month),
+	}, nil
+}
+
+// VulDetailLogic 漏洞详情逻辑 
+type VulDetailLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewVulDetailLogic(ctx context.Context, svcCtx *svc.ServiceContext) *VulDetailLogic {
+	return &VulDetailLogic{
+		Logger: logx.WithContext(ctx),
+		ctx:    ctx,
+		svcCtx: svcCtx,
+	}
+}
+
+func (l *VulDetailLogic) VulDetail(req *types.VulDetailReq, workspaceId string) (resp *types.VulDetailResp, err error) {
+	if req.Id == "" {
+		return &types.VulDetailResp{Code: 400, Msg: "漏洞ID不能为空"}, nil
+	}
+
+	vulModel := l.svcCtx.GetVulModel(workspaceId)
+	vul, err := vulModel.FindById(l.ctx, req.Id)
+	if err != nil {
+		return &types.VulDetailResp{Code: 404, Msg: "漏洞不存在"}, nil
+	}
+
+	// 构建漏洞详情
+	detail := &types.VulDetail{
+		Id:         vul.Id.Hex(),
+		Authority:  vul.Authority,
+		Host:       vul.Host,
+		Port:       vul.Port,
+		Url:        vul.Url,
+		PocFile:    vul.PocFile,
+		Source:     vul.Source,
+		Severity:   vul.Severity,
+		Result:     vul.Result,
+		CreateTime: vul.CreateTime.Format("2006-01-02 15:04:05"),
+		// 知识库信息 
+		CvssScore:   vul.CvssScore,
+		CveId:       vul.CveId,
+		CweId:       vul.CweId,
+		Remediation: vul.Remediation,
+		References:  vul.References,
+		// 时间追踪 
+		ScanCount: vul.ScanCount,
+	}
+
+	// 时间追踪字段
+	if !vul.FirstSeenTime.IsZero() {
+		detail.FirstSeenTime = vul.FirstSeenTime.Format("2006-01-02 15:04:05")
+	}
+	if !vul.LastSeenTime.IsZero() {
+		detail.LastSeenTime = vul.LastSeenTime.Format("2006-01-02 15:04:05")
+	}
+
+	// 证据链 
+	if vul.MatcherName != "" || len(vul.ExtractedResults) > 0 || vul.CurlCommand != "" || vul.Request != "" || vul.Response != "" {
+		detail.Evidence = &types.VulEvidence{
+			MatcherName:       vul.MatcherName,
+			ExtractedResults:  vul.ExtractedResults,
+			CurlCommand:       vul.CurlCommand,
+			Request:           vul.Request,
+			Response:          vul.Response,
+			ResponseTruncated: vul.ResponseTruncated,
+		}
+	}
+
+	return &types.VulDetailResp{
+		Code: 0,
+		Msg:  "success",
+		Data: detail,
 	}, nil
 }

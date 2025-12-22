@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"cscan/model"
+	"cscan/pkg/template"
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"gopkg.in/yaml.v3"
@@ -196,6 +197,28 @@ func parseNucleiTemplateFile(filePath, baseDir string) *model.NucleiTemplate {
 		severity = "unknown"
 	}
 
+	// Parse additional metadata using template parser
+	content := string(data)
+	templateInfo, parseErr := template.ParseTemplateInfo(content)
+
+	// Initialize new fields with default values
+	var cvssScore float64
+	var cvssMetrics string
+	var cveIds []string
+	var cweIds []string
+	var references []string
+	var remediation string
+
+	// Extract metadata if parsing succeeded
+	if parseErr == nil && templateInfo != nil {
+		cvssScore = templateInfo.GetCvssScore()
+		cvssMetrics = templateInfo.GetCvssMetrics()
+		cveIds = templateInfo.GetCveIds()
+		cweIds = templateInfo.GetCweIds()
+		references = templateInfo.GetReferences()
+		remediation = templateInfo.GetRemediation()
+	}
+
 	return &model.NucleiTemplate{
 		TemplateId:  info.Id,
 		Name:        info.Info.Name,
@@ -205,7 +228,14 @@ func parseNucleiTemplateFile(filePath, baseDir string) *model.NucleiTemplate {
 		Tags:        tags,
 		Category:    category,
 		FilePath:    relPath,
-		Content:     string(data),
+		Content:     content,
 		Enabled:     true,
+		// New fields - vulnerability knowledge base
+		CvssScore:   cvssScore,
+		CvssMetrics: cvssMetrics,
+		CveIds:      cveIds,
+		CweIds:      cweIds,
+		References:  references,
+		Remediation: remediation,
 	}
 }

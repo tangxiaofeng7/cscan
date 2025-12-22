@@ -4,7 +4,7 @@
     <el-card class="search-card">
       <el-form :model="searchForm" inline>
         <el-form-item label="目标">
-          <el-input v-model="searchForm.authority" placeholder="IP:端口" clearable />
+          <el-input v-model="searchForm.authority" placeholder="IP:端口" clearable @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item label="危害等级">
           <el-select v-model="searchForm.severity" placeholder="全部" clearable style="width: 120px">

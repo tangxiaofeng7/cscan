@@ -33,6 +33,30 @@ func VulListHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// VulDetailHandler 漏洞详情 
+func VulDetailHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.VulDetailReq
+		if err := httpx.Parse(r, &req); err != nil {
+			response.ParamError(w, err.Error())
+			return
+		}
+		if req.Id == "" {
+			response.Error(w, xerr.NewParamError("漏洞ID不能为空"))
+			return
+		}
+
+		workspaceId := middleware.GetWorkspaceId(r.Context())
+		l := logic.NewVulDetailLogic(r.Context(), svcCtx)
+		resp, err := l.VulDetail(&req, workspaceId)
+		if err != nil {
+			response.Error(w, err)
+			return
+		}
+		httpx.OkJson(w, resp)
+	}
+}
+
 // VulDeleteHandler 删除漏洞
 func VulDeleteHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

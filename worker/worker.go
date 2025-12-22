@@ -56,6 +56,26 @@ type Worker struct {
 	isRunning    bool
 }
 
+// taskLog 发布任务级别日志，同时写入全局和任务专属Stream
+func (w *Worker) taskLog(taskId, level, format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	// 使用logx输出到控制台
+	switch level {
+	case "ERROR":
+		logx.Error(msg)
+	case "WARN":
+		logx.Info(msg)
+	case "DEBUG":
+		logx.Info(msg)
+	default:
+		logx.Info(msg)
+	}
+	// 同时发布到Redis（全局和任务专属）
+	if w.redisClient != nil {
+		PublishTaskLog(w.redisClient, w.config.Name, taskId, level, msg)
+	}
+}
+
 // VulnerabilityBuffer 批量缓冲保存漏洞
 type VulnerabilityBuffer struct {
 	vuls      []*scanner.Vulnerability
@@ -333,11 +353,39 @@ func (w *Worker) saveTaskProgress(ctx context.Context, task *scheduler.TaskInfo,
 		Result: string(stateJson),
 	})
 	logx.Infof("Task %s progress saved: completedPhases=%v, assets=%d", task.TaskId, phases, len(assets))
+	w.taskLog(task.TaskId, "INFO", "Task %s progress saved: completedPhases=%v, assets=%d", task.TaskId, phases, len(assets))
+}
+
+// createTaskContext 创建带有任务控制信号检查的上下文
+// 当任务被停止时，上下文会被取消
+func (w *Worker) createTaskContext(parentCtx context.Context, taskId string) (context.Context, context.CancelFunc) {
+	ctx, cancel := context.WithCancel(parentCtx)
+	
+	// 启动一个goroutine定期检查任务控制信号
+	go func() {
+		ticker := time.NewTicker(1 * time.Second) // 每秒检查一次
+		defer ticker.Stop()
+		
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if ctrl := w.checkTaskControl(ctx, taskId); ctrl == "STOP" {
+					w.taskLog(taskId, "INFO", "Task %s received stop signal, cancelling context", taskId)
+					cancel()
+					return
+				}
+			}
+		}
+	}()
+	
+	return ctx, cancel
 }
 
 // executeTask 执行任务
 func (w *Worker) executeTask(task *scheduler.TaskInfo) {
-	ctx := context.Background()
+	baseCtx := context.Background()
 	startTime := time.Now()
 
 	w.mu.Lock()
@@ -345,10 +393,14 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 	w.mu.Unlock()
 
 	// 检查是否有停止信号（任务可能在队列中被停止）
-	if ctrl := w.checkTaskControl(ctx, task.TaskId); ctrl == "STOP" {
-		logx.Infof("Task %s was stopped before execution", task.TaskId)
+	if ctrl := w.checkTaskControl(baseCtx, task.TaskId); ctrl == "STOP" {
+		w.taskLog(task.TaskId, "INFO", "Task %s was stopped before execution", task.TaskId)
 		return
 	}
+
+	// 创建带有任务控制信号检查的上下文
+	ctx, cancelTask := w.createTaskContext(baseCtx, task.TaskId)
+	defer cancelTask()
 
 	// 更新任务状态为开始
 	w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusStarted, "")
@@ -384,12 +436,16 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			PortScan: &scheduler.PortScanConfig{Enable: true, Ports: "80,443,8080"},
 		}
 	}
+	// 输出端口阈值配置，方便调试
+	if config.PortScan != nil {
+		w.taskLog(task.TaskId, "INFO", "Port threshold config: %d (0=no filter)", config.PortScan.PortThreshold)
+	}
 
 	// 解析恢复状态（如果是继续执行的任务）
 	var resumeState map[string]interface{}
 	if stateStr, ok := taskConfig["resumeState"].(string); ok && stateStr != "" {
 		json.Unmarshal([]byte(stateStr), &resumeState)
-		logx.Infof("Resuming task from saved state: %v", resumeState)
+		w.taskLog(task.TaskId, "INFO", "Resuming task from saved state: %v", resumeState)
 	}
 	completedPhases := make(map[string]bool)
 	if resumeState != nil {
@@ -403,7 +459,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 		// 恢复已扫描的资产
 		if assetsJson, ok := resumeState["assets"].(string); ok && assetsJson != "" {
 			json.Unmarshal([]byte(assetsJson), &allAssets)
-			logx.Infof("Restored %d assets from saved state", len(allAssets))
+			w.taskLog(task.TaskId, "INFO", "Restored %d assets from saved state", len(allAssets))
 		}
 	}
 
@@ -411,10 +467,10 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 	if (config.PortScan == nil || config.PortScan.Enable) && !completedPhases["portscan"] {
 		// 检查控制信号
 		if ctrl := w.checkTaskControl(ctx, task.TaskId); ctrl == "STOP" {
-			logx.Infof("Task %s stopped during port scan phase", task.TaskId)
+			w.taskLog(task.TaskId, "INFO", "Task %s stopped during port scan phase", task.TaskId)
 			return
 		} else if ctrl == "PAUSE" {
-			logx.Infof("Task %s paused during port scan phase", task.TaskId)
+			w.taskLog(task.TaskId, "INFO", "Task %s paused during port scan phase", task.TaskId)
 			return
 		}
 
@@ -429,38 +485,38 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 		// 第一步：端口发现（Naabu 或 Masscan）
 		switch portDiscoveryTool {
 		case "masscan":
-			logx.Infof("Phase 1: Running Masscan for fast port discovery on target: %s", target)
+			w.taskLog(task.TaskId, "INFO", "Phase 1: Running Masscan for fast port discovery on target: %s", target)
 			masscanScanner := w.scanners["masscan"]
 			masscanResult, err := masscanScanner.Scan(ctx, &scanner.ScanConfig{
 				Target:  target,
 				Options: config.PortScan,
 			})
 			if err != nil {
-				logx.Errorf("Masscan error: %v", err)
+				w.taskLog(task.TaskId, "ERROR", "Masscan error: %v", err)
 			}
 			if masscanResult != nil && len(masscanResult.Assets) > 0 {
 				openPorts = filterByPortThreshold(masscanResult.Assets, config.PortScan.PortThreshold)
-				logx.Infof("Masscan found %d open ports (filtered from %d)", len(openPorts), len(masscanResult.Assets))
+				w.taskLog(task.TaskId, "INFO", "Masscan found %d open ports (filtered from %d)", len(openPorts), len(masscanResult.Assets))
 			}
 		default: // naabu
-			logx.Infof("Phase 1: Running Naabu for fast port discovery on target: %s", target)
+			w.taskLog(task.TaskId, "INFO", "Phase 1: Running Naabu for fast port discovery on target: %s", target)
 			naabuScanner := w.scanners["naabu"]
 			naabuResult, err := naabuScanner.Scan(ctx, &scanner.ScanConfig{
 				Target:  target,
 				Options: config.PortScan,
 			})
 			if err != nil {
-				logx.Errorf("Naabu error: %v", err)
+				w.taskLog(task.TaskId, "ERROR", "Naabu error: %v", err)
 			}
 			if naabuResult != nil && len(naabuResult.Assets) > 0 {
 				openPorts = filterByPortThreshold(naabuResult.Assets, config.PortScan.PortThreshold)
-				logx.Infof("Naabu found %d open ports (filtered from %d)", len(openPorts), len(naabuResult.Assets))
+				w.taskLog(task.TaskId, "INFO", "Naabu found %d open ports (filtered from %d)", len(openPorts), len(naabuResult.Assets))
 			}
 		}
 		
 		// 第二步：Nmap 对存活端口进行服务识别
 		if len(openPorts) > 0 {
-			logx.Infof("Phase 2: Running Nmap for service detection on %d open ports", len(openPorts))
+			w.taskLog(task.TaskId, "INFO", "Phase 2: Running Nmap for service detection on %d open ports", len(openPorts))
 			
 			// 按主机分组端口
 			hostPorts := make(map[string][]int)
@@ -477,7 +533,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				}
 				portsStr := strings.Join(portStrs, ",")
 				
-				logx.Infof("Running Nmap on %s with ports: %s", host, portsStr)
+				w.taskLog(task.TaskId, "INFO", "Running Nmap on %s with ports: %s", host, portsStr)
 				
 				nmapResult, err := nmapScanner.Scan(ctx, &scanner.ScanConfig{
 					Target: host,
@@ -488,7 +544,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				})
 				
 				if err != nil {
-					logx.Errorf("Nmap error for %s: %v", host, err)
+					w.taskLog(task.TaskId, "ERROR", "Nmap error for %s: %v", host, err)
 					// Nmap失败时，使用端口发现阶段的结果
 					for _, asset := range openPorts {
 						if asset.Host == host {
@@ -516,15 +572,15 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				}
 			}
 			
-			logx.Infof("Port scan completed: %d assets with service info", len(allAssets))
+			w.taskLog(task.TaskId, "INFO", "Port scan completed: %d assets with service info", len(allAssets))
 			
 			// 端口扫描完成后立即保存结果
 			if len(allAssets) > 0 {
-				logx.Infof("Saving port scan results immediately...")
+				w.taskLog(task.TaskId, "INFO", "Saving port scan results immediately...")
 				w.saveAssetResult(ctx, task.WorkspaceId, task.MainTaskId, allAssets)
 			}
 		} else {
-			logx.Infof("No open ports found by %s", portDiscoveryTool)
+			w.taskLog(task.TaskId, "INFO", "No open ports found by %s", portDiscoveryTool)
 		}
 		
 		completedPhases["portscan"] = true
@@ -532,10 +588,10 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 
 	// 检查控制信号
 	if ctrl := w.checkTaskControl(ctx, task.TaskId); ctrl == "STOP" {
-		logx.Infof("Task %s stopped after port scan", task.TaskId)
+		w.taskLog(task.TaskId, "INFO", "Task %s stopped after port scan", task.TaskId)
 		return
 	} else if ctrl == "PAUSE" {
-		logx.Infof("Task %s paused after port scan, saving state...", task.TaskId)
+		w.taskLog(task.TaskId, "INFO", "Task %s paused after port scan, saving state...", task.TaskId)
 		w.saveTaskProgress(ctx, task, completedPhases, allAssets)
 		return
 	}
@@ -543,7 +599,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 	// 执行指纹识别
 	if config.Fingerprint != nil && config.Fingerprint.Enable && len(allAssets) > 0 && !completedPhases["fingerprint"] {
 		if s, ok := w.scanners["fingerprint"]; ok {
-			logx.Infof("Running fingerprint scan on %d assets", len(allAssets))
+			w.taskLog(task.TaskId, "INFO", "Running fingerprint scan on %d assets", len(allAssets))
 			
 			// 每次扫描前实时加载HTTP服务映射配置（类似POC扫描方式）
 			w.loadHttpServiceMappings()
@@ -557,6 +613,13 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				Assets:  allAssets,
 				Options: config.Fingerprint,
 			})
+			
+			// 检查是否被取消
+			if ctx.Err() != nil {
+				w.taskLog(task.TaskId, "INFO", "Task %s stopped during fingerprint scan", task.TaskId)
+				return
+			}
+			
 			if err == nil && result != nil {
 				// 构建 Host:Port -> Asset 的映射，用于匹配指纹结果
 				assetMap := make(map[string]*scanner.Asset)
@@ -582,7 +645,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				}
 				
 				// 指纹识别完成后保存更新结果（会以更新方式合并到已有资产）
-				logx.Infof("Saving fingerprint results...")
+				w.taskLog(task.TaskId, "INFO", "Saving fingerprint results...")
 				w.saveAssetResult(ctx, task.WorkspaceId, task.MainTaskId, allAssets)
 			}
 		}
@@ -591,10 +654,10 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 
 	// 检查控制信号
 	if ctrl := w.checkTaskControl(ctx, task.TaskId); ctrl == "STOP" {
-		logx.Infof("Task %s stopped after fingerprint scan", task.TaskId)
+		w.taskLog(task.TaskId, "INFO", "Task %s stopped after fingerprint scan", task.TaskId)
 		return
 	} else if ctrl == "PAUSE" {
-		logx.Infof("Task %s paused after fingerprint scan, saving state...", task.TaskId)
+		w.taskLog(task.TaskId, "INFO", "Task %s paused after fingerprint scan, saving state...", task.TaskId)
 		w.saveTaskProgress(ctx, task, completedPhases, allAssets)
 		return
 	}
@@ -602,7 +665,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 	// 执行POC扫描 (使用Nuclei引擎)
 	if config.PocScan != nil && config.PocScan.Enable && len(allAssets) > 0 && !completedPhases["pocscan"] {
 		if s, ok := w.scanners["nuclei"]; ok {
-			logx.Infof("Running Nuclei POC scan on %d assets", len(allAssets))
+			w.taskLog(task.TaskId, "INFO", "Running Nuclei POC scan on %d assets", len(allAssets))
 
 			// 从数据库获取模板（所有模板都存储在数据库中）
 			var templates []string
@@ -612,13 +675,13 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			if len(config.PocScan.NucleiTemplateIds) > 0 || len(config.PocScan.CustomPocIds) > 0 {
 				// 通过RPC根据ID获取模板内容（包括默认模板和自定义POC）
 				templates = w.getTemplatesByIds(ctx, config.PocScan.NucleiTemplateIds, config.PocScan.CustomPocIds)
-				logx.Infof("Fetched %d templates by IDs from database (nuclei: %d, custom: %d)", 
+				w.taskLog(task.TaskId, "INFO", "Fetched %d templates by IDs from database (nuclei: %d, custom: %d)", 
 					len(templates), len(config.PocScan.NucleiTemplateIds), len(config.PocScan.CustomPocIds))
 			} else {
 				// 没有预设的模板ID，根据自动扫描配置生成标签并获取模板
 				if config.PocScan.AutoScan || config.PocScan.AutomaticScan {
 					autoTags = w.generateAutoTags(allAssets, config.PocScan)
-					logx.Infof("Auto-scan generated tags: %v", autoTags)
+					w.taskLog(task.TaskId, "INFO", "Auto-scan generated tags: %v", autoTags)
 				}
 
 				if len(autoTags) > 0 {
@@ -628,10 +691,10 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 						severities = strings.Split(config.PocScan.Severity, ",")
 					}
 					templates = w.getTemplatesByTags(ctx, autoTags, severities)
-					logx.Infof("Fetched %d templates by tags from database", len(templates))
+					w.taskLog(task.TaskId, "INFO", "Fetched %d templates by tags from database", len(templates))
 				} else {
 					// 没有模板ID也没有自动标签，记录警告
-					logx.Errorf("No template IDs or auto-scan tags provided, POC scan will be skipped")
+					w.taskLog(task.TaskId, "ERROR", "No template IDs or auto-scan tags provided, POC scan will be skipped")
 				}
 			}
 
@@ -668,6 +731,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				}()
 
 				// 构建Nuclei扫描选项，设置回调函数批量保存漏洞
+				taskIdForCallback := task.TaskId // 捕获taskId用于回调
 				nucleiOpts := &scanner.NucleiOptions{
 					Severity:        config.PocScan.Severity,
 					Tags:            autoTags,
@@ -682,7 +746,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 					// 设置回调函数，发现漏洞时添加到缓冲区
 					OnVulnerabilityFound: func(vul *scanner.Vulnerability) {
 						vulCount++
-						logx.Infof("Found vulnerability #%d: %s on %s", vulCount, vul.PocFile, vul.Url)
+						w.taskLog(taskIdForCallback, "INFO", "Found vulnerability #%d: %s on %s", vulCount, vul.PocFile, vul.Url)
 						vulBuffer.Add(vul)
 					},
 				}
@@ -693,7 +757,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				if nucleiOpts.Concurrency == 0 {
 					nucleiOpts.Concurrency = 25
 				}
-				logx.Infof("Nuclei options: Templates=%d, Tags=%v", len(nucleiOpts.CustomTemplates), nucleiOpts.Tags)
+				w.taskLog(task.TaskId, "INFO", "Nuclei options: Templates=%d, Tags=%v", len(nucleiOpts.CustomTemplates), nucleiOpts.Tags)
 
 				result, err := s.Scan(ctx, &scanner.ScanConfig{
 					Assets:  allAssets,
@@ -706,18 +770,18 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				})
 
 				if err != nil {
-					logx.Errorf("POC scan error: %v", err)
+					w.taskLog(task.TaskId, "ERROR", "POC scan error: %v", err)
 				}
 				if result != nil {
 					allVuls = append(allVuls, result.Vulnerabilities...)
 					if vulCount > 0 {
-						logx.Infof("POC scan completed: %d vulnerabilities found and saved", vulCount)
+						w.taskLog(task.TaskId, "INFO", "POC scan completed: %d vulnerabilities found and saved", vulCount)
 					} else {
-						logx.Info("POC scan completed, no vulnerabilities found")
+						w.taskLog(task.TaskId, "INFO", "POC scan completed, no vulnerabilities found")
 					}
 				}
 			} else {
-				logx.Info("No templates available, skipping POC scan")
+				w.taskLog(task.TaskId, "INFO", "No templates available, skipping POC scan")
 			}
 		}
 	}
@@ -726,7 +790,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 	duration := time.Since(startTime).Seconds()
 	result := fmt.Sprintf("资产:%d 漏洞:%d 耗时:%.0fs", len(allAssets), len(allVuls), duration)
 	w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusSuccess, result)
-	logx.Infof("Task %s completed: %s", task.TaskId, result)
+	w.taskLog(task.TaskId, "INFO", "Task %s completed: %s", task.TaskId, result)
 
 	w.mu.Lock()
 	w.taskExecuted++
@@ -789,7 +853,7 @@ func (w *Worker) saveAssetResult(ctx context.Context, workspaceId, mainTaskId st
 	}
 }
 
-// saveVulResult 保存漏洞结果
+// saveVulResult 保存漏洞结果（支持去重与聚合）
 func (w *Worker) saveVulResult(ctx context.Context, workspaceId, mainTaskId string, vuls []*scanner.Vulnerability) {
 	if len(vuls) == 0 {
 		return
@@ -797,7 +861,7 @@ func (w *Worker) saveVulResult(ctx context.Context, workspaceId, mainTaskId stri
 
 	pbVuls := make([]*pb.VulDocument, 0, len(vuls))
 	for _, vul := range vuls {
-		pbVuls = append(pbVuls, &pb.VulDocument{
+		pbVul := &pb.VulDocument{
 			Authority: vul.Authority,
 			Host:      vul.Host,
 			Port:      int32(vul.Port),
@@ -806,7 +870,46 @@ func (w *Worker) saveVulResult(ctx context.Context, workspaceId, mainTaskId stri
 			Source:    vul.Source,
 			Severity:  vul.Severity,
 			Result:    vul.Result,
-		})
+		}
+
+		// 漏洞知识库关联字段
+		if vul.CvssScore > 0 {
+			pbVul.CvssScore = &vul.CvssScore
+		}
+		if vul.CveId != "" {
+			pbVul.CveId = &vul.CveId
+		}
+		if vul.CweId != "" {
+			pbVul.CweId = &vul.CweId
+		}
+		if vul.Remediation != "" {
+			pbVul.Remediation = &vul.Remediation
+		}
+		if len(vul.References) > 0 {
+			pbVul.References = vul.References
+		}
+
+		// 证据链字段
+		if vul.MatcherName != "" {
+			pbVul.MatcherName = &vul.MatcherName
+		}
+		if len(vul.ExtractedResults) > 0 {
+			pbVul.ExtractedResults = vul.ExtractedResults
+		}
+		if vul.CurlCommand != "" {
+			pbVul.CurlCommand = &vul.CurlCommand
+		}
+		if vul.Request != "" {
+			pbVul.Request = &vul.Request
+		}
+		if vul.Response != "" {
+			pbVul.Response = &vul.Response
+		}
+		if vul.ResponseTruncated {
+			pbVul.ResponseTruncated = &vul.ResponseTruncated
+		}
+
+		pbVuls = append(pbVuls, pbVul)
 	}
 
 	_, err := w.rpcClient.SaveVulResult(ctx, &pb.SaveVulResultReq{
@@ -1207,10 +1310,10 @@ func (w *Worker) executePocValidateTask(ctx context.Context, task *scheduler.Tas
 	batchId, _ := taskConfig["batchId"].(string)
 
 	// 立即输出任务接收日志
-	logx.Infof("[%s] 收到POC验证任务, 目标: %s", task.TaskId, url)
+	w.taskLog(task.TaskId, "INFO", "[%s] 收到POC验证任务, 目标: %s", task.TaskId, url)
 
 	if url == "" {
-		logx.Errorf("[%s] POC验证失败: URL为空", task.TaskId)
+		w.taskLog(task.TaskId, "ERROR", "[%s] POC验证失败: URL为空", task.TaskId)
 		w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusFailure, "URL为空")
 		w.savePocValidationResult(ctx, task.TaskId, batchId, nil, "URL为空")
 		return
@@ -1223,7 +1326,7 @@ func (w *Worker) executePocValidateTask(ctx context.Context, task *scheduler.Tas
 	// 获取Nuclei扫描器
 	nucleiScanner, ok := w.scanners["nuclei"]
 	if !ok {
-		logx.Errorf("[%s] POC验证失败: Nuclei扫描器未初始化", task.TaskId)
+		w.taskLog(task.TaskId, "ERROR", "[%s] POC验证失败: Nuclei扫描器未初始化", task.TaskId)
 		w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusFailure, "Nuclei扫描器未初始化")
 		w.savePocValidationResult(ctx, task.TaskId, batchId, nil, "Nuclei扫描器未初始化")
 		return
@@ -1236,25 +1339,25 @@ func (w *Worker) executePocValidateTask(ctx context.Context, task *scheduler.Tas
 
 	// 如果指定了pocId，通过RPC获取POC内容
 	if pocId != "" {
-		logx.Infof("[%s] 正在加载POC模板...", task.TaskId)
+		w.taskLog(task.TaskId, "INFO", "[%s] 正在加载POC模板...", task.TaskId)
 		resp, err := w.rpcClient.GetPocById(ctx, &pb.GetPocByIdReq{
 			PocId:   pocId,
 			PocType: pocType,
 		})
 		if err != nil {
-			logx.Errorf("[%s] POC验证失败: 获取POC失败 - %v", task.TaskId, err)
+			w.taskLog(task.TaskId, "ERROR", "[%s] POC验证失败: 获取POC失败 - %v", task.TaskId, err)
 			w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusFailure, "获取POC失败: "+err.Error())
 			w.savePocValidationResult(ctx, task.TaskId, batchId, nil, "获取POC失败: "+err.Error())
 			return
 		}
 		if !resp.Success {
-			logx.Errorf("[%s] POC验证失败: POC不存在 - %s", task.TaskId, resp.Message)
+			w.taskLog(task.TaskId, "ERROR", "[%s] POC验证失败: POC不存在 - %s", task.TaskId, resp.Message)
 			w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusFailure, "POC不存在: "+resp.Message)
 			w.savePocValidationResult(ctx, task.TaskId, batchId, nil, "POC不存在: "+resp.Message)
 			return
 		}
 		if resp.Content == "" {
-			logx.Errorf("[%s] POC验证失败: POC内容为空", task.TaskId)
+			w.taskLog(task.TaskId, "ERROR", "[%s] POC验证失败: POC内容为空", task.TaskId)
 			w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusFailure, "POC内容为空")
 			w.savePocValidationResult(ctx, task.TaskId, batchId, nil, "POC内容为空")
 			return
@@ -1263,7 +1366,7 @@ func (w *Worker) executePocValidateTask(ctx context.Context, task *scheduler.Tas
 		pocName = resp.Name
 		pocSeverity = resp.Severity
 		pocType = resp.PocType
-		logx.Infof("[%s] POC模板加载完成: %s", task.TaskId, pocName)
+		w.taskLog(task.TaskId, "INFO", "[%s] POC模板加载完成: %s", task.TaskId, pocName)
 	} else {
 		// 没有指定pocId，尝试通过标签获取模板
 		var severities []string
@@ -1293,7 +1396,7 @@ func (w *Worker) executePocValidateTask(ctx context.Context, task *scheduler.Tas
 		}
 
 		if len(templates) == 0 {
-			logx.Errorf("[%s] POC验证失败: 未找到POC模板", task.TaskId)
+			w.taskLog(task.TaskId, "ERROR", "[%s] POC验证失败: 未找到POC模板", task.TaskId)
 			w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusFailure, "未找到POC模板")
 			w.savePocValidationResult(ctx, task.TaskId, batchId, nil, "未找到POC模板")
 			return
@@ -1301,7 +1404,7 @@ func (w *Worker) executePocValidateTask(ctx context.Context, task *scheduler.Tas
 	}
 
 	// 输出开始扫描日志
-	logx.Infof("[%s] 正在初始化Nuclei扫描引擎...", task.TaskId)
+	w.taskLog(task.TaskId, "INFO", "[%s] 正在初始化Nuclei扫描引擎...", task.TaskId)
 
 	// 构建Nuclei扫描选项
 	nucleiOpts := &scanner.NucleiOptions{
@@ -1311,7 +1414,7 @@ func (w *Worker) executePocValidateTask(ctx context.Context, task *scheduler.Tas
 		CustomPocOnly:   true, // 只使用自定义POC
 	}
 
-	logx.Infof("[%s] 开始扫描目标: %s", task.TaskId, url)
+	w.taskLog(task.TaskId, "INFO", "[%s] 开始扫描目标: %s", task.TaskId, url)
 
 	// 执行扫描 - 直接传递URL作为目标，不通过Asset构建
 	result, err := nucleiScanner.Scan(ctx, &scanner.ScanConfig{
@@ -1322,7 +1425,7 @@ func (w *Worker) executePocValidateTask(ctx context.Context, task *scheduler.Tas
 	duration := time.Since(startTime).Seconds()
 
 	if err != nil {
-		logx.Errorf("[%s] POC验证失败: %v", task.TaskId, err)
+		w.taskLog(task.TaskId, "ERROR", "[%s] POC验证失败: %v", task.TaskId, err)
 		w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusFailure, fmt.Sprintf("扫描失败: %v", err))
 		w.savePocValidationResult(ctx, task.TaskId, batchId, nil, fmt.Sprintf("扫描失败: %v", err))
 		return
@@ -1336,7 +1439,7 @@ func (w *Worker) executePocValidateTask(ctx context.Context, task *scheduler.Tas
 		vulCount = len(result.Vulnerabilities)
 	}
 
-	logx.Infof("[%s] 扫描完成, 耗时: %.2fs", task.TaskId, duration)
+	w.taskLog(task.TaskId, "INFO", "[%s] 扫描完成, 耗时: %.2fs", task.TaskId, duration)
 
 	if result != nil && len(result.Vulnerabilities) > 0 {
 		matched = true
@@ -1362,6 +1465,7 @@ func (w *Worker) executePocValidateTask(ctx context.Context, task *scheduler.Tas
 				PocType:    pocType,
 			})
 			logx.Infof("[%s] 发现漏洞! 匹配URL: %s", task.TaskId, vul.Url)
+			w.taskLog(task.TaskId, "INFO", "[%s] 发现漏洞! 匹配URL: %s", task.TaskId, vul.Url)
 		}
 	} else {
 		// 没有发现漏洞，添加一个未匹配的结果
@@ -1378,7 +1482,7 @@ func (w *Worker) executePocValidateTask(ctx context.Context, task *scheduler.Tas
 			Details:    "未发现漏洞",
 			PocType:    pocType,
 		})
-		logx.Infof("[%s] 未发现漏洞", task.TaskId)
+		w.taskLog(task.TaskId, "INFO", "[%s] 未发现漏洞", task.TaskId)
 	}
 
 	// 保存结果到Redis

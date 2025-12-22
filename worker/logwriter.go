@@ -17,6 +17,7 @@ type LogEntry struct {
 	Timestamp  string `json:"timestamp"`
 	Level      string `json:"level"`
 	WorkerName string `json:"workerName"`
+	TaskId     string `json:"taskId,omitempty"` // 新增：任务ID，用于关联日志与任务
 	Message    string `json:"message"`
 }
 
@@ -149,6 +150,54 @@ func PublishLog(client *redis.Client, workerName, level, message string) {
 	})
 }
 
+// PublishTaskLog 发布任务日志到Redis
+// 同时写入全局Stream和任务专属Stream
+// 同时发布到全局Pub/Sub和任务专属Pub/Sub
+func PublishTaskLog(client *redis.Client, workerName, taskId, level, message string) {
+	if client == nil {
+		return
+	}
+
+	entry := LogEntry{
+		Timestamp:  time.Now().Format("2006-01-02 15:04:05"),
+		Level:      level,
+		WorkerName: workerName,
+		TaskId:     taskId,
+		Message:    message,
+	}
+
+	data, _ := json.Marshal(entry)
+	ctx := context.Background()
+
+	// 1. 发布到全局Pub/Sub频道（用于Worker页面实时推送）
+	client.Publish(ctx, "cscan:worker:logs:realtime", string(data))
+
+	// 2. 保存到全局Stream（用于Worker页面历史查询）
+	client.XAdd(ctx, &redis.XAddArgs{
+		Stream: "cscan:worker:logs",
+		MaxLen: 10000,
+		Approx: true,
+		Values: map[string]interface{}{
+			"data": string(data),
+		},
+	})
+
+	// 3. 保存到任务专属Stream（用于任务日志查询）
+	if taskId != "" {
+		client.XAdd(ctx, &redis.XAddArgs{
+			Stream: "cscan:task:logs:" + taskId,
+			MaxLen: 5000, // 每个任务最多保留5000条日志
+			Approx: true,
+			Values: map[string]interface{}{
+				"data": string(data),
+			},
+		})
+
+		// 4. 发布到任务专属Pub/Sub频道（用于任务日志实时推送）
+		client.Publish(ctx, "cscan:task:logs:realtime:"+taskId, string(data))
+	}
+}
+
 // WorkerLogger Worker日志记录器
 type WorkerLogger struct {
 	client     *redis.Client
@@ -181,4 +230,40 @@ func (l *WorkerLogger) Warn(format string, args ...interface{}) {
 func (l *WorkerLogger) Debug(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
 	PublishLog(l.client, l.workerName, "DEBUG", msg)
+}
+
+// TaskLogger 任务日志记录器，支持任务级别日志
+type TaskLogger struct {
+	client     *redis.Client
+	workerName string
+	taskId     string
+}
+
+// NewTaskLogger 创建任务日志记录器
+func NewTaskLogger(client *redis.Client, workerName, taskId string) *TaskLogger {
+	return &TaskLogger{
+		client:     client,
+		workerName: workerName,
+		taskId:     taskId,
+	}
+}
+
+func (l *TaskLogger) Info(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	PublishTaskLog(l.client, l.workerName, l.taskId, "INFO", msg)
+}
+
+func (l *TaskLogger) Error(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	PublishTaskLog(l.client, l.workerName, l.taskId, "ERROR", msg)
+}
+
+func (l *TaskLogger) Warn(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	PublishTaskLog(l.client, l.workerName, l.taskId, "WARN", msg)
+}
+
+func (l *TaskLogger) Debug(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	PublishTaskLog(l.client, l.workerName, l.taskId, "DEBUG", msg)
 }

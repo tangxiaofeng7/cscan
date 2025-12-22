@@ -143,6 +143,19 @@ message VulDocument {
   string extra = 8;
   string result = 9;
   string taskId = 10;
+  // 漏洞知识库关联字段
+  optional double cvssScore = 11;
+  optional string cveId = 12;
+  optional string cweId = 13;
+  optional string remediation = 14;
+  repeated string references = 15;
+  // 证据链字段
+  optional string matcherName = 16;
+  repeated string extractedResults = 17;
+  optional string curlCommand = 18;
+  optional string request = 19;
+  optional string response = 20;
+  optional bool responseTruncated = 21;
 }
 
 message SaveVulResultReq {

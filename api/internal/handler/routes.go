@@ -53,6 +53,7 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 		// 任务管理
 		{Method: http.MethodPost, Path: "/api/v1/task/list", Handler: task.MainTaskListHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/task/create", Handler: task.MainTaskCreateHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/task/update", Handler: task.MainTaskUpdateHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/task/delete", Handler: task.MainTaskDeleteHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/task/batchDelete", Handler: task.MainTaskBatchDeleteHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/task/retry", Handler: task.MainTaskRetryHandler(svcCtx)},
@@ -64,9 +65,12 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 		{Method: http.MethodPost, Path: "/api/v1/task/profile/list", Handler: task.TaskProfileListHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/task/profile/save", Handler: task.TaskProfileSaveHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/task/profile/delete", Handler: task.TaskProfileDeleteHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/task/logs", Handler: task.GetTaskLogsHandler(svcCtx)},
+		{Method: http.MethodGet, Path: "/api/v1/task/logs/stream", Handler: task.TaskLogsStreamHandler(svcCtx)},
 
 		// 漏洞管理
 		{Method: http.MethodPost, Path: "/api/v1/vul/list", Handler: vul.VulListHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/vul/detail", Handler: vul.VulDetailHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/vul/stat", Handler: vul.VulStatHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/vul/delete", Handler: vul.VulDeleteHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/vul/batchDelete", Handler: vul.VulBatchDeleteHandler(svcCtx)},
