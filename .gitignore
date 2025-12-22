@@ -3,6 +3,6 @@ web/dist/
 *.exe
 .idea/
 .vscode/
+.kiro/
 output/
 .DS_Store
-.gitignore

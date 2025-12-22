@@ -885,6 +885,19 @@ type VulDocument struct {
 	Extra         string                 `protobuf:"bytes,8,opt,name=extra,proto3" json:"extra,omitempty"`
 	Result        string                 `protobuf:"bytes,9,opt,name=result,proto3" json:"result,omitempty"`
 	TaskId        string                 `protobuf:"bytes,10,opt,name=taskId,proto3" json:"taskId,omitempty"`
+	// 新增字段 - 漏洞知识库关联 (Requirements: 1.4)
+	CvssScore   *float64 `protobuf:"fixed64,11,opt,name=cvssScore,proto3,oneof" json:"cvssScore,omitempty"`
+	CveId       *string  `protobuf:"bytes,12,opt,name=cveId,proto3,oneof" json:"cveId,omitempty"`
+	CweId       *string  `protobuf:"bytes,13,opt,name=cweId,proto3,oneof" json:"cweId,omitempty"`
+	Remediation *string  `protobuf:"bytes,14,opt,name=remediation,proto3,oneof" json:"remediation,omitempty"`
+	References  []string `protobuf:"bytes,15,rep,name=references,proto3" json:"references,omitempty"`
+	// 新增字段 - 证据链 (Requirements: 3.1, 3.2, 3.3, 3.4, 3.5)
+	MatcherName       *string  `protobuf:"bytes,16,opt,name=matcherName,proto3,oneof" json:"matcherName,omitempty"`
+	ExtractedResults  []string `protobuf:"bytes,17,rep,name=extractedResults,proto3" json:"extractedResults,omitempty"`
+	CurlCommand       *string  `protobuf:"bytes,18,opt,name=curlCommand,proto3,oneof" json:"curlCommand,omitempty"`
+	Request           *string  `protobuf:"bytes,19,opt,name=request,proto3,oneof" json:"request,omitempty"`
+	Response          *string  `protobuf:"bytes,20,opt,name=response,proto3,oneof" json:"response,omitempty"`
+	ResponseTruncated *bool    `protobuf:"varint,21,opt,name=responseTruncated,proto3,oneof" json:"responseTruncated,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -987,6 +1000,85 @@ func (x *VulDocument) GetTaskId() string {
 		return x.TaskId
 	}
 	return ""
+}
+
+// 新增字段的getter方法 - 漏洞知识库关联 (Requirements: 1.4)
+func (x *VulDocument) GetCvssScore() float64 {
+	if x != nil && x.CvssScore != nil {
+		return *x.CvssScore
+	}
+	return 0
+}
+
+func (x *VulDocument) GetCveId() string {
+	if x != nil && x.CveId != nil {
+		return *x.CveId
+	}
+	return ""
+}
+
+func (x *VulDocument) GetCweId() string {
+	if x != nil && x.CweId != nil {
+		return *x.CweId
+	}
+	return ""
+}
+
+func (x *VulDocument) GetRemediation() string {
+	if x != nil && x.Remediation != nil {
+		return *x.Remediation
+	}
+	return ""
+}
+
+func (x *VulDocument) GetReferences() []string {
+	if x != nil {
+		return x.References
+	}
+	return nil
+}
+
+// 新增字段的getter方法 - 证据链 (Requirements: 3.1, 3.2, 3.3, 3.4, 3.5)
+func (x *VulDocument) GetMatcherName() string {
+	if x != nil && x.MatcherName != nil {
+		return *x.MatcherName
+	}
+	return ""
+}
+
+func (x *VulDocument) GetExtractedResults() []string {
+	if x != nil {
+		return x.ExtractedResults
+	}
+	return nil
+}
+
+func (x *VulDocument) GetCurlCommand() string {
+	if x != nil && x.CurlCommand != nil {
+		return *x.CurlCommand
+	}
+	return ""
+}
+
+func (x *VulDocument) GetRequest() string {
+	if x != nil && x.Request != nil {
+		return *x.Request
+	}
+	return ""
+}
+
+func (x *VulDocument) GetResponse() string {
+	if x != nil && x.Response != nil {
+		return *x.Response
+	}
+	return ""
+}
+
+func (x *VulDocument) GetResponseTruncated() bool {
+	if x != nil && x.ResponseTruncated != nil {
+		return *x.ResponseTruncated
+	}
+	return false
 }
 
 type SaveVulResultReq struct {
