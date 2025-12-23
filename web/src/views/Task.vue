@@ -372,8 +372,10 @@ const selectedRows = ref([])
 const autoRefresh = ref(true)
 const taskLogs = ref([])
 const currentLogTaskId = ref('')
+const logIdSet = new Set() // 用于日志去重
 let refreshTimer = null
 let logEventSource = null
+let logPollingTimer = null // 日志轮询定时器
 
 const editForm = reactive({
   id: '',
@@ -785,10 +787,13 @@ async function handleUpdateTask() {
 async function showLogs(row) {
   currentLogTaskId.value = row.taskId // 使用taskId（UUID）而不是id（MongoDB ObjectID）
   taskLogs.value = []
+  logIdSet.clear()
   logDialogVisible.value = true
   await refreshLogs()
   // 连接SSE实时日志流
   connectLogStream()
+  // 同时启动轮询作为备选（确保日志能更新）
+  startLogPolling()
 }
 
 async function refreshLogs() {
@@ -796,13 +801,33 @@ async function refreshLogs() {
   try {
     const res = await getTaskLogs({ taskId: currentLogTaskId.value, limit: 500 })
     if (res.code === 0) {
-      taskLogs.value = res.list || []
+      const newLogs = res.list || []
+      // 使用去重逻辑
+      for (const log of newLogs) {
+        const logId = (log.timestamp || '') + (log.message || '')
+        if (!logIdSet.has(logId)) {
+          logIdSet.add(logId)
+          taskLogs.value.push(log)
+        }
+      }
+      // 按时间排序
+      taskLogs.value.sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''))
       // 滚动到底部
       scrollToBottom()
     }
   } catch (err) {
     console.error('Failed to load task logs:', err)
   }
+}
+
+// 启动日志轮询
+function startLogPolling() {
+  if (logPollingTimer) return
+  logPollingTimer = setInterval(async () => {
+    if (logDialogVisible.value && currentLogTaskId.value) {
+      await refreshLogs()
+    }
+  }, 2000) // 每2秒轮询一次
 }
 
 function scrollToBottom() {
@@ -832,11 +857,10 @@ function connectLogStream() {
   logEventSource.onmessage = (event) => {
     try {
       const log = JSON.parse(event.data)
-      // 避免重复添加（历史日志已通过API获取）
-      const exists = taskLogs.value.some(
-        l => l.timestamp === log.timestamp && l.message === log.message
-      )
-      if (!exists) {
+      // 使用去重逻辑
+      const logId = (log.timestamp || '') + (log.message || '')
+      if (!logIdSet.has(logId)) {
+        logIdSet.add(logId)
         taskLogs.value.push(log)
         scrollToBottom()
       }
@@ -847,14 +871,15 @@ function connectLogStream() {
   
   logEventSource.onerror = (err) => {
     console.error('SSE connection error:', err)
-    // 连接断开后尝试重连
-    if (logDialogVisible.value && currentLogTaskId.value) {
-      setTimeout(() => {
-        if (logDialogVisible.value) {
-          connectLogStream()
-        }
-      }, 3000)
-    }
+    // SSE 断开后依赖轮询继续工作
+  }
+}
+
+// 停止日志轮询
+function stopLogPolling() {
+  if (logPollingTimer) {
+    clearInterval(logPollingTimer)
+    logPollingTimer = null
   }
 }
 
@@ -862,11 +887,14 @@ function closeLogDialog() {
   logDialogVisible.value = false
   currentLogTaskId.value = ''
   taskLogs.value = []
+  logIdSet.clear()
   // 关闭SSE连接
   if (logEventSource) {
     logEventSource.close()
     logEventSource = null
   }
+  // 停止轮询
+  stopLogPolling()
 }
 </script>
 
