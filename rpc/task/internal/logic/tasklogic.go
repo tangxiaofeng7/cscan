@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"cscan/model"
+	"cscan/pkg/risk"
 	"cscan/rpc/task/internal/svc"
 	"cscan/rpc/task/pb"
 
@@ -220,8 +221,15 @@ func (l *TaskLogic) SaveVulResult(in *pb.SaveVulResultReq) (*pb.SaveVulResultRes
 
 	vulModel := l.svcCtx.GetVulModel(in.WorkspaceId)
 	
+	// 收集受影响的资产（host:port组合）用于风险评分更新
+	affectedAssets := make(map[string]struct{})
+	
 	var count int
 	for _, vul := range in.Vuls {
+		// Debug: 打印接收到的证据链数据
+		l.Logger.Debugf("[RPC SaveVul] PocFile=%s, CurlCommand len=%d, Request len=%d, Response len=%d",
+			vul.PocFile, len(vul.GetCurlCommand()), len(vul.GetRequest()), len(vul.GetResponse()))
+
 		doc := &model.Vul{
 			Authority: vul.Authority,
 			Host:      vul.Host,
@@ -233,11 +241,32 @@ func (l *TaskLogic) SaveVulResult(in *pb.SaveVulResultReq) (*pb.SaveVulResultRes
 			Extra:     vul.Extra,
 			Result:    vul.Result,
 			TaskId:    vul.TaskId,
+			// 漏洞知识库关联字段
+			CvssScore:   vul.GetCvssScore(),
+			CveId:       vul.GetCveId(),
+			CweId:       vul.GetCweId(),
+			Remediation: vul.GetRemediation(),
+			References:  vul.GetReferences(),
+			// 证据链字段
+			MatcherName:       vul.GetMatcherName(),
+			ExtractedResults:  vul.GetExtractedResults(),
+			CurlCommand:       vul.GetCurlCommand(),
+			Request:           vul.GetRequest(),
+			Response:          vul.GetResponse(),
+			ResponseTruncated: vul.GetResponseTruncated(),
 		}
 		// 使用 Upsert 去重插入（基于 host+port+pocFile+url）
 		if err := vulModel.Upsert(l.ctx, doc); err == nil {
 			count++
+			// 记录受影响的资产
+			assetKey := fmt.Sprintf("%s:%d", vul.Host, vul.Port)
+			affectedAssets[assetKey] = struct{}{}
 		}
+	}
+
+	// 触发风险评分更新
+	if len(affectedAssets) > 0 {
+		go l.updateAssetRiskScores(in.WorkspaceId, affectedAssets)
 	}
 
 	return &pb.SaveVulResultResp{
@@ -245,6 +274,58 @@ func (l *TaskLogic) SaveVulResult(in *pb.SaveVulResultReq) (*pb.SaveVulResultRes
 		Message: fmt.Sprintf("漏洞: %d", count),
 		Total:   int32(count),
 	}, nil
+}
+
+// updateAssetRiskScores 更新受影响资产的风险评分
+func (l *TaskLogic) updateAssetRiskScores(workspaceId string, affectedAssets map[string]struct{}) {
+	ctx := context.Background()
+	assetModel := l.svcCtx.GetAssetModel(workspaceId)
+	vulModel := l.svcCtx.GetVulModel(workspaceId)
+	riskCalc := risk.NewRiskCalculator()
+
+	for assetKey := range affectedAssets {
+		// 解析 host:port
+		parts := strings.SplitN(assetKey, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		host := parts[0]
+		port := 0
+		fmt.Sscanf(parts[1], "%d", &port)
+
+		// 查找资产
+		asset, err := assetModel.FindByHostPort(ctx, host, port)
+		if err != nil || asset == nil {
+			l.Logger.Debugf("Asset not found for %s:%d, skipping risk score update", host, port)
+			continue
+		}
+
+		// 获取该资产的所有漏洞
+		vuls, err := vulModel.FindByHostPort(ctx, host, port)
+		if err != nil {
+			l.Logger.Errorf("Failed to get vulnerabilities for %s:%d: %v", host, port, err)
+			continue
+		}
+
+		// 转换为风险计算器需要的格式
+		vulInfos := make([]risk.VulInfo, 0, len(vuls))
+		for _, vul := range vuls {
+			vulInfos = append(vulInfos, risk.VulInfo{
+				Severity:  vul.Severity,
+				CvssScore: vul.CvssScore,
+			})
+		}
+
+		// 计算风险评分和等级
+		riskScore, riskLevel := riskCalc.CalculateRiskScoreAndLevel(vulInfos)
+
+		// 更新资产风险评分
+		if err := assetModel.UpdateRiskScore(ctx, asset.Id.Hex(), riskScore, riskLevel); err != nil {
+			l.Logger.Errorf("Failed to update risk score for asset %s: %v", asset.Id.Hex(), err)
+		} else {
+			l.Logger.Debugf("Updated risk score for %s:%d: score=%.2f, level=%s", host, port, riskScore, riskLevel)
+		}
+	}
 }
 
 func (l *TaskLogic) KeepAlive(in *pb.KeepAliveReq) (*pb.KeepAliveResp, error) {

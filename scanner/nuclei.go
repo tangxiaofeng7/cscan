@@ -16,6 +16,44 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+// MaxResponseSize 响应内容最大存储大小 (10KB)
+// 响应内容超过10KB时只存储前10KB并标记为截断
+const MaxResponseSize = 10 * 1024
+
+// VulEvidence 漏洞证据结构体
+type VulEvidence struct {
+	MatcherName       string   `json:"matcherName"`       // 匹配器名称 (Req 3.1)
+	ExtractedResults  []string `json:"extractedResults"`  // 提取器结果列表 (Req 3.2)
+	CurlCommand       string   `json:"curlCommand"`       // 可复现的curl命令 (Req 3.3)
+	Request           string   `json:"request"`           // HTTP请求内容 (Req 3.4)
+	Response          string   `json:"response"`          // HTTP响应摘要 (Req 3.5)
+	ResponseTruncated bool     `json:"responseTruncated"` // 响应是否被截断 (Req 3.7)
+}
+
+// CollectEvidence 从Nuclei ResultEvent收集证据
+func CollectEvidence(event *output.ResultEvent) *VulEvidence {
+	if event == nil {
+		return nil
+	}
+
+	evidence := &VulEvidence{
+		MatcherName:       event.MatcherName,
+		ExtractedResults:  event.ExtractedResults,
+		CurlCommand:       event.CURLCommand,
+		Request:           event.Request,
+		Response:          event.Response,
+		ResponseTruncated: false,
+	}
+
+	// 处理响应截断逻辑：超过10KB只存储前10KB
+	if len(evidence.Response) > MaxResponseSize {
+		evidence.Response = evidence.Response[:MaxResponseSize]
+		evidence.ResponseTruncated = true
+	}
+
+	return evidence
+}
+
 // NucleiScanner Nuclei扫描器 (使用SDK模式)
 type NucleiScanner struct {
 	BaseScanner
@@ -145,6 +183,11 @@ func (s *NucleiScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResu
 		return result, fmt.Errorf("create nuclei engine failed: %v", err)
 	}
 	defer ne.Close()
+
+	// 启用请求/响应存储（用于证据链）
+	if engineOpts := ne.Options(); engineOpts != nil {
+		engineOpts.StoreResponse = true
+	}
 
 	// 加载模板
 	if err := ne.LoadAllTemplates(); err != nil {
@@ -298,7 +341,11 @@ func (s *NucleiScanner) convertResult(event *output.ResultEvent) *Vulnerability 
 		resultDesc += "\nExtracted: " + strings.Join(event.ExtractedResults, ", ")
 	}
 
-	return &Vulnerability{
+	// 收集证据
+	evidence := CollectEvidence(event)
+
+	// 构建漏洞对象
+	vul := &Vulnerability{
 		Authority: fmt.Sprintf("%s:%d", host, port),
 		Host:      host,
 		Port:      port,
@@ -308,6 +355,44 @@ func (s *NucleiScanner) convertResult(event *output.ResultEvent) *Vulnerability 
 		Severity:  event.Info.SeverityHolder.Severity.String(),
 		Result:    resultDesc,
 	}
+
+	// 关联模板知识库信息 (Requirement 1.4)
+	// 从模板info.classification提取CVE/CWE/CVSS信息
+	if event.Info.Classification != nil {
+		vul.CvssScore = event.Info.Classification.CVSSScore
+		// CVE ID - 可能是单个或多个
+		cveIds := event.Info.Classification.CVEID.ToSlice()
+		if len(cveIds) > 0 {
+			vul.CveId = cveIds[0] // 取第一个CVE ID
+		}
+		// CWE ID - 可能是单个或多个
+		cweIds := event.Info.Classification.CWEID.ToSlice()
+		if len(cweIds) > 0 {
+			vul.CweId = cweIds[0] // 取第一个CWE ID
+		}
+	}
+
+	// 关联参考链接
+	if event.Info.Reference != nil {
+		vul.References = event.Info.Reference.ToSlice()
+	}
+
+	// 关联修复建议
+	if event.Info.Remediation != "" {
+		vul.Remediation = event.Info.Remediation
+	}
+
+	// 添加证据信息
+	if evidence != nil {
+		vul.MatcherName = evidence.MatcherName
+		vul.ExtractedResults = evidence.ExtractedResults
+		vul.CurlCommand = evidence.CurlCommand
+		vul.Request = evidence.Request
+		vul.Response = evidence.Response
+		vul.ResponseTruncated = evidence.ResponseTruncated
+	}
+
+	return vul
 }
 
 // parseHostPort 从URL解析主机和端口

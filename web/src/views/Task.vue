@@ -50,6 +50,8 @@
           <template #default="{ row }">
             <!-- 启动按钮：仅CREATED状态显示 -->
             <el-button v-if="row.status === 'CREATED'" type="success" link size="small" @click="handleStart(row)">启动</el-button>
+            <!-- 编辑按钮：仅CREATED状态显示 -->
+            <el-button v-if="row.status === 'CREATED'" type="warning" link size="small" @click="handleEdit(row)">编辑</el-button>
             <!-- 暂停按钮：仅STARTED状态显示 -->
             <el-button v-if="row.status === 'STARTED'" type="warning" link size="small" @click="handlePause(row)">暂停</el-button>
             <!-- 继续按钮：仅PAUSED状态显示 -->
@@ -57,6 +59,7 @@
             <!-- 停止按钮：STARTED/PAUSED/PENDING状态显示 -->
             <el-button v-if="['STARTED', 'PAUSED', 'PENDING'].includes(row.status)" type="danger" link size="small" @click="handleStop(row)">停止</el-button>
             <el-button type="primary" link size="small" @click="showDetail(row)">详情</el-button>
+            <el-button type="info" link size="small" @click="showLogs(row)">日志</el-button>
             <el-button type="info" link size="small" @click="viewReport(row)">报告</el-button>
             <el-button 
               v-if="['SUCCESS', 'FAILURE', 'STOPPED'].includes(row.status)" 
@@ -286,6 +289,57 @@
         <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 编辑任务对话框 -->
+    <el-dialog v-model="editDialogVisible" title="编辑任务" width="600px">
+      <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="100px">
+        <el-form-item label="任务名称" prop="name">
+          <el-input v-model="editForm.name" placeholder="请输入任务名称" />
+        </el-form-item>
+        <el-form-item label="扫描目标" prop="target">
+          <el-input
+            v-model="editForm.target"
+            type="textarea"
+            :rows="5"
+            placeholder="每行一个目标，支持IP、IP段、域名"
+          />
+        </el-form-item>
+        <el-form-item label="任务配置" prop="profileId">
+          <el-select v-model="editForm.profileId" placeholder="请选择任务配置" style="width: 100%">
+            <el-option
+              v-for="p in profiles"
+              :key="p.id"
+              :label="p.name"
+              :value="p.id"
+            >
+              <span>{{ p.name }}</span>
+              <span style="color: #999; font-size: 12px; margin-left: 10px">{{ p.description }}</span>
+            </el-option>
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="submitting" @click="handleUpdateTask">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 任务日志对话框 -->
+    <el-dialog v-model="logDialogVisible" title="任务日志" width="900px" @close="closeLogDialog">
+      <div class="log-container" ref="logContainerRef">
+        <div v-if="taskLogs.length === 0" class="log-empty">暂无日志</div>
+        <div v-for="(log, index) in taskLogs" :key="index" class="log-entry" :class="'log-' + log.level.toLowerCase()">
+          <span class="log-time">{{ log.timestamp }}</span>
+          <span class="log-level">[{{ log.level }}]</span>
+          <span class="log-worker">{{ log.workerName }}</span>
+          <span class="log-message">{{ log.message }}</span>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="closeLogDialog">关闭</el-button>
+        <el-button type="primary" @click="refreshLogs">刷新</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -294,7 +348,7 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Setting, Delete } from '@element-plus/icons-vue'
-import { getTaskList, createTask, deleteTask, batchDeleteTask, getTaskProfileList, saveTaskProfile, deleteTaskProfile, retryTask, startTask, pauseTask, resumeTask, stopTask } from '@/api/task'
+import { getTaskList, createTask, deleteTask, batchDeleteTask, getTaskProfileList, saveTaskProfile, deleteTaskProfile, retryTask, startTask, pauseTask, resumeTask, stopTask, updateTask, getTaskLogs } from '@/api/task'
 import { useWorkspaceStore } from '@/stores/workspace'
 
 const router = useRouter()
@@ -305,14 +359,36 @@ const dialogVisible = ref(false)
 const detailVisible = ref(false)
 const profileDialogVisible = ref(false)
 const profileFormVisible = ref(false)
+const editDialogVisible = ref(false)
+const logDialogVisible = ref(false)
 const tableData = ref([])
 const profiles = ref([])
 const formRef = ref()
 const profileFormRef = ref()
+const editFormRef = ref()
+const logContainerRef = ref()
 const currentTask = ref({})
 const selectedRows = ref([])
 const autoRefresh = ref(true)
+const taskLogs = ref([])
+const currentLogTaskId = ref('')
+const logIdSet = new Set() // 用于日志去重
 let refreshTimer = null
+let logEventSource = null
+let logPollingTimer = null // 日志轮询定时器
+
+const editForm = reactive({
+  id: '',
+  name: '',
+  target: '',
+  profileId: ''
+})
+
+const editRules = {
+  name: [{ required: true, message: '请输入任务名称', trigger: 'blur' }],
+  target: [{ required: true, message: '请输入扫描目标', trigger: 'blur' }],
+  profileId: [{ required: true, message: '请选择任务配置', trigger: 'change' }]
+}
 
 const profileForm = reactive({
   id: '',
@@ -381,6 +457,11 @@ onMounted(() => {
 onUnmounted(() => {
   stopAutoRefresh()
   window.removeEventListener('workspace-changed', handleWorkspaceChanged)
+  // 关闭SSE连接
+  if (logEventSource) {
+    logEventSource.close()
+    logEventSource = null
+  }
 })
 
 function handleAutoRefreshChange(val) {
@@ -675,6 +756,146 @@ async function handleStop(row) {
 function viewReport(row) {
   router.push({ path: '/report', query: { taskId: row.id } })
 }
+
+function handleEdit(row) {
+  Object.assign(editForm, {
+    id: row.id,
+    name: row.name,
+    target: row.target,
+    profileId: row.profileId
+  })
+  editDialogVisible.value = true
+}
+
+async function handleUpdateTask() {
+  await editFormRef.value.validate()
+  submitting.value = true
+  try {
+    const res = await updateTask(editForm)
+    if (res.code === 0) {
+      ElMessage.success('任务更新成功')
+      editDialogVisible.value = false
+      loadData()
+    } else {
+      ElMessage.error(res.msg)
+    }
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function showLogs(row) {
+  currentLogTaskId.value = row.taskId // 使用taskId（UUID）而不是id（MongoDB ObjectID）
+  taskLogs.value = []
+  logIdSet.clear()
+  logDialogVisible.value = true
+  await refreshLogs()
+  // 连接SSE实时日志流
+  connectLogStream()
+  // 同时启动轮询作为备选（确保日志能更新）
+  startLogPolling()
+}
+
+async function refreshLogs() {
+  if (!currentLogTaskId.value) return
+  try {
+    const res = await getTaskLogs({ taskId: currentLogTaskId.value, limit: 500 })
+    if (res.code === 0) {
+      const newLogs = res.list || []
+      // 使用去重逻辑
+      for (const log of newLogs) {
+        const logId = (log.timestamp || '') + (log.message || '')
+        if (!logIdSet.has(logId)) {
+          logIdSet.add(logId)
+          taskLogs.value.push(log)
+        }
+      }
+      // 按时间排序
+      taskLogs.value.sort((a, b) => (a.timestamp || '').localeCompare(b.timestamp || ''))
+      // 滚动到底部
+      scrollToBottom()
+    }
+  } catch (err) {
+    console.error('Failed to load task logs:', err)
+  }
+}
+
+// 启动日志轮询
+function startLogPolling() {
+  if (logPollingTimer) return
+  logPollingTimer = setInterval(async () => {
+    if (logDialogVisible.value && currentLogTaskId.value) {
+      await refreshLogs()
+    }
+  }, 2000) // 每2秒轮询一次
+}
+
+function scrollToBottom() {
+  setTimeout(() => {
+    if (logContainerRef.value) {
+      logContainerRef.value.scrollTop = logContainerRef.value.scrollHeight
+    }
+  }, 100)
+}
+
+function connectLogStream() {
+  // 关闭已有连接
+  if (logEventSource) {
+    logEventSource.close()
+    logEventSource = null
+  }
+  
+  if (!currentLogTaskId.value) return
+  
+  // 获取token用于认证
+  const token = localStorage.getItem('token')
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || ''
+  const url = `${baseUrl}/api/v1/task/logs/stream?taskId=${currentLogTaskId.value}&token=${token}`
+  
+  logEventSource = new EventSource(url)
+  
+  logEventSource.onmessage = (event) => {
+    try {
+      const log = JSON.parse(event.data)
+      // 使用去重逻辑
+      const logId = (log.timestamp || '') + (log.message || '')
+      if (!logIdSet.has(logId)) {
+        logIdSet.add(logId)
+        taskLogs.value.push(log)
+        scrollToBottom()
+      }
+    } catch (err) {
+      console.error('Failed to parse log:', err)
+    }
+  }
+  
+  logEventSource.onerror = (err) => {
+    console.error('SSE connection error:', err)
+    // SSE 断开后依赖轮询继续工作
+  }
+}
+
+// 停止日志轮询
+function stopLogPolling() {
+  if (logPollingTimer) {
+    clearInterval(logPollingTimer)
+    logPollingTimer = null
+  }
+}
+
+function closeLogDialog() {
+  logDialogVisible.value = false
+  currentLogTaskId.value = ''
+  taskLogs.value = []
+  logIdSet.clear()
+  // 关闭SSE连接
+  if (logEventSource) {
+    logEventSource.close()
+    logEventSource = null
+  }
+  // 停止轮询
+  stopLogPolling()
+}
 </script>
 
 <style lang="scss" scoped>
@@ -687,5 +908,66 @@ function viewReport(row) {
     margin-top: 20px;
     justify-content: flex-end;
   }
+}
+
+.log-container {
+  max-height: 400px;
+  overflow-y: auto;
+  background-color: #1e1e1e;
+  border-radius: 4px;
+  padding: 10px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.log-empty {
+  color: #999;
+  text-align: center;
+  padding: 20px;
+}
+
+.log-entry {
+  padding: 2px 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.log-time {
+  color: #6a9955;
+  margin-right: 8px;
+}
+
+.log-level {
+  font-weight: bold;
+  margin-right: 8px;
+  min-width: 50px;
+  display: inline-block;
+}
+
+.log-worker {
+  color: #569cd6;
+  margin-right: 8px;
+}
+
+.log-message {
+  color: #d4d4d4;
+}
+
+.log-info .log-level {
+  color: #4fc3f7;
+}
+
+.log-warn .log-level,
+.log-warning .log-level {
+  color: #ffb74d;
+}
+
+.log-error .log-level {
+  color: #ef5350;
+}
+
+.log-debug .log-level {
+  color: #9e9e9e;
 }
 </style>

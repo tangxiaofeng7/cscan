@@ -138,6 +138,7 @@ func (s *FingerprintScanner) Scan(ctx context.Context, config *ScanConfig) (*Sca
 	for _, asset := range httpAssets {
 		select {
 		case <-ctx.Done():
+			logx.Info("Fingerprint scan cancelled by context")
 			return result, ctx.Err()
 		default:
 			// 如果没有使用httpx，或者httpx没有获取到信息，使用内置方法
@@ -175,7 +176,12 @@ func filterHttpAssets(assets []*Asset) []*Asset {
 
 // isHttpAsset 判断资产是否为HTTP/HTTPS服务
 func isHttpAsset(asset *Asset) bool {
-	// 1. 优先根据Service字段判断（端口扫描阶段已识别）
+	// 1. 优先根据IsHTTP字段判断（端口扫描阶段已设置）
+	if asset.IsHTTP {
+		return true
+	}
+	
+	// 2. 根据Service字段判断
 	service := strings.ToLower(asset.Service)
 	
 	// 使用全局HTTP服务检查器（如果已设置）
@@ -195,7 +201,7 @@ func isHttpAsset(asset *Asset) bool {
 		}
 	}
 	
-	// 2. 明确的非HTTP服务，直接排除
+	// 3. 明确的非HTTP服务，直接排除
 	nonHttpServices := map[string]bool{
 		"ssh": true, "ftp": true, "smtp": true, "pop3": true, "imap": true,
 		"mysql": true, "mssql": true, "oracle": true, "postgresql": true, "redis": true,
@@ -215,7 +221,7 @@ func isHttpAsset(asset *Asset) bool {
 		return false
 	}
 	
-	// 3. 常见HTTP端口（高置信度）
+	// 4. 常见HTTP端口（高置信度）
 	commonHttpPorts := map[int]bool{
 		80: true, 443: true, 8080: true, 8443: true, 8000: true, 8888: true,
 		8081: true, 8082: true, 8083: true, 8084: true, 8085: true,
@@ -232,7 +238,7 @@ func isHttpAsset(asset *Asset) bool {
 		return true
 	}
 	
-	// 4. 如果Service为空且端口未知，标记为需要探测
+	// 5. 如果Service为空且端口未知，标记为需要探测
 	// 这些资产会在后续通过实际HTTP请求来验证
 	if service == "" {
 		return true // 让fingerprint函数去实际探测
@@ -464,6 +470,11 @@ func (s *FingerprintScanner) getIconHashWithData(baseUrl string) (string, []byte
 
 // fingerprint 识别单个资产指纹
 func (s *FingerprintScanner) fingerprint(ctx context.Context, asset *Asset, opts *FingerprintOptions) {
+	// 检查上下文是否已取消
+	if ctx.Err() != nil {
+		return
+	}
+
 	// 尝试HTTP和HTTPS
 	schemes := []string{"http", "https"}
 	if asset.Port == 443 || asset.Port == 8443 || asset.Port == 9443 {
@@ -472,6 +483,11 @@ func (s *FingerprintScanner) fingerprint(ctx context.Context, asset *Asset, opts
 
 	var httpDetected bool
 	for _, scheme := range schemes {
+		// 检查上下文是否已取消
+		if ctx.Err() != nil {
+			return
+		}
+
 		targetUrl := fmt.Sprintf("%s://%s:%d", scheme, asset.Host, asset.Port)
 		resp, err := s.client.Get(targetUrl)
 		if err != nil {

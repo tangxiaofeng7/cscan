@@ -24,6 +24,26 @@ type Vul struct {
 	TaskId     string             `bson:"task_id" json:"taskId"`
 	CreateTime time.Time          `bson:"create_time" json:"createTime"`
 	UpdateTime time.Time          `bson:"update_time" json:"updateTime"`
+
+	// 漏洞知识库关联字段
+	CvssScore   float64  `bson:"cvss_score,omitempty" json:"cvssScore,omitempty"`
+	CveId       string   `bson:"cve_id,omitempty" json:"cveId,omitempty"`
+	CweId       string   `bson:"cwe_id,omitempty" json:"cweId,omitempty"`
+	Remediation string   `bson:"remediation,omitempty" json:"remediation,omitempty"`
+	References  []string `bson:"references,omitempty" json:"references,omitempty"`
+
+	// 证据链字段
+	MatcherName       string   `bson:"matcher_name,omitempty" json:"matcherName,omitempty"`
+	ExtractedResults  []string `bson:"extracted_results,omitempty" json:"extractedResults,omitempty"`
+	CurlCommand       string   `bson:"curl_command,omitempty" json:"curlCommand,omitempty"`
+	Request           string   `bson:"request,omitempty" json:"request,omitempty"`
+	Response          string   `bson:"response,omitempty" json:"response,omitempty"`
+	ResponseTruncated bool     `bson:"response_truncated,omitempty" json:"responseTruncated,omitempty"`
+
+	// 时间追踪字段
+	FirstSeenTime time.Time `bson:"first_seen_time,omitempty" json:"firstSeenTime,omitempty"`
+	LastSeenTime  time.Time `bson:"last_seen_time,omitempty" json:"lastSeenTime,omitempty"`
+	ScanCount     int       `bson:"scan_count,omitempty" json:"scanCount,omitempty"`
 }
 
 type VulModel struct {
@@ -114,10 +134,29 @@ func (m *VulModel) Upsert(ctx context.Context, doc *Vul) error {
 			"result":      doc.Result,
 			"task_id":     doc.TaskId,
 			"update_time": now,
+			// 新增字段 - 漏洞知识库关联
+			"cvss_score":  doc.CvssScore,
+			"cve_id":      doc.CveId,
+			"cwe_id":      doc.CweId,
+			"remediation": doc.Remediation,
+			"references":  doc.References,
+			// 新增字段 - 证据链
+			"matcher_name":       doc.MatcherName,
+			"extracted_results":  doc.ExtractedResults,
+			"curl_command":       doc.CurlCommand,
+			"request":            doc.Request,
+			"response":           doc.Response,
+			"response_truncated": doc.ResponseTruncated,
+			// 新增字段 - 时间追踪
+			"last_seen_time": now,
+		},
+		"$inc": bson.M{
+			"scan_count": 1, // 新增：扫描计数
 		},
 		"$setOnInsert": bson.M{
-			"_id":         primitive.NewObjectID(),
-			"create_time": now,
+			"_id":             primitive.NewObjectID(),
+			"create_time":     now,
+			"first_seen_time": now, // 新增：首次发现时间
 		},
 	}
 	opts := options.Update().SetUpsert(true)
@@ -141,4 +180,26 @@ func (m *VulModel) BatchDelete(ctx context.Context, ids []string) (int64, error)
 		return 0, err
 	}
 	return result.DeletedCount, nil
+}
+
+// FindByHostPort 根据host和port查找漏洞列表（用于风险评分计算）
+func (m *VulModel) FindByHostPort(ctx context.Context, host string, port int) ([]Vul, error) {
+	filter := bson.M{
+		"host": host,
+		"port": port,
+	}
+	opts := options.Find()
+	opts.SetSort(bson.D{{Key: "create_time", Value: -1}})
+
+	cursor, err := m.coll.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var docs []Vul
+	if err = cursor.All(ctx, &docs); err != nil {
+		return nil, err
+	}
+	return docs, nil
 }

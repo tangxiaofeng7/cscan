@@ -60,6 +60,10 @@ type Asset struct {
 	Source        string             `bson:"source,omitempty" json:"source"`
 	CreateTime    time.Time          `bson:"create_time" json:"createTime"`
 	UpdateTime    time.Time          `bson:"update_time" json:"updateTime"`
+
+	// 新增字段 - 风险评分
+	RiskScore float64 `bson:"risk_score,omitempty" json:"riskScore,omitempty"` // 0-100
+	RiskLevel string  `bson:"risk_level,omitempty" json:"riskLevel,omitempty"` // critical/high/medium/low/info
 }
 
 type AssetModel struct {
@@ -77,6 +81,8 @@ func NewAssetModel(db *mongo.Database, workspaceId string) *AssetModel {
 		{Keys: bson.D{{Key: "update_time", Value: -1}}},
 		{Keys: bson.D{{Key: "service", Value: 1}}},
 		{Keys: bson.D{{Key: "app", Value: 1}}},
+		// 新增索引 - 支持按风险评分排序
+		{Keys: bson.D{{Key: "risk_score", Value: -1}}},
 	}
 	coll.Indexes().CreateMany(ctx, indexes)
 
@@ -144,6 +150,82 @@ func (m *AssetModel) FindWithSort(ctx context.Context, filter bson.M, page, page
 		return nil, err
 	}
 	return docs, nil
+}
+
+// FindByRiskScore 按风险评分排序查询资产
+func (m *AssetModel) FindByRiskScore(ctx context.Context, filter bson.M, page, pageSize int, ascending bool) ([]Asset, error) {
+	opts := options.Find()
+	if page > 0 && pageSize > 0 {
+		opts.SetSkip(int64((page - 1) * pageSize))
+		opts.SetLimit(int64(pageSize))
+	}
+	sortOrder := -1 // 默认降序（高风险在前）
+	if ascending {
+		sortOrder = 1
+	}
+	opts.SetSort(bson.D{{Key: "risk_score", Value: sortOrder}})
+
+	cursor, err := m.coll.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var docs []Asset
+	if err = cursor.All(ctx, &docs); err != nil {
+		return nil, err
+	}
+	return docs, nil
+}
+
+// UpdateRiskScore 更新资产风险评分
+func (m *AssetModel) UpdateRiskScore(ctx context.Context, id string, riskScore float64, riskLevel string) error {
+	oid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+	update := bson.M{
+		"risk_score":  riskScore,
+		"risk_level":  riskLevel,
+		"update_time": time.Now(),
+	}
+	_, err = m.coll.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": update})
+	return err
+}
+
+// AggregateRiskLevel 统计各风险等级的资产数量
+func (m *AssetModel) AggregateRiskLevel(ctx context.Context) (map[string]int, error) {
+	pipeline := mongo.Pipeline{
+		{{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: "$risk_level"},
+			{Key: "count", Value: bson.D{{Key: "$sum", Value: 1}}},
+		}}},
+	}
+
+	cursor, err := m.coll.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var results []struct {
+		Level string `bson:"_id"`
+		Count int    `bson:"count"`
+	}
+	if err = cursor.All(ctx, &results); err != nil {
+		return nil, err
+	}
+
+	stats := make(map[string]int)
+	for _, r := range results {
+		if r.Level != "" {
+			stats[r.Level] = r.Count
+		} else {
+			// 未评分的资产归类为 "unknown"
+			stats["unknown"] = r.Count
+		}
+	}
+	return stats, nil
 }
 
 func (m *AssetModel) Count(ctx context.Context, filter bson.M) (int64, error) {

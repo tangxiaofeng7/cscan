@@ -86,6 +86,9 @@ type Asset struct {
 	IsUpdated  bool     `json:"isUpdated"`
 	CreateTime string   `json:"createTime"`
 	UpdateTime string   `json:"updateTime"`
+	// 新增字段 - 风险评分
+	RiskScore float64 `json:"riskScore,omitempty"`
+	RiskLevel string  `json:"riskLevel,omitempty"`
 }
 
 type AssetListReq struct {
@@ -102,6 +105,8 @@ type AssetListReq struct {
 	OnlyUpdated  bool   `json:"onlyUpdated,optional"`
 	ExcludeCdn   bool   `json:"excludeCdn,optional"`
 	SortByUpdate bool   `json:"sortByUpdate,optional"`
+	// 新增字段 - 按风险评分排序
+	SortByRisk bool `json:"sortByRisk,optional"`
 }
 
 type AssetListResp struct {
@@ -122,6 +127,8 @@ type AssetStatResp struct {
 	TopService   []StatItem `json:"topService"`
 	TopApp       []StatItem `json:"topApp"`
 	TopTitle     []StatItem `json:"topTitle"`
+	// 新增字段 - 风险等级分布
+	RiskDistribution map[string]int `json:"riskDistribution,omitempty"`
 }
 
 type StatItem struct {
@@ -169,6 +176,7 @@ type AssetHistoryResp struct {
 // ==================== 任务管理 ====================
 type MainTask struct {
 	Id          string `json:"id"`
+	TaskId      string `json:"taskId"` // UUID，用于日志查询
 	Name        string `json:"name"`
 	Target      string `json:"target"`
 	ProfileId   string `json:"profileId"`
@@ -243,6 +251,36 @@ type MainTaskControlReq struct {
 	Id string `json:"id"`
 }
 
+// MainTaskUpdateReq 更新任务请求
+type MainTaskUpdateReq struct {
+	Id        string `json:"id"`                  // 任务ID
+	Name      string `json:"name,optional"`       // 任务名称
+	Target    string `json:"target,optional"`     // 扫描目标
+	ProfileId string `json:"profileId,optional"`  // 配置ID
+}
+
+// GetTaskLogsReq 获取任务日志请求
+type GetTaskLogsReq struct {
+	TaskId string `json:"taskId"` // 任务ID
+	Limit  int    `json:"limit,default=100"` // 返回条数限制
+}
+
+// TaskLogEntry 任务日志条目
+type TaskLogEntry struct {
+	Timestamp  string `json:"timestamp"`
+	Level      string `json:"level"`
+	WorkerName string `json:"workerName"`
+	TaskId     string `json:"taskId"`
+	Message    string `json:"message"`
+}
+
+// GetTaskLogsResp 获取任务日志响应
+type GetTaskLogsResp struct {
+	Code int            `json:"code"`
+	Msg  string         `json:"msg"`
+	List []TaskLogEntry `json:"list"`
+}
+
 // ==================== 漏洞管理 ====================
 type Vul struct {
 	Id         string `json:"id"`
@@ -253,6 +291,58 @@ type Vul struct {
 	Severity   string `json:"severity"`
 	Result     string `json:"result"`
 	CreateTime string `json:"createTime"`
+	// 新增字段 - 时间追踪
+	FirstSeenTime string `json:"firstSeenTime,omitempty"`
+	LastSeenTime  string `json:"lastSeenTime,omitempty"`
+	ScanCount     int    `json:"scanCount,omitempty"`
+}
+
+// VulEvidence 漏洞证据链
+type VulEvidence struct {
+	MatcherName       string   `json:"matcherName,omitempty"`
+	ExtractedResults  []string `json:"extractedResults,omitempty"`
+	CurlCommand       string   `json:"curlCommand,omitempty"`
+	Request           string   `json:"request,omitempty"`
+	Response          string   `json:"response,omitempty"`
+	ResponseTruncated bool     `json:"responseTruncated,omitempty"`
+}
+
+// VulDetail 漏洞详情（包含知识库信息和证据链）
+type VulDetail struct {
+	Id         string `json:"id"`
+	Authority  string `json:"authority"`
+	Host       string `json:"host"`
+	Port       int    `json:"port"`
+	Url        string `json:"url"`
+	PocFile    string `json:"pocFile"`
+	Source     string `json:"source"`
+	Severity   string `json:"severity"`
+	Result     string `json:"result"`
+	CreateTime string `json:"createTime"`
+	// 知识库信息
+	CvssScore   float64  `json:"cvssScore,omitempty"`
+	CveId       string   `json:"cveId,omitempty"`
+	CweId       string   `json:"cweId,omitempty"`
+	Remediation string   `json:"remediation,omitempty"`
+	References  []string `json:"references,omitempty"`
+	// 证据链
+	Evidence *VulEvidence `json:"evidence,omitempty"`
+	// 时间追踪 
+	FirstSeenTime string `json:"firstSeenTime,omitempty"`
+	LastSeenTime  string `json:"lastSeenTime,omitempty"`
+	ScanCount     int    `json:"scanCount,omitempty"`
+}
+
+// VulDetailReq 漏洞详情请求
+type VulDetailReq struct {
+	Id string `json:"id"`
+}
+
+// VulDetailResp 漏洞详情响应
+type VulDetailResp struct {
+	Code int        `json:"code"`
+	Msg  string     `json:"msg"`
+	Data *VulDetail `json:"data,omitempty"`
 }
 
 type VulListReq struct {
@@ -487,6 +577,9 @@ type NucleiTemplateListReq struct {
 	Keyword  string `json:"keyword,optional"`  // 关键词搜索
 	Page     int    `json:"page,default=1"`
 	PageSize int    `json:"pageSize,default=50"`
+	// 新增字段 - CVSS评分筛选和CVE搜索
+	MinCvssScore float64 `json:"minCvssScore,optional"` // 最小CVSS评分筛选
+	CveId        string  `json:"cveId,optional"`        // CVE编号搜索
 }
 
 type NucleiTemplate struct {
@@ -498,6 +591,13 @@ type NucleiTemplate struct {
 	Tags        []string `json:"tags"`        // 标签
 	Category    string   `json:"category"`    // 分类(目录名)
 	FilePath    string   `json:"filePath"`    // 文件路径
+	// 新增字段 - 漏洞知识库
+	CvssScore   float64  `json:"cvssScore,omitempty"`   // CVSS评分
+	CvssMetrics string   `json:"cvssMetrics,omitempty"` // CVSS向量
+	CveIds      []string `json:"cveIds,omitempty"`      // CVE编号列表
+	CweIds      []string `json:"cweIds,omitempty"`      // CWE编号列表
+	References  []string `json:"references,omitempty"`  // 参考链接
+	Remediation string   `json:"remediation,omitempty"` // 修复建议
 }
 
 type NucleiTemplateListResp struct {
@@ -542,6 +642,13 @@ type NucleiTemplateWithContent struct {
 	Tags        []string `json:"tags"`        // 标签
 	FilePath    string   `json:"filePath"`    // 文件路径
 	Content     string   `json:"content"`     // YAML内容
+	// 新增字段 - 漏洞知识库
+	CvssScore   float64  `json:"cvssScore,omitempty"`   // CVSS评分
+	CvssMetrics string   `json:"cvssMetrics,omitempty"` // CVSS向量
+	CveIds      []string `json:"cveIds,omitempty"`      // CVE编号列表
+	CweIds      []string `json:"cweIds,omitempty"`      // CWE编号列表
+	References  []string `json:"references,omitempty"`  // 参考链接
+	Remediation string   `json:"remediation,omitempty"` // 修复建议
 }
 
 

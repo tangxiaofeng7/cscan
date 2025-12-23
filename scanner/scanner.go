@@ -72,6 +72,21 @@ type Vulnerability struct {
 	Severity  string `json:"severity"`
 	Extra     string `json:"extra"`
 	Result    string `json:"result"`
+
+	// 漏洞知识库关联字段
+	CvssScore   float64  `json:"cvssScore,omitempty"`
+	CveId       string   `json:"cveId,omitempty"`
+	CweId       string   `json:"cweId,omitempty"`
+	Remediation string   `json:"remediation,omitempty"`
+	References  []string `json:"references,omitempty"`
+
+	// 证据链字段
+	MatcherName       string   `json:"matcherName,omitempty"`
+	ExtractedResults  []string `json:"extractedResults,omitempty"`
+	CurlCommand       string   `json:"curlCommand,omitempty"`
+	Request           string   `json:"request,omitempty"`
+	Response          string   `json:"response,omitempty"`
+	ResponseTruncated bool     `json:"responseTruncated,omitempty"`
 }
 
 // BaseScanner 基础扫描器

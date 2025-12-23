@@ -47,3 +47,11 @@ export function resumeTask(data) {
 export function stopTask(data) {
   return request.post('/task/stop', data)
 }
+
+export function updateTask(data) {
+  return request.post('/task/update', data)
+}
+
+export function getTaskLogs(data) {
+  return request.post('/task/logs', data)
+}

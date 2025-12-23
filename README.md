@@ -42,9 +42,6 @@ docker-compose up -d --build
 #### 任务管理
 ![任务管理](images/task.png)
 
-#### 任务配置
-![任务配置](images/setup.png)
-
 #### 资产管理
 ![资产管理](images/asset.png)
 

@@ -7,6 +7,7 @@ import (
 
 	"cscan/api/internal/svc"
 	"cscan/api/internal/types"
+	"cscan/model"
 
 	"github.com/zeromicro/go-zero/core/logx"
 	"go.mongodb.org/mongo-driver/bson"
@@ -129,12 +130,17 @@ func (l *AssetListLogic) AssetList(req *types.AssetListReq, workspaceId string) 
 		return &types.AssetListResp{Code: 500, Msg: "查询失败"}, nil
 	}
 
-	// 查询列表
-	sortField := "update_time"
-	if !req.SortByUpdate {
-		sortField = "create_time"
+	// 查询列表 - 支持按风险评分排序 
+	var assets []model.Asset
+	if req.SortByRisk {
+		assets, err = assetModel.FindByRiskScore(l.ctx, filter, req.Page, req.PageSize, false)
+	} else {
+		sortField := "update_time"
+		if !req.SortByUpdate {
+			sortField = "create_time"
+		}
+		assets, err = assetModel.FindWithSort(l.ctx, filter, req.Page, req.PageSize, sortField)
 	}
-	assets, err := assetModel.FindWithSort(l.ctx, filter, req.Page, req.PageSize, sortField)
 	if err != nil {
 		return &types.AssetListResp{Code: 500, Msg: "查询失败"}, nil
 	}
@@ -170,6 +176,9 @@ func (l *AssetListLogic) AssetList(req *types.AssetListReq, workspaceId string) 
 			IsUpdated:  a.IsUpdated,
 			CreateTime: a.CreateTime.Format("2006-01-02 15:04:05"),
 			UpdateTime: a.UpdateTime.Format("2006-01-02 15:04:05"),
+			// 新增字段 - 风险评分 
+			RiskScore: a.RiskScore,
+			RiskLevel: a.RiskLevel,
 		})
 	}
 
@@ -253,17 +262,21 @@ func (l *AssetStatLogic) AssetStat(workspaceId string) (resp *types.AssetStatRes
 		}
 	}
 
+	// 风险等级分布 
+	riskDistribution, _ := assetModel.AggregateRiskLevel(l.ctx)
+
 	return &types.AssetStatResp{
-		Code:         0,
-		Msg:          "success",
-		TotalAsset:   int(totalAsset),
-		TotalHost:    int(totalHost),
-		NewCount:     int(newCount),
-		UpdatedCount: int(updatedCount),
-		TopPorts:     topPorts,
-		TopService:   topService,
-		TopApp:       topApp,
-		TopTitle:     topTitle,
+		Code:             0,
+		Msg:              "success",
+		TotalAsset:       int(totalAsset),
+		TotalHost:        int(totalHost),
+		NewCount:         int(newCount),
+		UpdatedCount:     int(updatedCount),
+		TopPorts:         topPorts,
+		TopService:       topService,
+		TopApp:           topApp,
+		TopTitle:         topTitle,
+		RiskDistribution: riskDistribution,
 	}, nil
 }
 

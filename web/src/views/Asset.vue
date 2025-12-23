@@ -5,7 +5,7 @@
       <!-- Tab切换 -->
       <el-tabs v-model="activeTab" class="search-tabs">
         <el-tab-pane label="语法查询" name="syntax">
-          <el-input v-model="searchForm.query" placeholder="输入搜索语法，如: port=80 && service=http" style="width: 100%" />
+          <el-input v-model="searchForm.query" placeholder="输入搜索语法，如: port=80 && service=http" style="width: 100%" @keyup.enter="handleSearch" />
           <div class="syntax-hints">
             <span class="hint-title">语法示例：</span>
             <span class="hint-item" @click="searchForm.query = 'port=80'">port=80</span>
@@ -17,19 +17,19 @@
         <el-tab-pane label="快捷查询" name="quick">
           <el-form :model="searchForm" inline>
             <el-form-item label="主机">
-              <el-input v-model="searchForm.host" placeholder="IP/域名" clearable style="width: 120px" />
+              <el-input v-model="searchForm.host" placeholder="IP/域名" clearable style="width: 120px" @keyup.enter="handleSearch" />
             </el-form-item>
             <el-form-item label="端口">
-              <el-input v-model.number="searchForm.port" placeholder="端口号" clearable style="width: 90px" />
+              <el-input v-model.number="searchForm.port" placeholder="端口号" clearable style="width: 90px" @keyup.enter="handleSearch" />
             </el-form-item>
             <el-form-item label="服务">
-              <el-input v-model="searchForm.service" placeholder="服务" clearable style="width: 90px" />
+              <el-input v-model="searchForm.service" placeholder="服务" clearable style="width: 90px" @keyup.enter="handleSearch" />
             </el-form-item>
             <el-form-item label="标题">
-              <el-input v-model="searchForm.title" placeholder="标题" clearable style="width: 120px" />
+              <el-input v-model="searchForm.title" placeholder="标题" clearable style="width: 120px" @keyup.enter="handleSearch" />
             </el-form-item>
             <el-form-item label="应用">
-              <el-input v-model="searchForm.app" placeholder="指纹" clearable style="width: 100px" />
+              <el-input v-model="searchForm.app" placeholder="指纹" clearable style="width: 100px" @keyup.enter="handleSearch" />
             </el-form-item>
           </el-form>
         </el-tab-pane>

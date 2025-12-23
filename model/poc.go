@@ -339,6 +339,14 @@ type NucleiTemplate struct {
 	Content     string             `bson:"content" json:"content"`          // YAML内容
 	Enabled     bool               `bson:"enabled" json:"enabled"`          // 是否启用
 	SyncTime    time.Time          `bson:"sync_time" json:"syncTime"`       // 同步时间
+
+	// 漏洞知识库字段
+	CvssScore   float64  `bson:"cvss_score,omitempty" json:"cvssScore,omitempty"`     // CVSS评分
+	CvssMetrics string   `bson:"cvss_metrics,omitempty" json:"cvssMetrics,omitempty"` // CVSS向量
+	CveIds      []string `bson:"cve_ids,omitempty" json:"cveIds,omitempty"`           // CVE编号列表
+	CweIds      []string `bson:"cwe_ids,omitempty" json:"cweIds,omitempty"`           // CWE编号列表
+	References  []string `bson:"references,omitempty" json:"references,omitempty"`   // 参考链接
+	Remediation string   `bson:"remediation,omitempty" json:"remediation,omitempty"` // 修复建议
 }
 
 // NucleiTemplateModel Nuclei模板模型
@@ -355,6 +363,9 @@ func NewNucleiTemplateModel(db *mongo.Database) *NucleiTemplateModel {
 		{Keys: bson.D{{Key: "severity", Value: 1}}},
 		{Keys: bson.D{{Key: "tags", Value: 1}}},
 		{Keys: bson.D{{Key: "name", Value: "text"}, {Key: "template_id", Value: "text"}, {Key: "description", Value: "text"}}},
+		// 支持CVSS和CVE查询的索引
+		{Keys: bson.D{{Key: "cvss_score", Value: -1}}},
+		{Keys: bson.D{{Key: "cve_ids", Value: 1}}},
 	})
 	return &NucleiTemplateModel{coll: coll}
 }

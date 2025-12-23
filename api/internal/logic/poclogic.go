@@ -352,6 +352,14 @@ func (l *NucleiTemplateListLogic) NucleiTemplateList(req *types.NucleiTemplateLi
 			{"description": bson.M{"$regex": req.Keyword, "$options": "i"}},
 		}
 	}
+	// 新增 - CVSS评分筛选 
+	if req.MinCvssScore > 0 {
+		filter["cvss_score"] = bson.M{"$gte": req.MinCvssScore}
+	}
+	// 新增 - CVE编号搜索 
+	if req.CveId != "" {
+		filter["cve_ids"] = bson.M{"$regex": req.CveId, "$options": "i"}
+	}
 
 	// 查询总数
 	total, err := l.svcCtx.NucleiTemplateModel.Count(l.ctx, filter)
@@ -377,6 +385,13 @@ func (l *NucleiTemplateListLogic) NucleiTemplateList(req *types.NucleiTemplateLi
 			Tags:        doc.Tags,
 			Category:    doc.Category,
 			FilePath:    doc.FilePath,
+			// 新增字段 - 漏洞知识库 
+			CvssScore:   doc.CvssScore,
+			CvssMetrics: doc.CvssMetrics,
+			CveIds:      doc.CveIds,
+			CweIds:      doc.CweIds,
+			References:  doc.References,
+			Remediation: doc.Remediation,
 		})
 	}
 
@@ -504,6 +519,13 @@ func (l *NucleiTemplateDetailLogic) GetDetail(req *types.NucleiTemplateDetailReq
 			Tags:        doc.Tags,
 			FilePath:    doc.FilePath,
 			Content:     doc.Content,
+			// 新增字段 - 漏洞知识库 
+			CvssScore:   doc.CvssScore,
+			CvssMetrics: doc.CvssMetrics,
+			CveIds:      doc.CveIds,
+			CweIds:      doc.CweIds,
+			References:  doc.References,
+			Remediation: doc.Remediation,
 		},
 	}, nil
 }

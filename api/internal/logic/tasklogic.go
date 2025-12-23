@@ -60,6 +60,7 @@ func (l *MainTaskListLogic) MainTaskList(req *types.MainTaskListReq, workspaceId
 	for _, t := range tasks {
 		list = append(list, types.MainTask{
 			Id:          t.Id.Hex(),
+			TaskId:      t.TaskId, // UUID，用于日志查询
 			Name:        t.Name,
 			Target:      t.Target,
 			ProfileId:   t.ProfileId,
@@ -679,4 +680,180 @@ func (l *TaskStatLogic) TaskStat(workspaceId string) (resp *types.TaskStatResp, 
 		TrendCompleted: trendCompleted,
 		TrendFailed:    trendFailed,
 	}, nil
+}
+
+// MainTaskUpdateLogic 更新任务逻辑 
+type MainTaskUpdateLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewMainTaskUpdateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *MainTaskUpdateLogic {
+	return &MainTaskUpdateLogic{
+		Logger: logx.WithContext(ctx),
+		ctx:    ctx,
+		svcCtx: svcCtx,
+	}
+}
+
+func (l *MainTaskUpdateLogic) MainTaskUpdate(req *types.MainTaskUpdateReq, workspaceId string) (resp *types.BaseResp, err error) {
+	taskModel := l.svcCtx.GetMainTaskModel(workspaceId)
+
+	// 获取任务
+	task, err := taskModel.FindById(l.ctx, req.Id)
+	if err != nil {
+		l.Logger.Errorf("MainTaskUpdate: task not found, id=%s, error=%v", req.Id, err)
+		return &types.BaseResp{Code: 40001, Msg: "任务不存在"}, nil
+	}
+
+	// 检查状态：只有CREATED状态可以编辑 
+	if task.Status != model.TaskStatusCreated {
+		l.Logger.Infof("MainTaskUpdate: task status not allowed, id=%s, status=%s", req.Id, task.Status)
+		return &types.BaseResp{Code: 40002, Msg: "任务状态不允许编辑，只有待启动状态的任务可以编辑"}, nil
+	}
+
+	// 构建更新字段
+	update := bson.M{}
+
+	if req.Name != "" {
+		update["name"] = req.Name
+	}
+
+	if req.Target != "" {
+		update["target"] = req.Target
+	}
+
+	if req.ProfileId != "" {
+		// 验证配置是否存在
+		profile, err := l.svcCtx.ProfileModel.FindById(l.ctx, req.ProfileId)
+		if err != nil {
+			l.Logger.Errorf("MainTaskUpdate: profile not found, profileId=%s, error=%v", req.ProfileId, err)
+			return &types.BaseResp{Code: 400, Msg: "任务配置不存在"}, nil
+		}
+		update["profile_id"] = req.ProfileId
+		update["profile_name"] = profile.Name
+
+		// 更新任务配置
+		taskConfig := map[string]interface{}{
+			"target": task.Target,
+		}
+		if req.Target != "" {
+			taskConfig["target"] = req.Target
+		}
+		// 合并 profile 配置
+		if profile.Config != "" {
+			var profileConfig map[string]interface{}
+			if err := json.Unmarshal([]byte(profile.Config), &profileConfig); err == nil {
+				for k, v := range profileConfig {
+					taskConfig[k] = v
+				}
+			}
+		}
+		// 注入自定义POC和标签映射
+		taskConfig = common.InjectPocConfig(l.ctx, l.svcCtx, taskConfig, l.Logger)
+		configBytes, _ := json.Marshal(taskConfig)
+		update["config"] = string(configBytes)
+	} else if req.Target != "" {
+		// 只更新了target，需要重新生成config
+		taskConfig := map[string]interface{}{
+			"target": req.Target,
+		}
+		// 获取当前profile配置
+		if task.ProfileId != "" {
+			profile, err := l.svcCtx.ProfileModel.FindById(l.ctx, task.ProfileId)
+			if err == nil && profile.Config != "" {
+				var profileConfig map[string]interface{}
+				if err := json.Unmarshal([]byte(profile.Config), &profileConfig); err == nil {
+					for k, v := range profileConfig {
+						taskConfig[k] = v
+					}
+				}
+			}
+		}
+		// 注入自定义POC和标签映射
+		taskConfig = common.InjectPocConfig(l.ctx, l.svcCtx, taskConfig, l.Logger)
+		configBytes, _ := json.Marshal(taskConfig)
+		update["config"] = string(configBytes)
+	}
+
+	if len(update) == 0 {
+		return &types.BaseResp{Code: 400, Msg: "没有需要更新的字段"}, nil
+	}
+
+	// 再次检查状态（防止并发修改）
+	task, err = taskModel.FindById(l.ctx, req.Id)
+	if err != nil {
+		return &types.BaseResp{Code: 40001, Msg: "任务不存在"}, nil
+	}
+	if task.Status != model.TaskStatusCreated {
+		return &types.BaseResp{Code: 40002, Msg: "任务状态已变更，无法编辑"}, nil
+	}
+
+	// 执行更新
+	if err := taskModel.Update(l.ctx, req.Id, update); err != nil {
+		l.Logger.Errorf("MainTaskUpdate: update failed, id=%s, error=%v", req.Id, err)
+		return &types.BaseResp{Code: 500, Msg: "更新任务失败"}, nil
+	}
+
+	l.Logger.Infof("MainTaskUpdate: task updated, id=%s, workspaceId=%s", req.Id, workspaceId)
+	return &types.BaseResp{Code: 0, Msg: "任务更新成功"}, nil
+}
+
+// GetTaskLogsLogic 获取任务日志逻辑 
+type GetTaskLogsLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewGetTaskLogsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *GetTaskLogsLogic {
+	return &GetTaskLogsLogic{
+		Logger: logx.WithContext(ctx),
+		ctx:    ctx,
+		svcCtx: svcCtx,
+	}
+}
+
+func (l *GetTaskLogsLogic) GetTaskLogs(req *types.GetTaskLogsReq) (resp *types.GetTaskLogsResp, err error) {
+	if req.TaskId == "" {
+		return &types.GetTaskLogsResp{Code: 400, Msg: "任务ID不能为空", List: []types.TaskLogEntry{}}, nil
+	}
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 100
+	}
+
+	// 从Redis Stream读取任务专属日志 (cscan:task:logs:{taskId})
+	streamKey := "cscan:task:logs:" + req.TaskId
+	logs, err := l.svcCtx.RedisClient.XRevRange(l.ctx, streamKey, "+", "-").Result()
+	if err != nil {
+		l.Logger.Errorf("GetTaskLogs: failed to read logs from Redis, taskId=%s, error=%v", req.TaskId, err)
+		// 返回空列表而不是错误
+		return &types.GetTaskLogsResp{Code: 0, Msg: "success", List: []types.TaskLogEntry{}}, nil
+	}
+
+	// 解析日志条目
+	result := make([]types.TaskLogEntry, 0)
+	count := limit
+	if len(logs) < count {
+		count = len(logs)
+	}
+
+	// XRevRange返回的是倒序，我们需要正序显示，所以从后往前遍历
+	for i := count - 1; i >= 0; i-- {
+		if data, ok := logs[i].Values["data"].(string); ok {
+			var entry types.TaskLogEntry
+			if err := json.Unmarshal([]byte(data), &entry); err == nil {
+				// 只返回匹配taskId的日志
+				if entry.TaskId == req.TaskId {
+					result = append(result, entry)
+				}
+			}
+		}
+	}
+
+	l.Logger.Infof("GetTaskLogs: returned %d logs for taskId=%s", len(result), req.TaskId)
+	return &types.GetTaskLogsResp{Code: 0, Msg: "success", List: result}, nil
 }
