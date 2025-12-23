@@ -1557,10 +1557,10 @@ async function handleDeleteHttpServiceMapping(row) {
   .rule-help {
     margin-top: 10px;
     padding: 10px;
-    background: #f5f7fa;
+    background: var(--bg-tertiary);
     border-radius: 4px;
     font-size: 12px;
-    color: #606266;
+    color: var(--text-secondary);
 
     p {
       margin: 0 0 5px 0;
@@ -1577,7 +1577,7 @@ async function handleDeleteHttpServiceMapping(row) {
     }
 
     code {
-      background: #e8e8e8;
+      background: var(--bg-hover);
       padding: 1px 4px;
       border-radius: 3px;
       font-family: 'Consolas', 'Monaco', monospace;
@@ -1586,14 +1586,14 @@ async function handleDeleteHttpServiceMapping(row) {
 
   .form-tip {
     font-size: 12px;
-    color: #909399;
+    color: var(--text-muted);
     margin-top: 5px;
     line-height: 1.5;
   }
 
   .file-preview {
     margin-top: 15px;
-    border: 1px solid #dcdfe6;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     overflow: hidden;
 
@@ -1602,10 +1602,10 @@ async function handleDeleteHttpServiceMapping(row) {
       justify-content: space-between;
       align-items: center;
       padding: 8px 12px;
-      background: #f5f7fa;
-      border-bottom: 1px solid #dcdfe6;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-color);
       font-size: 13px;
-      color: #606266;
+      color: var(--text-secondary);
     }
 
     .preview-content {
@@ -1615,7 +1615,8 @@ async function handleDeleteHttpServiceMapping(row) {
       overflow-y: auto;
       font-family: 'Consolas', 'Monaco', monospace;
       font-size: 12px;
-      background: #fafafa;
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
       white-space: pre-wrap;
       word-break: break-all;
     }
@@ -1634,7 +1635,7 @@ async function handleDeleteHttpServiceMapping(row) {
 
   .validate-result {
     margin-top: 15px;
-    border: 1px solid #dcdfe6;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     overflow: hidden;
 
@@ -1644,8 +1645,8 @@ async function handleDeleteHttpServiceMapping(row) {
 
     .result-header {
       padding: 10px 15px;
-      background: #f5f7fa;
-      border-bottom: 1px solid #dcdfe6;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-color);
     }
 
     .result-details {
@@ -1669,14 +1670,14 @@ async function handleDeleteHttpServiceMapping(row) {
 
   .batch-validate-result {
     margin-top: 15px;
-    border: 1px solid #dcdfe6;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     overflow: hidden;
 
     .result-header {
       padding: 10px 15px;
-      background: #f5f7fa;
-      border-bottom: 1px solid #dcdfe6;
+      background: var(--bg-tertiary);
+      border-bottom: 1px solid var(--border-color);
     }
 
     .matched-list {

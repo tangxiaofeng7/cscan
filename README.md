@@ -12,8 +12,8 @@
 
 - **资产发现** - 端口扫描 (Nmap/Masscan/Naabu)，服务识别
 - **指纹识别** - Httpx + Wappalyzer + 自定义指纹引擎，多源融合
-- **漏洞检测** - Nuclei 引擎，支持自定义 POC
-- **Web 截图** - 基于 Chromedp 的网页截图功能
+- **漏洞检测** - Nuclei 引擎，800+自定义POC
+- **Web 截图** - 基于 Chromedp 的网页截图功能/基于HTTPX的网页截图功能
 - **在线数据源** - FOFA / Hunter / Quake API 聚合搜索与导入
 - **报告管理** - 任务报告生成，支持 Excel 导出
 - **分布式架构** - Worker 节点水平扩展，支持多节点并行扫描
@@ -25,7 +25,6 @@
 git clone https://github.com/tangxiaofeng7/cscan.git
 cd cscan
 docker-compose up -d --build
-
 
 ```
 
@@ -81,7 +80,7 @@ Vue3 Web ──▶ API Server ──▶ MongoDB
 | 端口扫描 | Nmap, Masscan, Naabu |
 | 指纹识别 | Httpx, Wappalyzer, 自定义引擎 |
 | 漏洞扫描 | Nuclei |
-| 截图引擎 | Chromedp (Chromium) |
+| 截图引擎 | Httpx, Chromedp (Chromium) |
 
 ## 本地开发
 
@@ -111,14 +110,6 @@ go run cmd/worker/main.go [options]
   -rp string   Redis 密码 (默认 "")
   -n string    Worker 名称 (默认 主机名)
   -c int       并发数 (默认 5)
-```
-
-## Docker 部署
-
-### 一键部署
-
-```bash
-docker-compose up -d --build
 ```
 
 ### 服务说明

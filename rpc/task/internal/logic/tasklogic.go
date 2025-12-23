@@ -40,41 +40,73 @@ func NewTaskLogic(ctx context.Context, svcCtx *svc.ServiceContext) *TaskLogic {
 }
 
 func (l *TaskLogic) CheckTask(in *pb.CheckTaskReq) (*pb.CheckTaskResp, error) {
-	// 从 Redis 队列获取任务
 	queueKey := "cscan:task:queue"
+	maxSkip := 100 // 最多跳过100个已停止的任务，防止无限循环
 	
-	// 获取优先级最高的任务
-	results, err := l.svcCtx.RedisClient.ZPopMin(l.ctx, queueKey, 1).Result()
-	if err != nil || len(results) == 0 {
-		// 没有任务
+	for i := 0; i < maxSkip; i++ {
+		// 从 Redis 队列获取任务
+		results, err := l.svcCtx.RedisClient.ZPopMin(l.ctx, queueKey, 1).Result()
+		if err != nil || len(results) == 0 {
+			// 没有任务
+			return &pb.CheckTaskResp{
+				IsExist:    false,
+				IsFinished: true,
+			}, nil
+		}
+
+		// 解析任务信息
+		var taskInfo struct {
+			TaskId      string `json:"taskId"`
+			MainTaskId  string `json:"mainTaskId"`
+			WorkspaceId string `json:"workspaceId"`
+			TaskName    string `json:"taskName"`
+			Config      string `json:"config"`
+		}
+		if err := json.Unmarshal([]byte(results[0].Member.(string)), &taskInfo); err != nil {
+			continue // 解析失败，跳过这个任务
+		}
+
+		// 检查任务是否已被停止（检查主任务的停止信号）
+		mainTaskId := taskInfo.TaskId
+		// 如果是子任务（格式: {mainTaskId}-{index}），提取主任务ID
+		if lastDash := strings.LastIndex(taskInfo.TaskId, "-"); lastDash > 0 {
+			suffix := taskInfo.TaskId[lastDash+1:]
+			isNumber := true
+			for _, c := range suffix {
+				if c < '0' || c > '9' {
+					isNumber = false
+					break
+				}
+			}
+			if isNumber {
+				mainTaskId = taskInfo.TaskId[:lastDash]
+			}
+		}
+		
+		// 检查主任务的停止信号
+		ctrlKey := "cscan:task:ctrl:" + mainTaskId
+		ctrl, _ := l.svcCtx.RedisClient.Get(l.ctx, ctrlKey).Result()
+		if ctrl == "STOP" {
+			l.Logger.Infof("Task %s skipped because main task %s is stopped", taskInfo.TaskId, mainTaskId)
+			continue // 任务已停止，跳过，继续获取下一个
+		}
+
+		l.Logger.Infof("Dispatching task: taskId=%s, workspaceId=%s", taskInfo.TaskId, taskInfo.WorkspaceId)
+
 		return &pb.CheckTaskResp{
-			IsExist:    false,
-			IsFinished: true,
+			IsExist:     true,
+			IsFinished:  false,
+			TaskId:      taskInfo.TaskId,
+			State:       "PENDING",
+			WorkspaceId: taskInfo.WorkspaceId,
+			Config:      taskInfo.Config,
 		}, nil
 	}
-
-	// 解析任务信息
-	var taskInfo struct {
-		TaskId      string `json:"taskId"`
-		MainTaskId  string `json:"mainTaskId"`
-		WorkspaceId string `json:"workspaceId"`
-		TaskName    string `json:"taskName"`
-		Config      string `json:"config"`
-	}
-	if err := json.Unmarshal([]byte(results[0].Member.(string)), &taskInfo); err != nil {
-		return &pb.CheckTaskResp{IsExist: false, IsFinished: true}, nil
-	}
-
-	l.Logger.Infof("Dispatching task: taskId=%s, workspaceId=%s, config=%s", 
-		taskInfo.TaskId, taskInfo.WorkspaceId, taskInfo.Config)
-
+	
+	// 跳过太多任务，返回无任务
 	return &pb.CheckTaskResp{
-		IsExist:     true,
-		IsFinished:  false,
-		TaskId:      taskInfo.TaskId,
-		State:       "PENDING",
-		WorkspaceId: taskInfo.WorkspaceId,
-		Config:      taskInfo.Config,
+		IsExist:    false,
+		IsFinished: true,
 	}, nil
 }
 
@@ -87,43 +119,83 @@ func (l *TaskLogic) UpdateTask(in *pb.UpdateTaskReq) (*pb.UpdateTaskResp, error)
 	
 	if err == nil && taskData != "" {
 		var taskInfo struct {
-			WorkspaceId string `json:"workspaceId"`
-			MainTaskId  string `json:"mainTaskId"`
+			WorkspaceId  string `json:"workspaceId"`
+			MainTaskId   string `json:"mainTaskId"`
+			ParentTaskId string `json:"parentTaskId"` // 父任务ID（如果是子任务）
+			SubTaskCount int    `json:"subTaskCount"` // 子任务总数（如果是主任务）
 		}
 		if json.Unmarshal([]byte(taskData), &taskInfo) == nil && taskInfo.WorkspaceId != "" {
-			// 更新 MongoDB 中的主任务状态
 			taskModel := l.svcCtx.GetMainTaskModel(taskInfo.WorkspaceId)
 			
-			// 计算进度
-			progress := 0
-			switch in.State {
-			case "STARTED":
-				progress = 10
-			case "PAUSED":
-				progress = 50 // 暂停时保持中间进度
-			case "SUCCESS":
-				progress = 100
-			case "FAILURE":
-				progress = 100
-			case "STOPPED":
-				progress = 100
-			}
+			// 判断是否是子任务（taskId 包含 "-" 且有 parentTaskId）
+			isSubTask := taskInfo.ParentTaskId != "" && strings.Contains(in.TaskId, "-")
 			
-			update := bson.M{
-				"status":   in.State,
-				"progress": progress,
-				"worker":   in.Worker,
-			}
-			
-			// 如果是暂停状态，保存任务状态到task_state字段
-			if in.State == "PAUSED" {
-				update["task_state"] = in.Result // Result字段用于传递状态JSON
+			if isSubTask {
+				// 子任务完成，更新主任务的子任务计数
+				if in.State == "SUCCESS" || in.State == "FAILURE" {
+					// 获取主任务
+					mainTask, err := taskModel.FindByTaskId(l.ctx, taskInfo.ParentTaskId)
+					if err == nil && mainTask != nil {
+						// 增加已完成子任务数
+						newDone := mainTask.SubTaskDone + 1
+						progress := 0
+						if mainTask.SubTaskCount > 0 {
+							progress = (newDone * 100) / mainTask.SubTaskCount
+						}
+						
+						update := bson.M{
+							"sub_task_done": newDone,
+							"progress":      progress,
+						}
+						
+						// 如果所有子任务都完成，更新主任务状态
+						if newDone >= mainTask.SubTaskCount {
+							update["status"] = "SUCCESS"
+							update["progress"] = 100
+							l.Logger.Infof("All sub-tasks completed for main task %s", taskInfo.ParentTaskId)
+						} else {
+							update["status"] = "STARTED" // 保持执行中状态
+						}
+						
+						if err := taskModel.UpdateByTaskId(l.ctx, taskInfo.ParentTaskId, update); err != nil {
+							l.Logger.Errorf("Update main task progress failed: %v", err)
+						} else {
+							l.Logger.Infof("Main task %s progress: %d/%d (%d%%)", 
+								taskInfo.ParentTaskId, newDone, mainTask.SubTaskCount, progress)
+						}
+					}
+				}
 			} else {
-				update["result"] = in.Result
-			}
-			
-			if err := taskModel.UpdateByTaskId(l.ctx, in.TaskId, update); err != nil {
-				l.Logger.Errorf("Update task in MongoDB failed: %v", err)
+				// 非子任务（单任务或主任务本身），直接更新状态
+				progress := 0
+				switch in.State {
+				case "STARTED":
+					progress = 10
+				case "PAUSED":
+					progress = 50
+				case "SUCCESS":
+					progress = 100
+				case "FAILURE":
+					progress = 100
+				case "STOPPED":
+					progress = 100
+				}
+				
+				update := bson.M{
+					"status":   in.State,
+					"progress": progress,
+					"worker":   in.Worker,
+				}
+				
+				if in.State == "PAUSED" {
+					update["task_state"] = in.Result
+				} else {
+					update["result"] = in.Result
+				}
+				
+				if err := taskModel.UpdateByTaskId(l.ctx, in.TaskId, update); err != nil {
+					l.Logger.Errorf("Update task in MongoDB failed: %v", err)
+				}
 			}
 		}
 	}

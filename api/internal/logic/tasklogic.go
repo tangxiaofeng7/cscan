@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"strconv"
+	"strings"
 	"time"
 
 	"cscan/api/internal/logic/common"
@@ -419,34 +420,82 @@ func (l *MainTaskStartLogic) MainTaskStart(req *types.MainTaskControlReq, worksp
 		return &types.BaseResp{Code: 400, Msg: "只有待启动状态的任务可以启动"}, nil
 	}
 
-	// 更新状态为PENDING
-	update := bson.M{"status": model.TaskStatusPending}
+	// 解析任务配置获取目标
+	var taskConfig map[string]interface{}
+	if err := json.Unmarshal([]byte(task.Config), &taskConfig); err != nil {
+		return &types.BaseResp{Code: 500, Msg: "解析任务配置失败"}, nil
+	}
+	target, _ := taskConfig["target"].(string)
+
+	// 使用目标拆分器判断是否需要拆分
+	// 每批50个IP，适合分布式并发处理
+	splitter := scheduler.NewTargetSplitter(50)
+	batches := splitter.SplitTargets(target)
+
+	l.Logger.Infof("Task %s target split into %d batches", task.TaskId, len(batches))
+
+	// 更新主任务状态为PENDING，记录子任务数量
+	update := bson.M{
+		"status":      model.TaskStatusPending,
+		"sub_task_count": len(batches),
+		"sub_task_done":  0,
+	}
 	if err := taskModel.Update(l.ctx, req.Id, update); err != nil {
 		return &types.BaseResp{Code: 500, Msg: "更新任务状态失败"}, nil
 	}
 
-	// 发送任务到消息队列
-	schedTask := &scheduler.TaskInfo{
-		TaskId:      task.TaskId,
-		MainTaskId:  task.Id.Hex(),
-		WorkspaceId: workspaceId,
-		TaskName:    task.Name,
-		Config:      task.Config,
-		Priority:    1,
-	}
-	l.Logger.Infof("Starting task: taskId=%s, workspaceId=%s", task.TaskId, workspaceId)
-	if err := l.svcCtx.Scheduler.PushTask(l.ctx, schedTask); err != nil {
-		l.Logger.Errorf("push task to queue failed: %v", err)
-		return &types.BaseResp{Code: 500, Msg: "任务入队失败"}, nil
-	}
-
-	// 保存任务信息到 Redis
+	// 保存主任务信息到 Redis
 	taskInfoKey := "cscan:task:info:" + task.TaskId
-	taskInfoData, _ := json.Marshal(map[string]string{
-		"workspaceId": workspaceId,
-		"mainTaskId":  task.Id.Hex(),
+	taskInfoData, _ := json.Marshal(map[string]interface{}{
+		"workspaceId":   workspaceId,
+		"mainTaskId":    task.Id.Hex(),
+		"subTaskCount":  len(batches),
 	})
 	l.svcCtx.RedisClient.Set(l.ctx, taskInfoKey, taskInfoData, 24*time.Hour)
+
+	// 为每个批次创建子任务并推送到队列
+	for i, batch := range batches {
+		// 复制配置并替换目标
+		subConfig := make(map[string]interface{})
+		for k, v := range taskConfig {
+			subConfig[k] = v
+		}
+		subConfig["target"] = batch
+		subConfig["subTaskIndex"] = i
+		subConfig["subTaskTotal"] = len(batches)
+		subConfigBytes, _ := json.Marshal(subConfig)
+
+		// 生成子任务ID
+		subTaskId := task.TaskId
+		if len(batches) > 1 {
+			subTaskId = task.TaskId + "-" + strconv.Itoa(i)
+		}
+
+		schedTask := &scheduler.TaskInfo{
+			TaskId:      subTaskId,
+			MainTaskId:  task.Id.Hex(),
+			WorkspaceId: workspaceId,
+			TaskName:    task.Name,
+			Config:      string(subConfigBytes),
+			Priority:    1,
+		}
+
+		l.Logger.Infof("Pushing sub-task %d/%d: taskId=%s, targets=%d", i+1, len(batches), subTaskId, len(strings.Split(batch, "\n")))
+
+		if err := l.svcCtx.Scheduler.PushTask(l.ctx, schedTask); err != nil {
+			l.Logger.Errorf("push sub-task to queue failed: %v", err)
+			continue
+		}
+
+		// 保存子任务信息到 Redis
+		subTaskInfoKey := "cscan:task:info:" + subTaskId
+		subTaskInfoData, _ := json.Marshal(map[string]string{
+			"workspaceId": workspaceId,
+			"mainTaskId":  task.Id.Hex(),
+			"parentTaskId": task.TaskId,
+		})
+		l.svcCtx.RedisClient.Set(l.ctx, subTaskInfoKey, subTaskInfoData, 24*time.Hour)
+	}
 
 	return &types.BaseResp{Code: 0, Msg: "任务已启动"}, nil
 }
@@ -827,12 +876,16 @@ func (l *GetTaskLogsLogic) GetTaskLogs(req *types.GetTaskLogsReq) (resp *types.G
 
 	// 从Redis Stream读取任务专属日志 (cscan:task:logs:{taskId})
 	streamKey := "cscan:task:logs:" + req.TaskId
+	l.Logger.Infof("GetTaskLogs: querying Redis stream key=%s, limit=%d", streamKey, limit)
+	
 	logs, err := l.svcCtx.RedisClient.XRevRange(l.ctx, streamKey, "+", "-").Result()
 	if err != nil {
-		l.Logger.Errorf("GetTaskLogs: failed to read logs from Redis, taskId=%s, error=%v", req.TaskId, err)
+		l.Logger.Errorf("GetTaskLogs: failed to read logs from Redis, taskId=%s, streamKey=%s, error=%v", req.TaskId, streamKey, err)
 		// 返回空列表而不是错误
-		return &types.GetTaskLogsResp{Code: 0, Msg: "success", List: []types.TaskLogEntry{}}, nil
+		return &types.GetTaskLogsResp{Code: 0, Msg: "Redis查询失败: " + err.Error(), List: []types.TaskLogEntry{}}, nil
 	}
+
+	l.Logger.Infof("GetTaskLogs: found %d log entries in Redis stream", len(logs))
 
 	// 解析日志条目
 	result := make([]types.TaskLogEntry, 0)
@@ -846,14 +899,37 @@ func (l *GetTaskLogsLogic) GetTaskLogs(req *types.GetTaskLogsReq) (resp *types.G
 		if data, ok := logs[i].Values["data"].(string); ok {
 			var entry types.TaskLogEntry
 			if err := json.Unmarshal([]byte(data), &entry); err == nil {
-				// 只返回匹配taskId的日志
-				if entry.TaskId == req.TaskId {
+				// 放宽匹配条件：匹配主任务ID或子任务ID
+				if entry.TaskId == req.TaskId || getMainTaskIdFromLog(entry.TaskId) == req.TaskId {
 					result = append(result, entry)
 				}
+			} else {
+				l.Logger.Errorf("GetTaskLogs: failed to unmarshal log entry: %v", err)
 			}
 		}
 	}
 
 	l.Logger.Infof("GetTaskLogs: returned %d logs for taskId=%s", len(result), req.TaskId)
 	return &types.GetTaskLogsResp{Code: 0, Msg: "success", List: result}, nil
+}
+
+// getMainTaskIdFromLog 从日志中的taskId提取主任务ID
+func getMainTaskIdFromLog(taskId string) string {
+	// 查找最后一个 "-" 后面是否是数字
+	lastDash := strings.LastIndex(taskId, "-")
+	if lastDash > 0 && lastDash < len(taskId)-1 {
+		suffix := taskId[lastDash+1:]
+		// 检查后缀是否全是数字
+		isNumber := true
+		for _, c := range suffix {
+			if c < '0' || c > '9' {
+				isNumber = false
+				break
+			}
+		}
+		if isNumber {
+			return taskId[:lastDash]
+		}
+	}
+	return taskId
 }

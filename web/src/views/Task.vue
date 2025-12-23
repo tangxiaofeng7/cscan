@@ -163,7 +163,7 @@
             <el-radio label="naabu">Naabu (推荐)</el-radio>
             <el-radio label="masscan">Masscan</el-radio>
           </el-radio-group>
-          <span style="margin-left: 10px; color: #909399; font-size: 12px">不支持域名</span>
+          <span class="form-hint">不支持域名</span>
         </el-form-item>
         <el-form-item v-if="profileForm.portscanEnable" label="端口范围">
           <el-select v-model="profileForm.ports" filterable allow-create default-first-option placeholder="选择或输入端口" style="width: 100%">
@@ -176,11 +176,11 @@
         </el-form-item>
         <el-form-item v-if="profileForm.portscanEnable" label="扫描速率">
           <el-input-number v-model="profileForm.portscanRate" :min="100" :max="100000" :step="100" />
-          <span style="margin-left: 10px; color: #909399; font-size: 12px">包/秒</span>
+          <span class="form-hint">包/秒</span>
         </el-form-item>
         <el-form-item v-if="profileForm.portscanEnable" label="端口阈值">
           <el-input-number v-model="profileForm.portThreshold" :min="0" :max="65535" :step="10" />
-          <span style="margin-left: 10px; color: #909399; font-size: 12px">开放端口超过此数量的主机将被过滤 (0=不过滤)</span>
+          <span class="form-hint">开放端口超过此数量的主机将被过滤 (0=不过滤)</span>
         </el-form-item>
         <el-form-item label="指纹识别">
           <el-switch v-model="profileForm.fingerprintEnable" />
@@ -193,7 +193,7 @@
           <el-checkbox v-model="profileForm.fingerprintWappalyzer">Wappalyzer指纹</el-checkbox>
           <el-checkbox v-model="profileForm.fingerprintCustomEngine">自定义指纹引擎</el-checkbox>
           <el-checkbox v-model="profileForm.fingerprintScreenshot">网页截图</el-checkbox>
-          <span v-if="profileForm.fingerprintScreenshot" style="margin-left: 5px; color: #909399; font-size: 12px">
+          <span v-if="profileForm.fingerprintScreenshot" class="form-hint" style="margin-left: 5px">
             ({{ profileForm.fingerprintHttpx ? 'httpx截图' : 'chromedp截图，较慢' }})
           </span>
         </el-form-item>
@@ -206,23 +206,23 @@
         </el-form-item>
         <el-form-item label="漏洞扫描">
           <el-switch v-model="profileForm.pocscanEnable" />
-          <span style="margin-left: 10px; color: #909399; font-size: 12px">使用 Nuclei 引擎</span>
+          <span class="form-hint">使用 Nuclei 引擎</span>
         </el-form-item>
         <el-form-item v-if="profileForm.pocscanEnable" label="自动扫描">
           <div style="display: block; width: 100%">
             <div>
               <el-checkbox v-model="profileForm.pocscanAutoScan" :disabled="profileForm.pocscanCustomOnly">自定义标签映射</el-checkbox>
-              <span style="margin-left: 5px; color: #909399; font-size: 12px">(POC管理中配置)</span>
+              <span class="form-hint" style="margin-left: 5px">(POC管理中配置)</span>
             </div>
             <div style="margin-top: 5px">
               <el-checkbox v-model="profileForm.pocscanAutomaticScan" :disabled="profileForm.pocscanCustomOnly">Wappalyzer自动扫描</el-checkbox>
-              <span style="margin-left: 5px; color: #909399; font-size: 12px">(内置技术栈映射)</span>
+              <span class="form-hint" style="margin-left: 5px">(内置技术栈映射)</span>
             </div>
           </div>
         </el-form-item>
         <el-form-item v-if="profileForm.pocscanEnable" label="自定义POC">
           <el-checkbox v-model="profileForm.pocscanCustomOnly">只使用自定义POC</el-checkbox>
-          <span style="margin-left: 5px; color: #909399; font-size: 12px">(仅扫描POC管理中启用的自定义POC)</span>
+          <span class="form-hint" style="margin-left: 5px">(仅扫描POC管理中启用的自定义POC)</span>
         </el-form-item>
         <el-form-item v-if="profileForm.pocscanEnable" label="严重级别">
           <el-checkbox-group v-model="profileForm.pocscanSeverity">
@@ -273,7 +273,7 @@
               :value="p.id"
             >
               <span>{{ p.name }}</span>
-              <span style="color: #999; font-size: 12px; margin-left: 10px">{{ p.description }}</span>
+              <span class="option-desc">{{ p.description }}</span>
             </el-option>
           </el-select>
         </el-form-item>
@@ -313,7 +313,7 @@
               :value="p.id"
             >
               <span>{{ p.name }}</span>
-              <span style="color: #999; font-size: 12px; margin-left: 10px">{{ p.description }}</span>
+              <span class="option-desc">{{ p.description }}</span>
             </el-option>
           </el-select>
         </el-form-item>
@@ -908,6 +908,18 @@ function closeLogDialog() {
     margin-top: 20px;
     justify-content: flex-end;
   }
+  
+  .form-hint {
+    margin-left: 10px;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
+  
+  .option-desc {
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-left: 10px;
+  }
 }
 
 .log-container {
@@ -922,7 +934,7 @@ function closeLogDialog() {
 }
 
 .log-empty {
-  color: #999;
+  color: var(--text-muted);
   text-align: center;
   padding: 20px;
 }

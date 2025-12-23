@@ -59,9 +59,42 @@ type Worker struct {
 	logger *WorkerLogger
 }
 
+// getMainTaskId 从 taskId 中提取主任务ID
+// 子任务格式: {mainTaskId}-{index}，主任务格式: {mainTaskId}
+func getMainTaskId(taskId string) string {
+	// 查找最后一个 "-" 后面是否是数字
+	lastDash := strings.LastIndex(taskId, "-")
+	if lastDash > 0 && lastDash < len(taskId)-1 {
+		suffix := taskId[lastDash+1:]
+		// 检查后缀是否全是数字
+		isNumber := true
+		for _, c := range suffix {
+			if c < '0' || c > '9' {
+				isNumber = false
+				break
+			}
+		}
+		if isNumber {
+			return taskId[:lastDash]
+		}
+	}
+	return taskId
+}
+
 // taskLog 发布任务级别日志
+// 子任务的日志会同时写入主任务的日志流，方便统一查看
 func (w *Worker) taskLog(taskId, level, format string, args ...interface{}) {
-	logger := NewTaskLogger(w.redisClient, w.config.Name, taskId)
+	// 获取主任务ID，确保子任务日志也能在主任务中查看
+	mainTaskId := getMainTaskId(taskId)
+	
+	logger := NewTaskLogger(w.redisClient, w.config.Name, mainTaskId)
+	
+	// 如果是子任务，在日志消息前加上子任务标识
+	if mainTaskId != taskId {
+		subIndex := taskId[len(mainTaskId)+1:]
+		format = fmt.Sprintf("[Sub-%s] %s", subIndex, format)
+	}
+	
 	switch level {
 	case LevelError:
 		logger.Error(format, args...)
@@ -140,21 +173,30 @@ func NewWorker(config WorkerConfig) (*Worker, error) {
 			DB:       0,
 		})
 		
-		// 测试Redis连接
+		// 测试Redis连接，增加重试机制
 		ctx := context.Background()
-		if err := redisClient.Ping(ctx).Err(); err != nil {
-			fmt.Printf("[Worker] Redis connection failed: %v, logs will not be streamed\n", err)
-			redisClient = nil
-		} else {
-			fmt.Printf("[Worker] Redis connected successfully at %s, logs will be streamed\n", config.RedisAddr)
-			// 设置logx的输出Writer，将所有日志同时发送到Redis
-			logWriter := NewRedisLogWriter(redisClient, config.Name)
-			logx.SetWriter(logx.NewWriter(logWriter))
-			// 写入一条测试日志确认日志系统工作
-			NewLogPublisher(redisClient, config.Name).PublishWorkerLog(LevelInfo, "Worker日志系统已启动，Redis连接成功")
+		maxRetries := 3
+		for i := 0; i < maxRetries; i++ {
+			if err := redisClient.Ping(ctx).Err(); err != nil {
+				if i == maxRetries-1 {
+					fmt.Printf("[Worker] Redis connection failed after %d retries: %v, logs will be output to console\n", maxRetries, err)
+					// 不设置为nil，让日志发布器处理连接失败的情况
+				} else {
+					fmt.Printf("[Worker] Redis connection attempt %d failed: %v, retrying...\n", i+1, err)
+					time.Sleep(time.Duration(i+1) * time.Second)
+				}
+			} else {
+				fmt.Printf("[Worker] Redis connected successfully at %s, logs will be streamed\n", config.RedisAddr)
+				// 设置logx的输出Writer，将所有日志同时发送到Redis
+				logWriter := NewRedisLogWriter(redisClient, config.Name)
+				logx.SetWriter(logx.NewWriter(logWriter))
+				// 写入一条测试日志确认日志系统工作
+				NewLogPublisher(redisClient, config.Name).PublishWorkerLog(LevelInfo, "Worker日志系统已启动，Redis连接成功")
+				break
+			}
 		}
 	} else {
-		fmt.Println("[Worker] Redis address not specified (-r flag), logs will not be streamed to Web")
+		fmt.Println("[Worker] Redis address not specified (-r flag), logs will be output to console only")
 	}
 
 	// 创建可取消的Context
@@ -309,6 +351,12 @@ func (w *Worker) processTask() {
 		case <-w.stopChan:
 			return
 		case task := <-w.taskChan:
+			// 在执行前检查任务是否已被停止
+			ctx := context.Background()
+			if ctrl := w.checkTaskControl(ctx, task.TaskId); ctrl == "STOP" {
+				w.taskLog(task.TaskId, LevelInfo, "Task %s skipped because it was stopped while waiting in queue", task.TaskId)
+				continue
+			}
 			w.executeTask(task)
 		}
 	}
@@ -316,16 +364,33 @@ func (w *Worker) processTask() {
 
 // checkTaskControl 检查任务控制信号
 // 返回: "PAUSE" - 暂停, "STOP" - 停止, "" - 继续执行
+// 对于子任务，会同时检查主任务的控制信号
 func (w *Worker) checkTaskControl(ctx context.Context, taskId string) string {
 	if w.redisClient == nil {
 		return ""
 	}
+	
+	// 使用独立的 context 查询 Redis，避免因任务 context 被取消而查询失败
+	queryCtx := context.Background()
+	
+	// 先检查当前任务的控制信号
 	ctrlKey := "cscan:task:ctrl:" + taskId
-	ctrl, err := w.redisClient.Get(ctx, ctrlKey).Result()
-	if err != nil {
-		return ""
+	ctrl, err := w.redisClient.Get(queryCtx, ctrlKey).Result()
+	if err == nil && ctrl != "" {
+		return ctrl
 	}
-	return ctrl
+	
+	// 如果是子任务，还需要检查主任务的控制信号
+	mainTaskId := getMainTaskId(taskId)
+	if mainTaskId != taskId {
+		mainCtrlKey := "cscan:task:ctrl:" + mainTaskId
+		ctrl, err = w.redisClient.Get(queryCtx, mainCtrlKey).Result()
+		if err == nil && ctrl != "" {
+			return ctrl
+		}
+	}
+	
+	return ""
 }
 
 // saveTaskProgress 保存任务进度（用于暂停后继续�?
@@ -361,7 +426,7 @@ func (w *Worker) createTaskContext(parentCtx context.Context, taskId string) (co
 	
 	// 启动一个goroutine定期检查任务控制信号
 	go func() {
-		ticker := time.NewTicker(1 * time.Second) // 每秒检查一次
+		ticker := time.NewTicker(200 * time.Millisecond) // 缩短检查间隔到200ms，提高响应速度
 		defer ticker.Stop()
 		
 		for {
@@ -468,7 +533,8 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			w.taskLog(task.TaskId, LevelInfo, "Task %s stopped during port scan phase", task.TaskId)
 			return
 		} else if ctrl == "PAUSE" {
-			w.taskLog(task.TaskId, LevelInfo, "Task %s paused during port scan phase", task.TaskId)
+			w.taskLog(task.TaskId, LevelInfo, "Task %s paused before port scan phase, saving state...", task.TaskId)
+			w.saveTaskProgress(ctx, task, completedPhases, allAssets)
 			return
 		}
 
@@ -480,7 +546,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 
 		var openPorts []*scanner.Asset
 		
-		// 第一步：端口发现（Naabu �?Masscan�?
+		// 第一步：端口发现
 		switch portDiscoveryTool {
 		case "masscan":
 			w.taskLog(task.TaskId, LevelInfo, "Phase 1: Running Masscan for fast port discovery on target: %s", target)
@@ -489,6 +555,11 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				Target:  target,
 				Options: config.PortScan,
 			})
+			// 检查是否被停止
+			if ctx.Err() != nil {
+				w.taskLog(task.TaskId, LevelInfo, "Task %s stopped during Masscan scan", task.TaskId)
+				return
+			}
 			if err != nil {
 				w.taskLog(task.TaskId, LevelError, "Masscan error: %v", err)
 			}
@@ -497,12 +568,17 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				w.taskLog(task.TaskId, LevelInfo, "Masscan found %d open ports (filtered from %d)", len(openPorts), len(masscanResult.Assets))
 			}
 		default: // naabu
-			w.taskLog(task.TaskId, LevelInfo, "Phase 1: Running Naabu for fast port discovery on target: %s", target)
+			w.taskLog(task.TaskId, LevelInfo, "Phase 1: Running Naabu for fast port discovery on target")
 			naabuScanner := w.scanners["naabu"]
 			naabuResult, err := naabuScanner.Scan(ctx, &scanner.ScanConfig{
 				Target:  target,
 				Options: config.PortScan,
 			})
+			// 检查是否被停止
+			if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
+				w.taskLog(task.TaskId, LevelInfo, "Task %s stopped during Naabu scan", task.TaskId)
+				return
+			}
 			if err != nil {
 				w.taskLog(task.TaskId, LevelError, "Naabu error: %v", err)
 			}
@@ -510,6 +586,12 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				openPorts = filterByPortThreshold(naabuResult.Assets, config.PortScan.PortThreshold)
 				w.taskLog(task.TaskId, LevelInfo, "Naabu found %d open ports (filtered from %d)", len(openPorts), len(naabuResult.Assets))
 			}
+		}
+		
+		// 检查是否被停止
+		if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
+			w.taskLog(task.TaskId, LevelInfo, "Task %s stopped after port discovery", task.TaskId)
+			return
 		}
 		
 		// 第二步：Nmap 对存活端口进行服务识�?
@@ -524,6 +606,12 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			
 			nmapScanner := w.scanners["nmap"]
 			for host, ports := range hostPorts {
+				// 检查是否被停止
+				if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
+					w.taskLog(task.TaskId, LevelInfo, "Task %s stopped during Nmap scan", task.TaskId)
+					return
+				}
+				
 				// 构建端口字符�?
 				portStrs := make([]string, len(ports))
 				for i, p := range ports {
@@ -540,6 +628,12 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 						Timeout: config.PortScan.Timeout,
 					},
 				})
+				
+				// 检查是否被停止
+				if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
+					w.taskLog(task.TaskId, LevelInfo, "Task %s stopped during Nmap scan", task.TaskId)
+					return
+				}
 				
 				if err != nil {
 					w.taskLog(task.TaskId, LevelError, "Nmap error for %s: %v", host, err)
@@ -596,6 +690,16 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 
 	// 执行指纹识别
 	if config.Fingerprint != nil && config.Fingerprint.Enable && len(allAssets) > 0 && !completedPhases["fingerprint"] {
+		// 在指纹识别开始前检查停止信号
+		if ctrl := w.checkTaskControl(ctx, task.TaskId); ctrl == "STOP" {
+			w.taskLog(task.TaskId, LevelInfo, "Task %s stopped before fingerprint scan", task.TaskId)
+			return
+		} else if ctrl == "PAUSE" {
+			w.taskLog(task.TaskId, LevelInfo, "Task %s paused before fingerprint scan, saving state...", task.TaskId)
+			w.saveTaskProgress(ctx, task, completedPhases, allAssets)
+			return
+		}
+
 		if s, ok := w.scanners["fingerprint"]; ok {
 			w.taskLog(task.TaskId, LevelInfo, "Running fingerprint scan on %d assets", len(allAssets))
 			
@@ -613,7 +717,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			})
 			
 			// 检查是否被取消
-			if ctx.Err() != nil {
+			if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
 				w.taskLog(task.TaskId, LevelInfo, "Task %s stopped during fingerprint scan", task.TaskId)
 				return
 			}
@@ -662,6 +766,16 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 
 	// 执行POC扫描 (使用Nuclei引擎)
 	if config.PocScan != nil && config.PocScan.Enable && len(allAssets) > 0 && !completedPhases["pocscan"] {
+		// 在POC扫描开始前检查停止信号
+		if ctrl := w.checkTaskControl(ctx, task.TaskId); ctrl == "STOP" {
+			w.taskLog(task.TaskId, LevelInfo, "Task %s stopped before POC scan", task.TaskId)
+			return
+		} else if ctrl == "PAUSE" {
+			w.taskLog(task.TaskId, LevelInfo, "Task %s paused before POC scan, saving state...", task.TaskId)
+			w.saveTaskProgress(ctx, task, completedPhases, allAssets)
+			return
+		}
+
 		if s, ok := w.scanners["nuclei"]; ok {
 			w.taskLog(task.TaskId, LevelInfo, "Running Nuclei POC scan on %d assets", len(allAssets))
 
@@ -766,6 +880,12 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				vulBuffer.Flush(ctx, func(vuls []*scanner.Vulnerability) {
 					w.saveVulResult(ctx, task.WorkspaceId, task.MainTaskId, vuls)
 				})
+
+				// 检查是否被停止
+				if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
+					w.taskLog(task.TaskId, LevelInfo, "Task %s stopped during POC scan", task.TaskId)
+					return
+				}
 
 				if err != nil {
 					w.taskLog(task.TaskId, LevelError, "POC scan error: %v", err)

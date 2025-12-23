@@ -26,9 +26,10 @@ func NewMasscanScanner() *MasscanScanner {
 
 // MasscanOptions Masscan扫描选项
 type MasscanOptions struct {
-	Ports   string `json:"ports"`
-	Rate    int    `json:"rate"`
-	Timeout int    `json:"timeout"`
+	Ports         string `json:"ports"`
+	Rate          int    `json:"rate"`
+	Timeout       int    `json:"timeout"`
+	PortThreshold int    `json:"portThreshold"` // 端口阈值，实时检测
 }
 
 // MasscanResult Masscan输出结果
@@ -45,9 +46,10 @@ type MasscanResult struct {
 func (s *MasscanScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResult, error) {
 	// 默认配置
 	opts := &MasscanOptions{
-		Ports:   "21,22,23,25,80,443,3306,3389,6379,8080",
-		Rate:    1000,
-		Timeout: 3,
+		Ports:         "21,22,23,25,80,443,3306,3389,6379,8080",
+		Rate:          1000,
+		Timeout:       3,
+		PortThreshold: 0, // 默认不限制
 	}
 
 	// 尝试从不同类型的Options中提取配置
@@ -65,13 +67,39 @@ func (s *MasscanScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanRes
 			if v.Timeout > 0 {
 				opts.Timeout = v.Timeout
 			}
+			if v.PortThreshold > 0 {
+				opts.PortThreshold = v.PortThreshold
+			}
 		default:
 			// 尝试通过JSON转换
 			if data, err := json.Marshal(config.Options); err == nil {
-				json.Unmarshal(data, opts)
+				var portConfig struct {
+					Ports         string `json:"ports"`
+					Rate          int    `json:"rate"`
+					Timeout       int    `json:"timeout"`
+					PortThreshold int    `json:"portThreshold"`
+				}
+				if err := json.Unmarshal(data, &portConfig); err == nil {
+					if portConfig.Ports != "" {
+						opts.Ports = portConfig.Ports
+					}
+					if portConfig.Rate > 0 {
+						opts.Rate = portConfig.Rate
+					}
+					if portConfig.Timeout > 0 {
+						opts.Timeout = portConfig.Timeout
+					}
+					if portConfig.PortThreshold > 0 {
+						opts.PortThreshold = portConfig.PortThreshold
+					}
+				}
 			}
 		}
 	}
+
+	logx.Infof("Masscan Scan config - Ports: %s, Rate: %d, Timeout: %d, PortThreshold: %d", opts.Ports, opts.Rate, opts.Timeout, opts.PortThreshold)
+
+	logx.Infof("Masscan Scan config - Ports: %s, Rate: %d, Timeout: %d, PortThreshold: %d", opts.Ports, opts.Rate, opts.Timeout, opts.PortThreshold)
 
 	// 检查masscan是否安装
 	if !checkMasscanInstalled() {
@@ -87,7 +115,7 @@ func (s *MasscanScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanRes
 		targets = append(targets, config.Targets...)
 	}
 
-	// 执行masscan扫描
+	// 执行masscan扫描（传入阈值参数）
 	assets := s.runMasscan(ctx, targets, opts)
 
 	return &ScanResult{
@@ -100,6 +128,10 @@ func (s *MasscanScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanRes
 // runMasscan 运行masscan
 func (s *MasscanScanner) runMasscan(ctx context.Context, targets []string, opts *MasscanOptions) []*Asset {
 	var assets []*Asset
+
+	// 实时端口阈值检测：记录每个主机的开放端口数量和是否已超过阈值
+	hostPortCount := make(map[string]int)
+	skippedHosts := make(map[string]bool)
 
 	// 查找域名目标（masscan会将域名解析为IP）
 	var domainTarget string
@@ -153,19 +185,50 @@ func (s *MasscanScanner) runMasscan(ctx context.Context, targets []string, opts 
 			continue
 		}
 
+		// 确定主机标识（用于阈值检测）
+		hostKey := result.IP
+		if domainTarget != "" {
+			hostKey = domainTarget
+		}
+
+		// 如果该主机已被标记为跳过，直接忽略后续结果
+		if skippedHosts[hostKey] {
+			continue
+		}
+
 		for _, port := range result.Ports {
 			if port.Status == "open" {
+				// 实时检测端口阈值
+				hostPortCount[hostKey]++
+				if opts.PortThreshold > 0 && hostPortCount[hostKey] > opts.PortThreshold {
+					// 第一次超过阈值时记录日志
+					if !skippedHosts[hostKey] {
+						skippedHosts[hostKey] = true
+						logx.Infof("Host %s exceeded port threshold (%d > %d), skipping as potential honeypot/firewall",
+							hostKey, hostPortCount[hostKey], opts.PortThreshold)
+						// 移除该主机已收集的所有端口
+						newAssets := make([]*Asset, 0, len(assets))
+						for _, a := range assets {
+							if a.Host != hostKey {
+								newAssets = append(newAssets, a)
+							}
+						}
+						assets = newAssets
+					}
+					continue
+				}
+
 				// 如果原始目标是域名，使用域名作为Authority和Host
 				host := result.IP
 				authority := fmt.Sprintf("%s:%d", result.IP, port.Port)
 				category := getCategory(result.IP)
-				
+
 				if domainTarget != "" {
 					host = domainTarget
 					authority = fmt.Sprintf("%s:%d", domainTarget, port.Port)
 					category = "domain"
 				}
-				
+
 				asset := &Asset{
 					Authority: authority,
 					Host:      host,
@@ -178,6 +241,12 @@ func (s *MasscanScanner) runMasscan(ctx context.Context, targets []string, opts 
 	}
 
 	cmd.Wait()
+
+	// 输出跳过的主机统计
+	if len(skippedHosts) > 0 {
+		logx.Infof("Masscan scan: skipped %d hosts due to port threshold", len(skippedHosts))
+	}
+
 	return assets
 }
 

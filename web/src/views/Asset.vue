@@ -649,7 +649,7 @@ function handleAppTagClick(app) {
       .syntax-hints {
         margin-top: 8px;
         font-size: 12px;
-        color: #909399;
+        color: var(--text-muted);
         
         .hint-title {
           margin-right: 10px;
@@ -659,13 +659,13 @@ function handleAppTagClick(app) {
           display: inline-block;
           padding: 2px 8px;
           margin-right: 10px;
-          background: #f5f7fa;
+          background: var(--bg-tertiary);
           border-radius: 3px;
-          color: #606266;
+          color: var(--text-secondary);
           cursor: pointer;
           
           &:hover {
-            background: #e6f7ff;
+            background: rgba(64, 158, 255, 0.1);
             color: #409eff;
           }
         }
@@ -687,7 +687,7 @@ function handleAppTagClick(app) {
       
       .stat-title {
         font-weight: bold;
-        color: #303133;
+        color: var(--text-primary);
         margin-bottom: 8px;
         padding-bottom: 5px;
         border-bottom: 2px solid #409eff;
@@ -700,7 +700,7 @@ function handleAppTagClick(app) {
         cursor: pointer;
         
         &:hover {
-          background: #f5f7fa;
+          background: var(--bg-hover);
         }
         
         .stat-count {
@@ -741,7 +741,7 @@ function handleAppTagClick(app) {
       margin-bottom: 10px;
       
       .total-info {
-        color: #606266;
+        color: var(--text-secondary);
         font-size: 13px;
       }
     }
@@ -767,7 +767,7 @@ function handleAppTagClick(app) {
     }
     
     .org-text, .location-text {
-      color: #909399;
+      color: var(--text-muted);
       font-size: 12px;
     }
 
@@ -813,7 +813,8 @@ function handleAppTagClick(app) {
       .fingerprint-tabs {
         :deep(.el-tabs__header) {
           margin-bottom: 0;
-          background: #f5f7fa;
+          background: var(--bg-tertiary);
+          border-color: var(--border-color);
         }
         
         :deep(.el-tabs__nav) {
@@ -825,10 +826,21 @@ function handleAppTagClick(app) {
           height: 28px;
           line-height: 28px;
           font-size: 12px;
+          color: var(--text-secondary);
+          
+          &.is-active {
+            color: var(--primary-color);
+            background: var(--bg-secondary);
+          }
+          
+          &:hover {
+            color: var(--primary-color);
+          }
         }
         
         :deep(.el-tabs__content) {
           padding: 0;
+          background: var(--bg-secondary);
         }
         
         :deep(.el-tab-pane) {
@@ -839,23 +851,27 @@ function handleAppTagClick(app) {
       .tab-content {
         margin: 0;
         padding: 8px;
-        background: #fafafa;
+        background: var(--bg-tertiary);
         font-size: 11px;
         line-height: 1.5;
         max-height: 160px;
         overflow-y: auto;
         white-space: pre-wrap;
         word-break: break-all;
-        color: #606266;
+        color: var(--text-secondary);
         font-family: Consolas, Monaco, monospace;
+        border: 1px solid var(--border-color);
+        border-top: none;
+        border-radius: 0 0 4px 4px;
       }
       
       .no-data {
         display: block;
         padding: 10px;
-        color: #c0c4cc;
+        color: var(--text-muted);
         font-size: 12px;
         text-align: center;
+        background: var(--bg-tertiary);
       }
     }
 
@@ -864,16 +880,16 @@ function handleAppTagClick(app) {
       height: 60px;
       border-radius: 4px;
       cursor: pointer;
-      border: 1px solid #ebeef5;
+      border: 1px solid var(--border-color);
     }
 
     .no-screenshot {
-      color: #c0c4cc;
+      color: var(--text-muted);
     }
 
     .update-time {
       font-size: 12px;
-      color: #606266;
+      color: var(--text-secondary);
     }
 
     .pagination {
@@ -885,14 +901,14 @@ function handleAppTagClick(app) {
   .history-current {
     margin-bottom: 15px;
     padding: 10px;
-    background: #f5f7fa;
+    background: var(--bg-tertiary);
     border-radius: 4px;
   }
 
   .history-empty {
     text-align: center;
     padding: 40px;
-    color: #909399;
+    color: var(--text-muted);
   }
 }
 </style>

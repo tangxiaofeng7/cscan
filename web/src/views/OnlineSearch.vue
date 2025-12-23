@@ -318,7 +318,7 @@ async function saveConfig() {
         line-height: 1.6;
 
         code {
-          background: #f5f5f5;
+          background: var(--bg-tertiary);
           padding: 2px 6px;
           border-radius: 4px;
           color: #e83e8c;

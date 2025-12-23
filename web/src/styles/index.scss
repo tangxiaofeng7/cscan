@@ -441,6 +441,125 @@ html.dark {
   // 复选框
   .el-checkbox {
     color: var(--text-primary);
+    
+    .el-checkbox__label {
+      color: var(--text-primary);
+    }
+  }
+  
+  // 分割线增强
+  .el-divider {
+    border-color: var(--border-color);
+    
+    .el-divider__text {
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+    }
+  }
+  
+  // 提示框
+  .el-alert {
+    background: var(--bg-tertiary);
+    border-color: var(--border-color);
+    
+    .el-alert__title {
+      color: var(--text-primary);
+    }
+    
+    .el-alert__description {
+      color: var(--text-secondary);
+    }
+    
+    &.el-alert--info {
+      background: rgba(64, 158, 255, 0.1);
+      border-color: rgba(64, 158, 255, 0.2);
+      
+      .el-alert__title {
+        color: #79bbff;
+      }
+    }
+    
+    &.el-alert--success {
+      background: rgba(103, 194, 58, 0.1);
+      border-color: rgba(103, 194, 58, 0.2);
+    }
+    
+    &.el-alert--warning {
+      background: rgba(230, 162, 60, 0.1);
+      border-color: rgba(230, 162, 60, 0.2);
+    }
+    
+    &.el-alert--error {
+      background: rgba(245, 108, 108, 0.1);
+      border-color: rgba(245, 108, 108, 0.2);
+    }
+  }
+  
+  // 数字输入框
+  .el-input-number {
+    .el-input__wrapper {
+      background: var(--bg-tertiary);
+      box-shadow: 0 0 0 1px var(--border-color) inset;
+    }
+    
+    .el-input-number__decrease,
+    .el-input-number__increase {
+      background: var(--bg-tertiary);
+      border-color: var(--border-color);
+      color: var(--text-secondary);
+      
+      &:hover {
+        color: var(--primary-color);
+      }
+    }
+  }
+  
+  // 单选框组增强
+  .el-radio {
+    color: var(--text-primary);
+    
+    .el-radio__label {
+      color: var(--text-primary);
+    }
+    
+    .el-radio__inner {
+      background: var(--bg-tertiary);
+      border-color: var(--border-color);
+    }
+    
+    &.is-checked {
+      .el-radio__inner {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+      }
+    }
+  }
+  
+  .el-radio-group {
+    .el-radio {
+      margin-right: 20px;
+    }
+  }
+  
+  // 复选框组增强
+  .el-checkbox-group {
+    .el-checkbox {
+      margin-right: 20px;
+    }
+  }
+  
+  .el-checkbox {
+    .el-checkbox__inner {
+      background: var(--bg-tertiary);
+      border-color: var(--border-color);
+    }
+    
+    &.is-checked {
+      .el-checkbox__inner {
+        background: var(--primary-color);
+        border-color: var(--primary-color);
+      }
+    }
   }
   
   // 标签 Tag - 深色模式优化
@@ -529,6 +648,55 @@ html.light {
     th {
       background-color: #fafafa !important;
     }
+  }
+}
+
+// 深色主题下的弹出层样式
+html.dark {
+  // Tooltip
+  .el-tooltip__popper {
+    background: var(--bg-tertiary) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+    
+    &.is-dark {
+      background: var(--bg-tertiary) !important;
+    }
+  }
+  
+  // Popover
+  .el-popover {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+    
+    .el-popover__title {
+      color: var(--text-primary);
+    }
+  }
+  
+  // 日期选择器
+  .el-date-picker,
+  .el-picker-panel {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
+    
+    .el-picker-panel__body {
+      background: var(--bg-secondary);
+    }
+    
+    .el-date-picker__header {
+      color: var(--text-primary);
+    }
+    
+    .el-picker-panel__content {
+      color: var(--text-primary);
+    }
+  }
+  
+  // 时间选择器
+  .el-time-panel {
+    background: var(--bg-secondary);
+    border-color: var(--border-color);
   }
 }
 

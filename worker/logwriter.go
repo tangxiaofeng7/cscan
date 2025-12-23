@@ -64,6 +64,13 @@ func NewLogPublisher(client *redis.Client, workerName string) *LogPublisher {
 // publish 发布日志到 Redis（内部方法）
 func (p *LogPublisher) publish(taskId, level, message string) {
 	if p.client == nil {
+		// Redis连接失败时，至少输出到标准输出，确保日志不丢失
+		fmt.Printf("[%s] [%s] [%s] %s: %s\n", 
+			time.Now().Format("2006-01-02 15:04:05"), 
+			level, 
+			p.workerName, 
+			taskId, 
+			message)
 		return
 	}
 

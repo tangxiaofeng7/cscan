@@ -543,9 +543,9 @@ function getScreenshotUrl(screenshot) {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #f5f7fa;
+    background: var(--bg-tertiary);
     border-radius: 4px;
-    color: #c0c4cc;
+    color: var(--text-muted);
   }
 }
 </style>

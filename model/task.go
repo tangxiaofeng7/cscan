@@ -43,6 +43,9 @@ type MainTask struct {
 	// 任务进度保存（用于暂停/继续）
 	TaskState   string             `bson:"task_state" json:"taskState"`     // 任务执行状态JSON（保存已完成的阶段和数据）
 	Config      string             `bson:"config" json:"config"`            // 任务配置JSON
+	// 子任务拆分（用于分布式并发）
+	SubTaskCount int               `bson:"sub_task_count" json:"subTaskCount"` // 子任务总数
+	SubTaskDone  int               `bson:"sub_task_done" json:"subTaskDone"`   // 已完成子任务数
 }
 
 type ExecutorTask struct {
