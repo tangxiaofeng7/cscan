@@ -25,36 +25,36 @@
 git clone https://github.com/tangxiaofeng7/cscan.git
 cd cscan
 docker-compose up -d --build
-
 ```
 
 访问 `http://localhost:3000`，默认账号 `admin / 123456`
 
+
 ## 交流群
-![交流群](images/cscan.jpg)
+<img src="images/cscan.jpg" alt="交流群" width="200"/>
 
 ## 截图
 
 #### 工作台
-![工作台](images/index.png)
+<img src="images/index.png" alt="工作台" width="600"/>
 
 #### 任务管理
-![任务管理](images/task.png)
+<img src="images/task.png" alt="任务管理" width="600"/>
 
 #### 资产管理
-![资产管理](images/asset.png)
+<img src="images/asset.png" alt="资产管理" width="600"/>
 
 #### 扫描日志
-![扫描日志](images/process.png)
+<img src="images/process.png" alt="扫描日志" width="600"/>
 
 #### 查看报告
-![查看报告](images/report.png)
+<img src="images/report.png" alt="查看报告" width="600"/>
 
 #### POC管理
-![POC管理](images/poc.png)
+<img src="images/poc.png" alt="POC管理" width="600"/>
 
 #### 指纹管理
-![指纹管理](images/finger.png)
+<img src="images/finger.png" alt="指纹管理" width="600"/>
 
 ## 架构
 
