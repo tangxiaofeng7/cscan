@@ -861,6 +861,10 @@ func (w *Worker) saveVulResult(ctx context.Context, workspaceId, mainTaskId stri
 
 	pbVuls := make([]*pb.VulDocument, 0, len(vuls))
 	for _, vul := range vuls {
+		// Debug: 打印证据链数据
+		logx.Debugf("[SaveVul] PocFile=%s, CurlCommand len=%d, Request len=%d, Response len=%d",
+			vul.PocFile, len(vul.CurlCommand), len(vul.Request), len(vul.Response))
+
 		pbVul := &pb.VulDocument{
 			Authority: vul.Authority,
 			Host:      vul.Host,
@@ -872,7 +876,7 @@ func (w *Worker) saveVulResult(ctx context.Context, workspaceId, mainTaskId stri
 			Result:    vul.Result,
 		}
 
-		// 漏洞知识库关联字段
+		// 漏洞知识库关联字段 - 使用proto.Float64/String等辅助函数
 		if vul.CvssScore > 0 {
 			pbVul.CvssScore = &vul.CvssScore
 		}
@@ -889,25 +893,34 @@ func (w *Worker) saveVulResult(ctx context.Context, workspaceId, mainTaskId stri
 			pbVul.References = vul.References
 		}
 
-		// 证据链字段
+		// 证据链字段 - 使用局部变量避免指针问题
 		if vul.MatcherName != "" {
-			pbVul.MatcherName = &vul.MatcherName
+			matcherName := vul.MatcherName
+			pbVul.MatcherName = &matcherName
 		}
 		if len(vul.ExtractedResults) > 0 {
 			pbVul.ExtractedResults = vul.ExtractedResults
 		}
 		if vul.CurlCommand != "" {
-			pbVul.CurlCommand = &vul.CurlCommand
+			curlCommand := vul.CurlCommand
+			pbVul.CurlCommand = &curlCommand
 		}
 		if vul.Request != "" {
-			pbVul.Request = &vul.Request
+			request := vul.Request
+			pbVul.Request = &request
 		}
 		if vul.Response != "" {
-			pbVul.Response = &vul.Response
+			response := vul.Response
+			pbVul.Response = &response
 		}
 		if vul.ResponseTruncated {
-			pbVul.ResponseTruncated = &vul.ResponseTruncated
+			responseTruncated := vul.ResponseTruncated
+			pbVul.ResponseTruncated = &responseTruncated
 		}
+
+		// Debug: 确认pbVul中的证据字段
+		logx.Debugf("[SaveVul] pbVul.CurlCommand=%v, pbVul.Request=%v, pbVul.Response=%v",
+			pbVul.CurlCommand != nil, pbVul.Request != nil, pbVul.Response != nil)
 
 		pbVuls = append(pbVuls, pbVul)
 	}

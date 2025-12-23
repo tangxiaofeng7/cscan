@@ -226,6 +226,10 @@ func (l *TaskLogic) SaveVulResult(in *pb.SaveVulResultReq) (*pb.SaveVulResultRes
 	
 	var count int
 	for _, vul := range in.Vuls {
+		// Debug: 打印接收到的证据链数据
+		l.Logger.Debugf("[RPC SaveVul] PocFile=%s, CurlCommand len=%d, Request len=%d, Response len=%d",
+			vul.PocFile, len(vul.GetCurlCommand()), len(vul.GetRequest()), len(vul.GetResponse()))
+
 		doc := &model.Vul{
 			Authority: vul.Authority,
 			Host:      vul.Host,

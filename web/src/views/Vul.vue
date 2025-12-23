@@ -73,7 +73,7 @@
     </el-card>
 
     <!-- 详情对话框 -->
-    <el-dialog v-model="detailVisible" title="漏洞详情" width="700px">
+    <el-dialog v-model="detailVisible" title="漏洞详情" width="800px">
       <el-descriptions :column="2" border>
         <el-descriptions-item label="目标">{{ currentVul.authority }}</el-descriptions-item>
         <el-descriptions-item label="危害等级">
@@ -85,10 +85,50 @@
         <el-descriptions-item label="POC文件" :span="2">{{ currentVul.pocFile }}</el-descriptions-item>
         <el-descriptions-item label="来源">{{ currentVul.source }}</el-descriptions-item>
         <el-descriptions-item label="发现时间">{{ currentVul.createTime }}</el-descriptions-item>
+        <!-- 知识库信息 -->
+        <el-descriptions-item label="CVE编号" v-if="currentVul.cveId">{{ currentVul.cveId }}</el-descriptions-item>
+        <el-descriptions-item label="CWE编号" v-if="currentVul.cweId">{{ currentVul.cweId }}</el-descriptions-item>
+        <el-descriptions-item label="CVSS评分" v-if="currentVul.cvssScore">{{ currentVul.cvssScore }}</el-descriptions-item>
+        <el-descriptions-item label="扫描次数" v-if="currentVul.scanCount">{{ currentVul.scanCount }}</el-descriptions-item>
+        <el-descriptions-item label="首次发现" v-if="currentVul.firstSeenTime">{{ currentVul.firstSeenTime }}</el-descriptions-item>
+        <el-descriptions-item label="最近发现" v-if="currentVul.lastSeenTime">{{ currentVul.lastSeenTime }}</el-descriptions-item>
+        <el-descriptions-item label="修复建议" :span="2" v-if="currentVul.remediation">
+          <pre class="result-pre">{{ currentVul.remediation }}</pre>
+        </el-descriptions-item>
+        <el-descriptions-item label="参考链接" :span="2" v-if="currentVul.references && currentVul.references.length">
+          <div v-for="(ref, idx) in currentVul.references" :key="idx">
+            <a :href="ref" target="_blank" rel="noopener">{{ ref }}</a>
+          </div>
+        </el-descriptions-item>
         <el-descriptions-item label="验证结果" :span="2">
           <pre class="result-pre">{{ currentVul.result }}</pre>
         </el-descriptions-item>
       </el-descriptions>
+
+      <!-- 证据链 -->
+      <template v-if="currentVul.evidence">
+        <el-divider content-position="left">证据链</el-divider>
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="匹配器名称" v-if="currentVul.evidence.matcherName">
+            {{ currentVul.evidence.matcherName }}
+          </el-descriptions-item>
+          <el-descriptions-item label="提取结果" v-if="currentVul.evidence.extractedResults && currentVul.evidence.extractedResults.length">
+            <el-tag v-for="(item, idx) in currentVul.evidence.extractedResults" :key="idx" style="margin-right: 5px; margin-bottom: 5px;">
+              {{ item }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="cURL命令" v-if="currentVul.evidence.curlCommand">
+            <pre class="result-pre">{{ currentVul.evidence.curlCommand }}</pre>
+          </el-descriptions-item>
+          <el-descriptions-item label="请求内容" v-if="currentVul.evidence.request">
+            <pre class="result-pre">{{ currentVul.evidence.request }}</pre>
+          </el-descriptions-item>
+          <el-descriptions-item label="响应内容" v-if="currentVul.evidence.response">
+            <pre class="result-pre">{{ currentVul.evidence.response }}</pre>
+            <el-tag v-if="currentVul.evidence.responseTruncated" type="warning" size="small">响应已截断</el-tag>
+          </el-descriptions-item>
+        </el-descriptions>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -175,8 +215,17 @@ function getSeverityLabel(severity) {
   return map[severity] || severity
 }
 
-function showDetail(row) {
-  currentVul.value = row
+async function showDetail(row) {
+  try {
+    const res = await request.post('/vul/detail', { id: row.id })
+    if (res.code === 0 && res.data) {
+      currentVul.value = res.data
+    } else {
+      currentVul.value = row
+    }
+  } catch (e) {
+    currentVul.value = row
+  }
   detailVisible.value = true
 }
 
@@ -223,9 +272,33 @@ async function handleBatchDelete() {
     word-break: break-all;
     max-height: 300px;
     overflow: auto;
-    background: #f5f5f5;
-    padding: 10px;
-    border-radius: 4px;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 12px;
+    border-radius: 6px;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    border: 1px solid #3c3c3c;
+  }
+
+  // 浅色主题适配
+  :deep(.el-dialog) {
+    .result-pre {
+      background: #1e1e1e;
+      color: #d4d4d4;
+      border: 1px solid #3c3c3c;
+    }
+  }
+}
+
+// 证据链代码块样式
+:deep(.el-descriptions) {
+  .el-descriptions__cell {
+    .result-pre {
+      background: #1e1e1e;
+      color: #d4d4d4;
+    }
   }
 }
 </style>

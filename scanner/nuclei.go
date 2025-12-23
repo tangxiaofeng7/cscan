@@ -184,6 +184,11 @@ func (s *NucleiScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResu
 	}
 	defer ne.Close()
 
+	// 启用请求/响应存储（用于证据链）
+	if engineOpts := ne.Options(); engineOpts != nil {
+		engineOpts.StoreResponse = true
+	}
+
 	// 加载模板
 	if err := ne.LoadAllTemplates(); err != nil {
 		logx.Errorf("Failed to load templates: %v", err)
