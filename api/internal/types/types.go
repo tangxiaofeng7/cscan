@@ -23,14 +23,12 @@ type LoginResp struct {
 	Token       string `json:"token"`
 	UserId      string `json:"userId"`
 	Username    string `json:"username"`
-	Role        string `json:"role"`
 	WorkspaceId string `json:"workspaceId"`
 }
 
 type UserInfo struct {
 	Id       string `json:"id"`
 	Username string `json:"username"`
-	Role     string `json:"role"`
 	Status   string `json:"status"`
 }
 
@@ -39,6 +37,28 @@ type UserListResp struct {
 	Msg   string     `json:"msg"`
 	Total int        `json:"total"`
 	List  []UserInfo `json:"list"`
+}
+
+// ==================== 用户管理 ====================
+type UserCreateReq struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Status   string `json:"status"`
+}
+
+type UserUpdateReq struct {
+	Id       string `json:"id"`
+	Username string `json:"username"`
+	Status   string `json:"status"`
+}
+
+type UserDeleteReq struct {
+	Id string `json:"id"`
+}
+
+type UserResetPasswordReq struct {
+	Id          string `json:"id"`
+	NewPassword string `json:"newPassword"`
 }
 
 // ==================== 工作空间 ====================

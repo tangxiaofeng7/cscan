@@ -1,5 +1,12 @@
 # CSCAN Worker 扫描节点 Dockerfile
+
+# 声明全局构建参数
+ARG TARGETARCH
+
 FROM golang:1.24-alpine AS builder
+
+# 重新声明参数（多阶段构建需要）
+ARG TARGETARCH
 
 WORKDIR /app
 
@@ -14,11 +21,13 @@ RUN go mod download
 COPY . .
 
 # 编译 Worker 服务（启用 CGO 以支持 libpcap）- 支持多架构
-ARG TARGETARCH
 RUN CGO_ENABLED=1 GOOS=linux GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o /cscan-worker ./cmd/worker/main.go
 
 # 运行镜像
 FROM alpine:3.18
+
+# 重新声明构建参数
+ARG TARGETARCH
 
 WORKDIR /app
 
@@ -39,20 +48,22 @@ RUN apk add --no-cache \
 ENV CHROME_BIN=/usr/bin/chromium-browser
 ENV CHROMEDP_NO_SANDBOX=true
 
-# 根据架构选择对应的工具包
-ARG TARGETARCH
+# 调试输出
+RUN echo "Target architecture: ${TARGETARCH}"
 
 # 安装 nuclei
-COPY poc/nuclei_3.6.1_linux_${TARGETARCH}.zip /tmp/
-RUN unzip /tmp/nuclei_3.6.1_linux_${TARGETARCH}.zip -d /tmp/ \
-    && mv /tmp/nuclei_3.6.1_linux_${TARGETARCH}/nuclei /usr/local/bin/ \
+COPY poc/nuclei_3.6.1_linux_${TARGETARCH}.zip /tmp/nuclei.zip
+RUN echo "Installing nuclei for architecture: ${TARGETARCH}" \
+    && unzip /tmp/nuclei.zip -d /tmp/ \
+    && find /tmp -name "nuclei" -type f -exec mv {} /usr/local/bin/ \; \
     && rm -rf /tmp/nuclei* \
     && chmod +x /usr/local/bin/nuclei
 
 # 安装 httpx
-COPY poc/httpx_1.7.4_linux_${TARGETARCH}.zip /tmp/
-RUN unzip /tmp/httpx_1.7.4_linux_${TARGETARCH}.zip -d /tmp/ \
-    && mv /tmp/httpx_1.7.4_linux_${TARGETARCH}/httpx /usr/local/bin/ \
+COPY poc/httpx_1.7.4_linux_${TARGETARCH}.zip /tmp/httpx.zip
+RUN echo "Installing httpx for architecture: ${TARGETARCH}" \
+    && unzip /tmp/httpx.zip -d /tmp/ \
+    && find /tmp -name "httpx" -type f -exec mv {} /usr/local/bin/ \; \
     && rm -rf /tmp/httpx* \
     && chmod +x /usr/local/bin/httpx
 

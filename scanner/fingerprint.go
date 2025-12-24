@@ -865,18 +865,24 @@ func calculateIconHash(data []byte) string {
 // takeScreenshot 使用chromedp截图
 func (s *FingerprintScanner) takeScreenshot(ctx context.Context, targetUrl string) string {
 	// 创建chromedp上下文，设置超时
-	screenshotCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	screenshotCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
 
 	// 配置chromedp选项，支持 Docker 环境中的 Chromium
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
 		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
+		chromedp.Flag("disable-gpu", false), // 启用GPU渲染
 		chromedp.Flag("no-sandbox", true),
 		chromedp.Flag("disable-dev-shm-usage", true),
 		chromedp.Flag("ignore-certificate-errors", true),
-		chromedp.Flag("disable-software-rasterizer", true),
+		chromedp.Flag("disable-web-security", true),
+		chromedp.Flag("disable-features", "VizDisplayCompositor"),
+		chromedp.Flag("disable-background-timer-throttling", true),
+		chromedp.Flag("disable-backgrounding-occluded-windows", true),
+		chromedp.Flag("disable-renderer-backgrounding", true),
+		chromedp.Flag("force-color-profile", "srgb"),
 		chromedp.WindowSize(1920, 1080),
+		chromedp.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
 	)
 
 	// 检查环境变量中是否指定了 Chrome 路径
@@ -891,17 +897,45 @@ func (s *FingerprintScanner) takeScreenshot(ctx context.Context, targetUrl strin
 	defer taskCancel()
 
 	var buf []byte
+	var pageHeight int64
+	
 	err := chromedp.Run(taskCtx,
+		// 导航到目标URL
 		chromedp.Navigate(targetUrl),
+		// 等待页面基本加载完成
+		chromedp.WaitReady("body", chromedp.ByQuery),
+		// 等待网络空闲
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			time.Sleep(3 * time.Second)
+			return nil
+		}),
+		// 获取页面高度
+		chromedp.Evaluate(`document.body.scrollHeight`, &pageHeight),
+		// 设置视口大小以适应页面内容
+		chromedp.EmulateViewport(1920, pageHeight),
+		// 滚动到页面顶部确保完整截图
+		chromedp.Evaluate(`window.scrollTo(0, 0)`, nil),
+		// 再次等待渲染完成
 		chromedp.Sleep(2*time.Second),
+		// 执行全屏截图
 		chromedp.FullScreenshot(&buf, 90),
 	)
 
 	if err != nil {
 		logx.Errorf("Screenshot failed for %s: %v", targetUrl, err)
-		return ""
+		// 如果全屏截图失败，尝试普通截图
+		err = chromedp.Run(taskCtx,
+			chromedp.Navigate(targetUrl),
+			chromedp.Sleep(5*time.Second),
+			chromedp.CaptureScreenshot(&buf),
+		)
+		if err != nil {
+			logx.Errorf("Fallback screenshot also failed for %s: %v", targetUrl, err)
+			return ""
+		}
 	}
-	logx.Infof("完成使用chromedp截图: %s",targetUrl)
+	
+	logx.Infof("完成使用chromedp截图: %s", targetUrl)
 	// 返回base64编码的截图
 	if len(buf) > 0 {
 		return base64.StdEncoding.EncodeToString(buf)

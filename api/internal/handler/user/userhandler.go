@@ -48,3 +48,79 @@ func UserListHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		httpx.OkJson(w, resp)
 	}
 }
+
+// UserCreateHandler 创建用户
+func UserCreateHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.UserCreateReq
+		if err := httpx.Parse(r, &req); err != nil {
+			response.ParamError(w, err.Error())
+			return
+		}
+
+		l := logic.NewUserCreateLogic(r.Context(), svcCtx)
+		resp, err := l.UserCreate(&req)
+		if err != nil {
+			response.Error(w, err)
+			return
+		}
+		httpx.OkJson(w, resp)
+	}
+}
+
+// UserUpdateHandler 更新用户
+func UserUpdateHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.UserUpdateReq
+		if err := httpx.Parse(r, &req); err != nil {
+			response.ParamError(w, err.Error())
+			return
+		}
+
+		l := logic.NewUserUpdateLogic(r.Context(), svcCtx)
+		resp, err := l.UserUpdate(&req)
+		if err != nil {
+			response.Error(w, err)
+			return
+		}
+		httpx.OkJson(w, resp)
+	}
+}
+
+// UserDeleteHandler 删除用户
+func UserDeleteHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.UserDeleteReq
+		if err := httpx.Parse(r, &req); err != nil {
+			response.ParamError(w, err.Error())
+			return
+		}
+
+		l := logic.NewUserDeleteLogic(r.Context(), svcCtx)
+		resp, err := l.UserDelete(&req)
+		if err != nil {
+			response.Error(w, err)
+			return
+		}
+		httpx.OkJson(w, resp)
+	}
+}
+
+// UserResetPasswordHandler 重置用户密码
+func UserResetPasswordHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.UserResetPasswordReq
+		if err := httpx.Parse(r, &req); err != nil {
+			response.ParamError(w, err.Error())
+			return
+		}
+
+		l := logic.NewUserResetPasswordLogic(r.Context(), svcCtx)
+		resp, err := l.UserResetPassword(&req)
+		if err != nil {
+			response.Error(w, err)
+			return
+		}
+		httpx.OkJson(w, resp)
+	}
+}

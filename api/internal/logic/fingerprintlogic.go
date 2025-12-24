@@ -1763,6 +1763,9 @@ func (l *HttpServiceMappingSaveLogic) HttpServiceMappingSave(req *types.HttpServ
 		}
 	}
 
+	// 刷新缓存，确保新的映射立即生效
+	l.svcCtx.HttpServiceMappingModel.RefreshCache(l.ctx)
+
 	return &types.BaseResp{Code: 0, Msg: "保存成功"}, nil
 }
 
@@ -1781,5 +1784,9 @@ func (l *HttpServiceMappingDeleteLogic) HttpServiceMappingDelete(req *types.Http
 	if err != nil {
 		return &types.BaseResp{Code: 500, Msg: "删除失败"}, nil
 	}
+	
+	// 刷新缓存，确保删除的映射立即失效
+	l.svcCtx.HttpServiceMappingModel.RefreshCache(l.ctx)
+	
 	return &types.BaseResp{Code: 0, Msg: "删除成功"}, nil
 }

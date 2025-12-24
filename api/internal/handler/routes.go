@@ -32,6 +32,10 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 	authRoutes := []rest.Route{
 		// 用户管理
 		{Method: http.MethodPost, Path: "/api/v1/user/list", Handler: user.UserListHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/user/create", Handler: user.UserCreateHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/user/update", Handler: user.UserUpdateHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/user/delete", Handler: user.UserDeleteHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/user/resetPassword", Handler: user.UserResetPasswordHandler(svcCtx)},
 
 		// Worker日志（需要认证）
 		{Method: http.MethodGet, Path: "/api/v1/worker/logs/stream", Handler: worker.WorkerLogsHandler(svcCtx)},
