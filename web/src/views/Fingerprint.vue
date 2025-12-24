@@ -197,8 +197,8 @@
       </el-tab-pane>
 
       <!-- HTTP服务映射 -->
-      <el-tab-pane label="HTTP服务映射" name="httpServiceMapping">
-        <el-card>
+      <el-tab-pane label="HTTP服务映射" name="httpServiceMapping" >
+        <el-card >
           <template #header>
             <div class="card-header">
               <span>HTTP服务映射配置</span>
@@ -256,6 +256,16 @@
               </template>
             </el-table-column>
           </el-table>
+          <el-pagination
+            v-model:current-page="httpServicePagination.page"
+            v-model:page-size="httpServicePagination.pageSize"
+            :total="httpServicePagination.total"
+            :page-sizes="[10,20, 50, 100]"
+            layout="total, sizes, prev, pager, next"
+            class="pagination"
+            @size-change="loadHttpServiceMappings"
+            @current-change="loadHttpServiceMappings"
+          />
         </el-card>
       </el-tab-pane>
     </el-tabs>
@@ -748,6 +758,11 @@ const httpServiceStats = ref({
   total: 0,
   httpCount: 0,
   nonHttpCount: 0
+})
+const httpServicePagination = reactive({
+  page: 1,
+  pageSize: 10,
+  total: 0
 })
 
 // HTTP服务映射编辑对话框
@@ -1382,6 +1397,9 @@ async function handleBatchValidate() {
 
 // ==================== HTTP服务映射相关方法 ====================
 
+// HTTP服务映射全量数据（用于前端分页）
+const httpServiceAllData = ref([])
+
 // 加载HTTP服务映射列表
 async function loadHttpServiceMappings() {
   httpServiceLoading.value = true
@@ -1397,14 +1415,23 @@ async function loadHttpServiceMappings() {
     
     const res = await getHttpServiceMappingList(params)
     if (res.code === 0) {
-      httpServiceMappings.value = res.list || []
-      // 计算统计信息（基于当前筛选结果）
       const list = res.list || []
+      httpServiceAllData.value = list
+      
+      // 计算统计信息（基于当前筛选结果）
       httpServiceStats.value = {
         total: list.length,
         httpCount: list.filter(item => item.isHttp).length,
         nonHttpCount: list.filter(item => !item.isHttp).length
       }
+      
+      // 更新分页总数
+      httpServicePagination.total = list.length
+      
+      // 前端分页
+      const start = (httpServicePagination.page - 1) * httpServicePagination.pageSize
+      const end = start + httpServicePagination.pageSize
+      httpServiceMappings.value = list.slice(start, end)
     }
   } finally {
     httpServiceLoading.value = false

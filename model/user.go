@@ -13,10 +13,6 @@ import (
 )
 
 const (
-	RoleAdmin    = "admin"
-	RoleSuperAdmin = "superadmin"
-	RoleGuest    = "guest"
-	
 	StatusEnable  = "enable"
 	StatusDisable = "disable"
 )
@@ -25,7 +21,6 @@ type User struct {
 	Id              primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Username        string             `bson:"username" json:"username"`
 	Password        string             `bson:"password" json:"-"`
-	Role            string             `bson:"role" json:"role"`
 	Status          string             `bson:"status" json:"status"`
 	WorkspaceIds    []string           `bson:"workspace_ids" json:"workspaceIds"`
 	LastLoginTime   *time.Time         `bson:"last_login_time" json:"lastLoginTime"`
@@ -58,7 +53,13 @@ func (m *UserModel) Insert(ctx context.Context, doc *User) error {
 func (m *UserModel) FindByUsername(ctx context.Context, username string) (*User, error) {
 	var doc User
 	err := m.coll.FindOne(ctx, bson.M{"username": username}).Decode(&doc)
-	return &doc, err
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil // 用户不存在，返回nil而不是错误
+		}
+		return nil, err // 其他错误
+	}
+	return &doc, nil
 }
 
 func (m *UserModel) FindById(ctx context.Context, id string) (*User, error) {
@@ -68,7 +69,13 @@ func (m *UserModel) FindById(ctx context.Context, id string) (*User, error) {
 	}
 	var doc User
 	err = m.coll.FindOne(ctx, bson.M{"_id": oid}).Decode(&doc)
-	return &doc, err
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil // 用户不存在，返回nil而不是错误
+		}
+		return nil, err // 其他错误
+	}
+	return &doc, nil
 }
 
 func (m *UserModel) Find(ctx context.Context, filter bson.M, page, pageSize int) ([]User, error) {
@@ -104,6 +111,27 @@ func (m *UserModel) Update(ctx context.Context, id string, update bson.M) error 
 	update["update_time"] = time.Now()
 	_, err = m.coll.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": update})
 	return err
+}
+
+func (m *UserModel) UpdateById(ctx context.Context, id string, update bson.M) error {
+	return m.Update(ctx, id, update)
+}
+
+func (m *UserModel) UpdatePassword(ctx context.Context, id string, newPassword string) error {
+	oid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+	update := bson.M{
+		"password": HashPassword(newPassword),
+		"update_time": time.Now(),
+	}
+	_, err = m.coll.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": update})
+	return err
+}
+
+func (m *UserModel) DeleteById(ctx context.Context, id string) error {
+	return m.Delete(ctx, id)
 }
 
 func (m *UserModel) UpdateLoginTime(ctx context.Context, id string) error {

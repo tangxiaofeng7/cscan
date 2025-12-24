@@ -41,7 +41,7 @@ func (l *LoginLogic) Login(req *types.LoginReq) (resp *types.LoginResp, err erro
 	// 生成JWT Token
 	now := time.Now().Unix()
 	accessExpire := l.svcCtx.Config.Auth.AccessExpire
-	token, err := l.generateToken(user.Id.Hex(), user.Username, user.Role, now, accessExpire)
+	token, err := l.generateToken(user.Id.Hex(), user.Username, now, accessExpire)
 	if err != nil {
 		return &types.LoginResp{
 			Code: 500,
@@ -61,16 +61,14 @@ func (l *LoginLogic) Login(req *types.LoginReq) (resp *types.LoginResp, err erro
 		Token:       token,
 		UserId:      user.Id.Hex(),
 		Username:    user.Username,
-		Role:        user.Role,
 		WorkspaceId: workspaceId,
 	}, nil
 }
 
-func (l *LoginLogic) generateToken(userId, username, role string, iat, expire int64) (string, error) {
+func (l *LoginLogic) generateToken(userId, username string, iat, expire int64) (string, error) {
 	claims := jwt.MapClaims{
 		"userId":   userId,
 		"username": username,
-		"role":     role,
 		"iat":      iat,
 		"exp":      iat + expire,
 	}
