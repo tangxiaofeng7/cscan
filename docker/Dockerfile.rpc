@@ -13,8 +13,9 @@ RUN go mod download
 # 复制源代码
 COPY . .
 
-# 编译 RPC 服务
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /cscan-rpc ./rpc/task/task.go
+# 编译 RPC 服务 - 支持多架构
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o /cscan-rpc ./rpc/task/task.go
 
 # 运行镜像
 FROM alpine:3.18

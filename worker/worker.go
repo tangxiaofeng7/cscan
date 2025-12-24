@@ -25,8 +25,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// 使用标准 protobuf 编解码器
-
 // WorkerConfig Worker配置
 type WorkerConfig struct {
 	Name        string `json:"name"`
@@ -124,7 +122,7 @@ func NewVulnerabilityBuffer(maxSize int) *VulnerabilityBuffer {
 	}
 }
 
-// Add 添加漏洞到缓冲区，返回是否需要刷�?
+// Add 添加漏洞到缓冲区，返回是否需要刷新
 func (b *VulnerabilityBuffer) Add(vul *scanner.Vulnerability) {
 	b.mu.Lock()
 	b.vuls = append(b.vuls, vul)
@@ -153,7 +151,7 @@ func (b *VulnerabilityBuffer) Flush(ctx context.Context, saver func([]*scanner.V
 
 // NewWorker 创建Worker
 func NewWorker(config WorkerConfig) (*Worker, error) {
-	// 创建RPC客户端，增加消息大小限制到100MB
+	// 创建RPC客户端，消息大小限制到100MB
 	client, err := zrpc.NewClient(zrpc.RpcClientConf{
 		Target: config.ServerAddr,
 	}, zrpc.WithDialOption(grpc.WithDefaultCallOptions(
@@ -191,7 +189,7 @@ func NewWorker(config WorkerConfig) (*Worker, error) {
 				logWriter := NewRedisLogWriter(redisClient, config.Name)
 				logx.SetWriter(logx.NewWriter(logWriter))
 				// 写入一条测试日志确认日志系统工作
-				NewLogPublisher(redisClient, config.Name).PublishWorkerLog(LevelInfo, "Worker日志系统已启动，Redis连接成功")
+				NewLogPublisher(redisClient, config.Name).PublishWorkerLog(LevelInfo, "Worker日志系统已启动,Redis连接成功")
 				break
 			}
 		}
@@ -230,7 +228,7 @@ func (w *Worker) registerScanners() {
 	w.scanners["masscan"] = scanner.NewMasscanScanner()
 	w.scanners["nmap"] = scanner.NewNmapScanner()
 	w.scanners["naabu"] = scanner.NewNaabuScanner()
-	w.scanners["domainscan"] = scanner.NewDomainScanner()
+	// w.scanners["domainscan"] = scanner.NewDomainScanner()
 	w.scanners["fingerprint"] = scanner.NewFingerprintScanner()
 	w.scanners["nuclei"] = scanner.NewNucleiScanner()
 }
@@ -272,7 +270,7 @@ func (w *Worker) fetchTasks() {
 
 	emptyCount := 0
 	baseInterval := 1 * time.Second  // 基础间隔改为1秒
-	maxInterval := 5 * time.Second   // 最大间隔改�?秒，确保任务能在5秒内被拉取
+	maxInterval := 5 * time.Second   // 最大间隔改5秒，确保任务能在5秒内被拉取
 
 	for {
 		select {
@@ -282,7 +280,7 @@ func (w *Worker) fetchTasks() {
 			hasTask := w.pullTask()
 			if hasTask {
 				emptyCount = 0
-				time.Sleep(100 * time.Millisecond) // 有任务时快速拉�?
+				time.Sleep(100 * time.Millisecond) // 有任务时快速拉取
 			} else {
 				emptyCount++
 				// 没有任务时逐渐增加等待时间，最多5秒
@@ -307,7 +305,7 @@ func (w *Worker) pullTask() bool {
 
 	// 通过 RPC 获取任务
 	resp, err := w.rpcClient.CheckTask(ctx, &pb.CheckTaskReq{
-		TaskId: w.config.Name, // �?worker name 作为标识请求任务
+		TaskId: w.config.Name,
 	})
 	if err != nil {
 		return false
@@ -393,7 +391,7 @@ func (w *Worker) checkTaskControl(ctx context.Context, taskId string) string {
 	return ""
 }
 
-// saveTaskProgress 保存任务进度（用于暂停后继续�?
+// saveTaskProgress 保存任务进度（用于暂停后继续扫描)
 func (w *Worker) saveTaskProgress(ctx context.Context, task *scheduler.TaskInfo, completedPhases map[string]bool, assets []*scanner.Asset) {
 	// 构建状态
 	phases := make([]string, 0)
@@ -426,7 +424,7 @@ func (w *Worker) createTaskContext(parentCtx context.Context, taskId string) (co
 	
 	// 启动一个goroutine定期检查任务控制信号
 	go func() {
-		ticker := time.NewTicker(200 * time.Millisecond) // 缩短检查间隔到200ms，提高响应速度
+		ticker := time.NewTicker(200 * time.Millisecond) // 检查间隔到200ms
 		defer ticker.Stop()
 		
 		for {
@@ -455,7 +453,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 	w.taskStarted++
 	w.mu.Unlock()
 
-	// 检查是否有停止信号（任务可能在队列中被停止�?
+	// 检查是否有停止信号（任务可能在队列中被停止)
 	if ctrl := w.checkTaskControl(baseCtx, task.TaskId); ctrl == "STOP" {
 		w.taskLog(task.TaskId, LevelInfo, "Task %s was stopped before execution", task.TaskId)
 		return
@@ -465,7 +463,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 	ctx, cancelTask := w.createTaskContext(baseCtx, task.TaskId)
 	defer cancelTask()
 
-	// 更新任务状态为开�?
+	// 更新任务状态
 	w.updateTaskStatus(ctx, task.TaskId, scheduler.TaskStatusStarted, "")
 
 	// 解析任务配置
@@ -538,7 +536,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			return
 		}
 
-		// 根据配置选择端口发现工具（默认使用Naabu�?
+		// 根据配置选择端口发现工具（默认使用Naabu)
 		portDiscoveryTool := "naabu"
 		if config.PortScan != nil && config.PortScan.Tool != "" {
 			portDiscoveryTool = config.PortScan.Tool
@@ -594,11 +592,11 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			return
 		}
 		
-		// 第二步：Nmap 对存活端口进行服务识�?
+		// 第二步：Nmap 对存活端口进行服务识别
 		if len(openPorts) > 0 {
 			w.taskLog(task.TaskId, LevelInfo, "Phase 2: Running Nmap for service detection on %d open ports", len(openPorts))
 			
-			// 按主机分组端�?
+			// 按主机分组
 			hostPorts := make(map[string][]int)
 			for _, asset := range openPorts {
 				hostPorts[asset.Host] = append(hostPorts[asset.Host], asset.Port)
@@ -612,7 +610,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 					return
 				}
 				
-				// 构建端口字符�?
+				// 构建端口字符
 				portStrs := make([]string, len(ports))
 				for i, p := range ports {
 					portStrs[i] = fmt.Sprintf("%d", p)
@@ -637,7 +635,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				
 				if err != nil {
 					w.taskLog(task.TaskId, LevelError, "Nmap error for %s: %v", host, err)
-					// Nmap失败时，使用端口发现阶段的结�?
+					// Nmap失败时，使用端口发现阶段的结果
 					for _, asset := range openPorts {
 						if asset.Host == host {
 							asset.IsHTTP = scanner.IsHTTPService(asset.Service, asset.Port)
@@ -654,7 +652,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 					}
 					allAssets = append(allAssets, nmapResult.Assets...)
 				} else {
-					// Nmap没有结果时，使用端口发现阶段的结�?
+					// Nmap没有结果时，使用端口发现阶段的结果
 					for _, asset := range openPorts {
 						if asset.Host == host {
 							asset.IsHTTP = scanner.IsHTTPService(asset.Service, asset.Port)
@@ -703,10 +701,10 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 		if s, ok := w.scanners["fingerprint"]; ok {
 			w.taskLog(task.TaskId, LevelInfo, "Running fingerprint scan on %d assets", len(allAssets))
 			
-			// 每次扫描前实时加载HTTP服务映射配置（类似POC扫描方式�?
+			// 每次扫描前实时加载HTTP服务映射配置
 			w.loadHttpServiceMappings()
 			
-			// 如果启用自定义指纹引擎，加载自定义指�?
+			// 如果启用自定义指纹引擎，加载自定义指纹
 			if config.Fingerprint.CustomEngine {
 				w.loadCustomFingerprints(ctx, s.(*scanner.FingerprintScanner))
 			}
@@ -785,7 +783,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 
 			// 检查是否有模板ID列表（任务创建时已筛选好的模板）
 			if len(config.PocScan.NucleiTemplateIds) > 0 || len(config.PocScan.CustomPocIds) > 0 {
-				// 通过RPC根据ID获取模板内容（包括默认模板和自定义POC�?
+				// 通过RPC根据ID获取模板内容（包括默认模板和自定义POC)
 				templates = w.getTemplatesByIds(ctx, config.PocScan.NucleiTemplateIds, config.PocScan.CustomPocIds)
 				w.taskLog(task.TaskId, LevelInfo, "Fetched %d templates by IDs from database (nuclei: %d, custom: %d)", 
 					len(templates), len(config.PocScan.NucleiTemplateIds), len(config.PocScan.CustomPocIds))
@@ -797,7 +795,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				}
 
 				if len(autoTags) > 0 {
-					// 有自动生成的标签，通过RPC获取符合标签的模�?
+					// 有自动生成的标签，通过RPC获取符合标签的模板
 					severities := []string{}
 					if config.PocScan.Severity != "" {
 						severities = strings.Split(config.PocScan.Severity, ",")
@@ -815,14 +813,14 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				// 用于统计漏洞数量
 				var vulCount int
 
-				// 创建漏洞缓冲区，�?0个漏洞批量保存一次
+				// 创建漏洞缓冲区，10个漏洞批量保存一次
 				vulBuffer := NewVulnerabilityBuffer(10)
 
 				// 启动后台刷新协程
 				flushDone := make(chan struct{})
 				go func() {
 					defer close(flushDone)
-					ticker := time.NewTicker(5 * time.Second) // �?秒也刷新一次
+					ticker := time.NewTicker(5 * time.Second) // 5秒也刷新一次
 					defer ticker.Stop()
 					for {
 						select {
@@ -842,7 +840,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 					}
 				}()
 
-				// 构建Nuclei扫描选项，设置回调函数批量保存漏�?
+				// 构建Nuclei扫描选项，设置回调函数批量保存漏洞
 				taskIdForCallback := task.TaskId // 捕获taskId用于回调
 				nucleiOpts := &scanner.NucleiOptions{
 					Severity:        config.PocScan.Severity,
@@ -850,7 +848,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 					ExcludeTags:     config.PocScan.ExcludeTags,
 					RateLimit:       config.PocScan.RateLimit,
 					Concurrency:     config.PocScan.Concurrency,
-					AutoScan:        false, // 标签已在Worker端生成，不需要nuclei再生�?
+					AutoScan:        false, // 标签已在Worker端生成
 					AutomaticScan:   false,
 					CustomPocOnly:   config.PocScan.CustomPocOnly,
 					CustomTemplates: templates,
@@ -862,7 +860,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 						vulBuffer.Add(vul)
 					},
 				}
-				// 设置默认�?
+				// 设置默认
 				if nucleiOpts.RateLimit == 0 {
 					nucleiOpts.RateLimit = 150
 				}
@@ -876,7 +874,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 					Options: nucleiOpts,
 				})
 
-				// 扫描完成后，刷新剩余的漏�?
+				// 扫描完成后，刷新剩余的漏洞
 				vulBuffer.Flush(ctx, func(vuls []*scanner.Vulnerability) {
 					w.saveVulResult(ctx, task.WorkspaceId, task.MainTaskId, vuls)
 				})
@@ -915,7 +913,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 	w.mu.Unlock()
 }
 
-// updateTaskStatus 更新任务状�?
+// updateTaskStatus 更新任务状态
 func (w *Worker) updateTaskStatus(ctx context.Context, taskId, status, result string) {
 	_, err := w.rpcClient.UpdateTask(ctx, &pb.UpdateTaskReq{
 		TaskId: taskId,
@@ -971,7 +969,7 @@ func (w *Worker) saveAssetResult(ctx context.Context, workspaceId, mainTaskId st
 	}
 }
 
-// saveVulResult 保存漏洞结果（支持去重与聚合�?
+// saveVulResult 保存漏洞结果（支持去重与聚合）
 func (w *Worker) saveVulResult(ctx context.Context, workspaceId, mainTaskId string, vuls []*scanner.Vulnerability) {
 	if len(vuls) == 0 {
 		return
@@ -979,7 +977,7 @@ func (w *Worker) saveVulResult(ctx context.Context, workspaceId, mainTaskId stri
 
 	pbVuls := make([]*pb.VulDocument, 0, len(vuls))
 	for _, vul := range vuls {
-		// Debug: 打印证据链数�?
+		// Debug: 打印证据链数据
 		w.taskLog(mainTaskId, LevelDebug, "[SaveVul] PocFile=%s, CurlCommand len=%d, Request len=%d, Response len=%d",
 			vul.PocFile, len(vul.CurlCommand), len(vul.Request), len(vul.Response))
 
@@ -994,7 +992,7 @@ func (w *Worker) saveVulResult(ctx context.Context, workspaceId, mainTaskId stri
 			Result:    vul.Result,
 		}
 
-		// 漏洞知识库关联字�?- 使用proto.Float64/String等辅助函�?
+		// 漏洞知识库关联字段
 		if vul.CvssScore > 0 {
 			pbVul.CvssScore = &vul.CvssScore
 		}
@@ -1011,7 +1009,7 @@ func (w *Worker) saveVulResult(ctx context.Context, workspaceId, mainTaskId stri
 			pbVul.References = vul.References
 		}
 
-		// 证据链字�?- 使用局部变量避免指针问�?
+		// 证据链字段
 		if vul.MatcherName != "" {
 			matcherName := vul.MatcherName
 			pbVul.MatcherName = &matcherName
@@ -1036,7 +1034,7 @@ func (w *Worker) saveVulResult(ctx context.Context, workspaceId, mainTaskId stri
 			pbVul.ResponseTruncated = &responseTruncated
 		}
 
-		// Debug: 确认pbVul中的证据字段
+		// 输出pbVul中的证据字段
 		w.taskLog(mainTaskId, LevelDebug, "[SaveVul] pbVul.CurlCommand=%v, pbVul.Request=%v, pbVul.Response=%v",
 			pbVul.CurlCommand != nil, pbVul.Request != nil, pbVul.Response != nil)
 
@@ -1091,7 +1089,7 @@ func (w *Worker) keepAlive() {
 	}
 }
 
-// sendHeartbeat 发送心�?
+// sendHeartbeat 发送心跳
 func (w *Worker) sendHeartbeat() {
 	ctx, cancel := context.WithTimeout(w.ctx, 10*time.Second) // 继承父Context
 	defer cancel()
@@ -1150,7 +1148,7 @@ func (w *Worker) sendHeartbeat() {
 	}
 }
 
-// subscribeStatusQuery 订阅状态查询请�?
+// subscribeStatusQuery 订阅状态查询
 func (w *Worker) subscribeStatusQuery() {
 	defer w.wg.Done()
 
@@ -1167,7 +1165,7 @@ func (w *Worker) subscribeStatusQuery() {
 			return
 		case msg := <-ch:
 			if msg != nil {
-				// 收到查询请求，立即上报状�?
+				// 收到查询请求，立即上报
 				w.reportStatusToRedis()
 			}
 		}
@@ -1182,7 +1180,7 @@ func (w *Worker) reportStatusToRedis() {
 
 	ctx := context.Background()
 
-	// 快速获取CPU使用率（不等�?秒）
+	// 快速获取CPU使用率
 	cpuPercent, _ := cpu.Percent(0, false)
 	memInfo, _ := mem.VirtualMemory()
 
@@ -1195,7 +1193,7 @@ func (w *Worker) reportStatusToRedis() {
 		memUsed = memInfo.UsedPercent
 	}
 
-	// 确保数值有�?
+	// 确保数值
 	if cpuLoad < 0 || cpuLoad > 100 {
 		cpuLoad = 0.0
 	}
@@ -1249,7 +1247,7 @@ func (w *Worker) generateAutoTags(assets []*scanner.Asset, pocConfig *scheduler.
 			appName := parseAppName(app)
 			appNameLower := strings.ToLower(appName)
 
-			// 模式1: 基于自定义标签映�?
+			// 模式1: 基于自定义标签映射
 			if pocConfig.AutoScan && pocConfig.TagMappings != nil {
 				for mappedApp, tags := range pocConfig.TagMappings {
 					if strings.ToLower(mappedApp) == appNameLower {
@@ -1261,7 +1259,7 @@ func (w *Worker) generateAutoTags(assets []*scanner.Asset, pocConfig *scheduler.
 				}
 			}
 
-			// 模式2: 基于Wappalyzer内置映射（类似nuclei -as�?
+			// 模式2: 基于Wappalyzer内置映射
 			if pocConfig.AutomaticScan {
 				if tags, ok := mapping.WappalyzerNucleiMapping[appNameLower]; ok {
 					for _, tag := range tags {
@@ -1279,7 +1277,7 @@ func (w *Worker) generateAutoTags(assets []*scanner.Asset, pocConfig *scheduler.
 	return tags
 }
 
-// getTemplatesByTags 通过RPC从数据库获取符合标签的模�?
+// getTemplatesByTags 通过RPC从数据库获取符合标签
 func (w *Worker) getTemplatesByTags(ctx context.Context, tags []string, severities []string) []string {
 	if len(tags) == 0 {
 		return nil
@@ -1413,7 +1411,6 @@ func filterByPortThreshold(assets []*scanner.Asset, threshold int) []*scanner.As
 	for host, count := range hostPortCount {
 		if count > threshold {
 			filteredHosts[host] = true
-			// 这里使用 logx 因为没有 Worker 上下文
 			logx.Infof("Host %s has %d open ports (threshold: %d), filtered as potential honeypot/firewall", host, count, threshold)
 		}
 	}
@@ -1535,7 +1532,7 @@ func (w *Worker) executePocValidateTask(ctx context.Context, task *scheduler.Tas
 		}
 	}
 
-	// 输出开始扫描日�?
+	// 输出开始扫描日志
 	w.taskLog(task.TaskId, LevelInfo, "[%s] 正在初始化Nuclei扫描引擎...", task.TaskId)
 
 	// 构建Nuclei扫描选项
@@ -1600,7 +1597,7 @@ func (w *Worker) executePocValidateTask(ctx context.Context, task *scheduler.Tas
 			w.taskLog(task.TaskId, LevelInfo, "[%s] 发现漏洞! 匹配URL: %s", task.TaskId, vul.Url)
 		}
 	} else {
-		// 没有发现漏洞，添加一个未匹配的结�?
+		// 没有发现漏洞，添加一个未匹配的结果
 		resultPocName := pocName
 		if resultPocName == "" {
 			resultPocName = pocId
@@ -1678,7 +1675,7 @@ func (w *Worker) savePocValidationResult(ctx context.Context, taskId, batchId st
 		return
 	}
 
-	// 更新任务信息状�?
+	// 更新任务信息状态
 	taskInfoKey := fmt.Sprintf("cscan:task:info:%s", taskId)
 	taskInfoData, err := w.redisClient.Get(ctx, taskInfoKey).Result()
 	if err == nil && taskInfoData != "" {
@@ -1746,7 +1743,7 @@ func (w *Worker) loadHttpServiceMappings() {
 		return
 	}
 
-	// 创建检查器并设置映�?
+	// 创建检查器并设置映射
 	checker := NewWorkerHttpServiceChecker()
 	for _, mapping := range resp.Mappings {
 		checker.SetMapping(mapping.ServiceName, mapping.IsHttp)
