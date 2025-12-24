@@ -13,8 +13,9 @@ RUN go mod download
 # 复制源代码
 COPY . .
 
-# 编译 Worker 服务（启用 CGO 以支持 libpcap）
-RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o /cscan-worker ./cmd/worker/main.go
+# 编译 Worker 服务（启用 CGO 以支持 libpcap）- 支持多架构
+ARG TARGETARCH
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o /cscan-worker ./cmd/worker/main.go
 
 # 运行镜像
 FROM alpine:3.18
@@ -38,17 +39,20 @@ RUN apk add --no-cache \
 ENV CHROME_BIN=/usr/bin/chromium-browser
 ENV CHROMEDP_NO_SANDBOX=true
 
-# 从本地 poc 目录复制 nuclei 安装包并安装
-COPY poc/nuclei_3.6.1_linux_amd64.zip /tmp/
-RUN unzip /tmp/nuclei_3.6.1_linux_amd64.zip -d /tmp/ \
-    && mv /tmp/nuclei_3.6.1_linux_amd64/nuclei /usr/local/bin/ \
+# 根据架构选择对应的工具包
+ARG TARGETARCH
+
+# 安装 nuclei
+COPY poc/nuclei_3.6.1_linux_${TARGETARCH}.zip /tmp/
+RUN unzip /tmp/nuclei_3.6.1_linux_${TARGETARCH}.zip -d /tmp/ \
+    && mv /tmp/nuclei_3.6.1_linux_${TARGETARCH}/nuclei /usr/local/bin/ \
     && rm -rf /tmp/nuclei* \
     && chmod +x /usr/local/bin/nuclei
 
-# 从本地 poc 目录复制 httpx 安装包并安装
-COPY poc/httpx_1.7.4_linux_amd64.zip /tmp/
-RUN unzip /tmp/httpx_1.7.4_linux_amd64.zip -d /tmp/ \
-    && mv /tmp/httpx_1.7.4_linux_amd64/httpx /usr/local/bin/ \
+# 安装 httpx
+COPY poc/httpx_1.7.4_linux_${TARGETARCH}.zip /tmp/
+RUN unzip /tmp/httpx_1.7.4_linux_${TARGETARCH}.zip -d /tmp/ \
+    && mv /tmp/httpx_1.7.4_linux_${TARGETARCH}/httpx /usr/local/bin/ \
     && rm -rf /tmp/httpx* \
     && chmod +x /usr/local/bin/httpx
 
