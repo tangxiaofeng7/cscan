@@ -2,6 +2,7 @@ package logic
 
 import (
 	"context"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -12,6 +13,64 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 	"go.mongodb.org/mongo-driver/bson"
 )
+
+// sortAssetsByTime 按时间排序资产
+func sortAssetsByTime(assets []model.Asset, byUpdateTime bool) {
+	sort.Slice(assets, func(i, j int) bool {
+		if byUpdateTime {
+			return assets[i].UpdateTime.After(assets[j].UpdateTime)
+		}
+		return assets[i].CreateTime.After(assets[j].CreateTime)
+	})
+}
+
+// sortMapToStatItems 将 map 转换为排序后的 StatItem 列表
+func sortMapToStatItems(m map[string]int, limit int) []types.StatItem {
+	type kv struct {
+		Key   string
+		Value int
+	}
+	var sorted []kv
+	for k, v := range m {
+		sorted = append(sorted, kv{k, v})
+	}
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Value > sorted[j].Value
+	})
+	
+	result := make([]types.StatItem, 0, limit)
+	for i, item := range sorted {
+		if i >= limit {
+			break
+		}
+		result = append(result, types.StatItem{Name: item.Key, Count: item.Value})
+	}
+	return result
+}
+
+// sortMapToStatItemsInt 将 int key 的 map 转换为排序后的 StatItem 列表
+func sortMapToStatItemsInt(m map[int]int, limit int) []types.StatItem {
+	type kv struct {
+		Key   int
+		Value int
+	}
+	var sorted []kv
+	for k, v := range m {
+		sorted = append(sorted, kv{k, v})
+	}
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Value > sorted[j].Value
+	})
+	
+	result := make([]types.StatItem, 0, limit)
+	for i, item := range sorted {
+		if i >= limit {
+			break
+		}
+		result = append(result, types.StatItem{Name: strconv.Itoa(item.Key), Count: item.Value})
+	}
+	return result
+}
 
 // parseQuerySyntax 解析查询语法
 // 支持格式: port=80 && service=http || title="test"
@@ -80,8 +139,6 @@ func NewAssetListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AssetLi
 }
 
 func (l *AssetListLogic) AssetList(req *types.AssetListReq, workspaceId string) (resp *types.AssetListResp, err error) {
-	assetModel := l.svcCtx.GetAssetModel(workspaceId)
-
 	// 构建查询条件
 	filter := bson.M{}
 
@@ -123,26 +180,72 @@ func (l *AssetListLogic) AssetList(req *types.AssetListReq, workspaceId string) 
 		filter["cdn"] = bson.M{"$ne": true}
 		filter["cloud"] = bson.M{"$ne": true}
 	}
-
-	// 查询总数
-	total, err := assetModel.Count(l.ctx, filter)
-	if err != nil {
-		return &types.AssetListResp{Code: 500, Msg: "查询失败"}, nil
+	// 按组织筛选
+	if req.OrgId != "" {
+		filter["org_id"] = req.OrgId
 	}
 
-	// 查询列表 - 支持按风险评分排序 
+	var total int64
 	var assets []model.Asset
-	if req.SortByRisk {
-		assets, err = assetModel.FindByRiskScore(l.ctx, filter, req.Page, req.PageSize, false)
-	} else {
-		sortField := "update_time"
-		if !req.SortByUpdate {
-			sortField = "create_time"
+
+	// 如果 workspaceId 为空，查询所有工作空间
+	if workspaceId == "" {
+		workspaces, _ := l.svcCtx.WorkspaceModel.Find(l.ctx, bson.M{}, 1, 100)
+		
+		// 收集所有工作空间的数据
+		var allAssets []model.Asset
+		for _, ws := range workspaces {
+			assetModel := l.svcCtx.GetAssetModel(ws.Id.Hex())
+			wsTotal, _ := assetModel.Count(l.ctx, filter)
+			total += wsTotal
+			
+			wsAssets, _ := assetModel.Find(l.ctx, filter, 0, 0) // 获取全部用于合并
+			allAssets = append(allAssets, wsAssets...)
 		}
-		assets, err = assetModel.FindWithSort(l.ctx, filter, req.Page, req.PageSize, sortField)
+		
+		// 按更新时间排序
+		sortAssetsByTime(allAssets, req.SortByUpdate)
+		
+		// 分页
+		start := (req.Page - 1) * req.PageSize
+		end := start + req.PageSize
+		if start > len(allAssets) {
+			start = len(allAssets)
+		}
+		if end > len(allAssets) {
+			end = len(allAssets)
+		}
+		assets = allAssets[start:end]
+	} else {
+		// 查询指定工作空间
+		assetModel := l.svcCtx.GetAssetModel(workspaceId)
+		
+		total, err = assetModel.Count(l.ctx, filter)
+		if err != nil {
+			return &types.AssetListResp{Code: 500, Msg: "查询失败"}, nil
+		}
+
+		// 查询列表 - 支持按风险评分排序 
+		if req.SortByRisk {
+			assets, err = assetModel.FindByRiskScore(l.ctx, filter, req.Page, req.PageSize, false)
+		} else {
+			sortField := "update_time"
+			if !req.SortByUpdate {
+				sortField = "create_time"
+			}
+			assets, err = assetModel.FindWithSort(l.ctx, filter, req.Page, req.PageSize, sortField)
+		}
+		if err != nil {
+			return &types.AssetListResp{Code: 500, Msg: "查询失败"}, nil
+		}
 	}
-	if err != nil {
-		return &types.AssetListResp{Code: 500, Msg: "查询失败"}, nil
+
+	// 构建组织ID到名称的映射
+	orgNameMap := make(map[string]string)
+	if orgs, err := l.svcCtx.OrganizationModel.Find(l.ctx, bson.M{}, 0, 0); err == nil {
+		for _, org := range orgs {
+			orgNameMap[org.Id.Hex()] = org.Name
+		}
 	}
 
 	// 转换响应
@@ -152,6 +255,17 @@ func (l *AssetListLogic) AssetList(req *types.AssetListReq, workspaceId string) 
 		location := ""
 		if len(a.Ip.IpV4) > 0 && a.Ip.IpV4[0].Location != "" {
 			location = a.Ip.IpV4[0].Location
+		}
+
+		// 获取组织名称
+		orgName := ""
+		if a.OrgId != "" {
+			if name, ok := orgNameMap[a.OrgId]; ok {
+				orgName = name
+			}
+			l.Logger.Infof("Asset %s:%d has orgId=%s, orgName=%s", a.Host, a.Port, a.OrgId, orgName)
+		} else {
+			l.Logger.Infof("Asset %s:%d has NO orgId", a.Host, a.Port)
 		}
 
 		list = append(list, types.Asset{
@@ -176,6 +290,9 @@ func (l *AssetListLogic) AssetList(req *types.AssetListReq, workspaceId string) 
 			IsUpdated:  a.IsUpdated,
 			CreateTime: a.CreateTime.Format("2006-01-02 15:04:05"),
 			UpdateTime: a.UpdateTime.Format("2006-01-02 15:04:05"),
+			// 组织信息
+			OrgId:   a.OrgId,
+			OrgName: orgName,
 			// 新增字段 - 风险评分 
 			RiskScore: a.RiskScore,
 			RiskLevel: a.RiskLevel,
@@ -205,65 +322,130 @@ func NewAssetStatLogic(ctx context.Context, svcCtx *svc.ServiceContext) *AssetSt
 }
 
 func (l *AssetStatLogic) AssetStat(workspaceId string) (resp *types.AssetStatResp, err error) {
-	assetModel := l.svcCtx.GetAssetModel(workspaceId)
+	var totalAsset, totalHost, newCount, updatedCount int64
+	var topPorts, topService, topApp, topTitle []types.StatItem
+	var riskDistribution map[string]int
 
-	// 总资产数
-	totalAsset, _ := assetModel.Count(l.ctx, bson.M{})
+	// 如果 workspaceId 为空，统计所有工作空间
+	if workspaceId == "" {
+		workspaces, _ := l.svcCtx.WorkspaceModel.Find(l.ctx, bson.M{}, 1, 100)
+		
+		portMap := make(map[int]int)
+		serviceMap := make(map[string]int)
+		appMap := make(map[string]int)
+		titleMap := make(map[string]int)
+		riskMap := make(map[string]int)
+		
+		for _, ws := range workspaces {
+			assetModel := l.svcCtx.GetAssetModel(ws.Id.Hex())
+			
+			wsTotal, _ := assetModel.Count(l.ctx, bson.M{})
+			totalAsset += wsTotal
+			totalHost += wsTotal
+			
+			wsNew, _ := assetModel.Count(l.ctx, bson.M{"new": true})
+			newCount += wsNew
+			
+			wsUpdated, _ := assetModel.Count(l.ctx, bson.M{"update": true})
+			updatedCount += wsUpdated
+			
+			// 聚合端口
+			portStats, _ := assetModel.AggregatePort(l.ctx, 20)
+			for _, s := range portStats {
+				portMap[s.Port] += s.Count
+			}
+			
+			// 聚合服务
+			serviceStats, _ := assetModel.Aggregate(l.ctx, "service", 20)
+			for _, s := range serviceStats {
+				serviceMap[s.Field] += s.Count
+			}
+			
+			// 聚合应用
+			appStats, _ := assetModel.Aggregate(l.ctx, "app", 20)
+			for _, s := range appStats {
+				appMap[s.Field] += s.Count
+			}
+			
+			// 聚合标题
+			titleStats, _ := assetModel.Aggregate(l.ctx, "title", 20)
+			for _, s := range titleStats {
+				if s.Field != "" {
+					titleMap[s.Field] += s.Count
+				}
+			}
+			
+			// 聚合风险等级
+			wsRisk, _ := assetModel.AggregateRiskLevel(l.ctx)
+			for k, v := range wsRisk {
+				riskMap[k] += v
+			}
+		}
+		
+		// 转换为排序后的列表
+		topPorts = sortMapToStatItemsInt(portMap, 10)
+		topService = sortMapToStatItems(serviceMap, 10)
+		topApp = sortMapToStatItems(appMap, 10)
+		topTitle = sortMapToStatItems(titleMap, 10)
+		riskDistribution = riskMap
+	} else {
+		assetModel := l.svcCtx.GetAssetModel(workspaceId)
 
-	// 统计主机数（去重host）
-	// 简化处理，实际应使用distinct
-	totalHost := totalAsset
+		// 总资产数
+		totalAsset, _ = assetModel.Count(l.ctx, bson.M{})
+		totalHost = totalAsset
 
-	// 新资产数
-	newCount, _ := assetModel.Count(l.ctx, bson.M{"new": true})
+		// 新资产数
+		newCount, _ = assetModel.Count(l.ctx, bson.M{"new": true})
 
-	// 有更新的资产数
-	updatedCount, _ := assetModel.Count(l.ctx, bson.M{"update": true})
+		// 有更新的资产数
+		updatedCount, _ = assetModel.Count(l.ctx, bson.M{"update": true})
 
-	// Top端口
-	portStats, _ := assetModel.AggregatePort(l.ctx, 10)
-	topPorts := make([]types.StatItem, 0, len(portStats))
-	for _, s := range portStats {
-		topPorts = append(topPorts, types.StatItem{
-			Name:  strconv.Itoa(s.Port),
-			Count: s.Count,
-		})
-	}
+		// Top端口
+		portStats, _ := assetModel.AggregatePort(l.ctx, 10)
+		topPorts = make([]types.StatItem, 0, len(portStats))
+		for _, s := range portStats {
+			topPorts = append(topPorts, types.StatItem{
+				Name:  strconv.Itoa(s.Port),
+				Count: s.Count,
+			})
+		}
 
-	// Top服务
-	serviceStats, _ := assetModel.Aggregate(l.ctx, "service", 10)
-	topService := make([]types.StatItem, 0, len(serviceStats))
-	for _, s := range serviceStats {
-		topService = append(topService, types.StatItem{
-			Name:  s.Field,
-			Count: s.Count,
-		})
-	}
-
-	// Top应用
-	appStats, _ := assetModel.Aggregate(l.ctx, "app", 10)
-	topApp := make([]types.StatItem, 0, len(appStats))
-	for _, s := range appStats {
-		topApp = append(topApp, types.StatItem{
-			Name:  s.Field,
-			Count: s.Count,
-		})
-	}
-
-	// Top标题
-	titleStats, _ := assetModel.Aggregate(l.ctx, "title", 10)
-	topTitle := make([]types.StatItem, 0, len(titleStats))
-	for _, s := range titleStats {
-		if s.Field != "" {
-			topTitle = append(topTitle, types.StatItem{
+		// Top服务
+		serviceStats, _ := assetModel.Aggregate(l.ctx, "service", 10)
+		topService = make([]types.StatItem, 0, len(serviceStats))
+		for _, s := range serviceStats {
+			topService = append(topService, types.StatItem{
 				Name:  s.Field,
 				Count: s.Count,
 			})
 		}
-	}
 
-	// 风险等级分布 
-	riskDistribution, _ := assetModel.AggregateRiskLevel(l.ctx)
+		// Top应用
+		appStats, _ := assetModel.Aggregate(l.ctx, "app", 10)
+		topApp = make([]types.StatItem, 0, len(appStats))
+		for _, s := range appStats {
+			topApp = append(topApp, types.StatItem{
+				Name:  s.Field,
+				Count: s.Count,
+			})
+		}
+
+		// Top标题
+		titleStats, _ := assetModel.Aggregate(l.ctx, "title", 10)
+		topTitle = make([]types.StatItem, 0, len(titleStats))
+		for _, s := range titleStats {
+			if s.Field != "" {
+				topTitle = append(topTitle, types.StatItem{
+					Name:  s.Field,
+					Count: s.Count,
+				})
+			}
+		}
+
+		// 风险等级分布 
+		riskDistribution, _ = assetModel.AggregateRiskLevel(l.ctx)
+	}
 
 	return &types.AssetStatResp{
 		Code:             0,

@@ -6,6 +6,7 @@ import (
 	"cscan/api/internal/handler/asset"
 	"cscan/api/internal/handler/fingerprint"
 	"cscan/api/internal/handler/onlineapi"
+	"cscan/api/internal/handler/organization"
 	"cscan/api/internal/handler/poc"
 	"cscan/api/internal/handler/report"
 	"cscan/api/internal/handler/task"
@@ -46,6 +47,12 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 		{Method: http.MethodPost, Path: "/api/v1/workspace/list", Handler: workspace.WorkspaceListHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/workspace/save", Handler: workspace.WorkspaceSaveHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/workspace/delete", Handler: workspace.WorkspaceDeleteHandler(svcCtx)},
+
+		// 组织管理
+		{Method: http.MethodPost, Path: "/api/v1/organization/list", Handler: organization.OrganizationListHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/organization/save", Handler: organization.OrganizationSaveHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/organization/delete", Handler: organization.OrganizationDeleteHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/organization/updateStatus", Handler: organization.OrganizationUpdateStatusHandler(svcCtx)},
 
 		// 资产管理
 		{Method: http.MethodPost, Path: "/api/v1/asset/list", Handler: asset.AssetListHandler(svcCtx)},

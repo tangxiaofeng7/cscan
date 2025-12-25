@@ -525,6 +525,10 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 		return
 	}
 
+	// 获取组织ID
+	orgId, _ := taskConfig["orgId"].(string)
+	w.taskLog(task.TaskId, LevelInfo, "OrgId from config: %s", orgId)
+
 	var allAssets []*scanner.Asset
 	var allVuls []*scanner.Vulnerability
 
@@ -727,7 +731,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			
 			// 端口扫描完成后立即保存结果
 			if len(allAssets) > 0 {
-				w.saveAssetResult(ctx, task.WorkspaceId, task.MainTaskId, allAssets)
+				w.saveAssetResult(ctx, task.WorkspaceId, task.MainTaskId, orgId, allAssets)
 			}
 		} else {
 			w.taskLog(task.TaskId, LevelInfo, "No open ports found")
@@ -805,7 +809,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				}
 				
 				// 指纹识别完成后保存更新结果
-				w.saveAssetResult(ctx, task.WorkspaceId, task.MainTaskId, allAssets)
+				w.saveAssetResult(ctx, task.WorkspaceId, task.MainTaskId, orgId, allAssets)
 			}
 		}
 		completedPhases["fingerprint"] = true
@@ -979,12 +983,12 @@ func (w *Worker) updateTaskStatus(ctx context.Context, taskId, status, result st
 }
 
 // saveAssetResult 保存资产结果
-func (w *Worker) saveAssetResult(ctx context.Context, workspaceId, mainTaskId string, assets []*scanner.Asset) {
+func (w *Worker) saveAssetResult(ctx context.Context, workspaceId, mainTaskId, orgId string, assets []*scanner.Asset) {
 	if len(assets) == 0 {
 		return
 	}
 
-	w.taskLog(mainTaskId, LevelInfo, "Saving %d assets to workspace: %s", len(assets), workspaceId)
+	w.taskLog(mainTaskId, LevelInfo, "Saving %d assets to workspace: %s, orgId: %s", len(assets), workspaceId, orgId)
 	
 
 	pbAssets := make([]*pb.AssetDocument, 0, len(assets))
@@ -1013,6 +1017,7 @@ func (w *Worker) saveAssetResult(ctx context.Context, workspaceId, mainTaskId st
 		WorkspaceId: workspaceId,
 		MainTaskId:  mainTaskId,
 		Assets:      pbAssets,
+		OrgId:       orgId,
 	})
 	if err != nil {
 		w.taskLog(mainTaskId, LevelError, "save asset result failed: %v", err)
@@ -1121,7 +1126,7 @@ func (w *Worker) reportResult() {
 // handleResult 处理结果
 func (w *Worker) handleResult(result *scanner.ScanResult) {
 	ctx := context.Background()
-	w.saveAssetResult(ctx, result.WorkspaceId, result.MainTaskId, result.Assets)
+	w.saveAssetResult(ctx, result.WorkspaceId, result.MainTaskId, "", result.Assets)
 	w.saveVulResult(ctx, result.WorkspaceId, result.MainTaskId, result.Vulnerabilities)
 }
 

@@ -17,8 +17,8 @@ request.interceptors.request.use(
     if (userStore.token) {
       config.headers['Authorization'] = `Bearer ${userStore.token}`
     }
-    // 优先使用 workspaceStore 的当前工作空间ID
-    const workspaceId = workspaceStore.currentWorkspaceId || userStore.workspaceId
+    // 使用有效的工作空间ID（如果当前为空，会自动使用第一个工作空间）
+    const workspaceId = workspaceStore.effectiveWorkspaceId || userStore.workspaceId
     if (workspaceId) {
       config.headers['X-Workspace-Id'] = workspaceId
     }

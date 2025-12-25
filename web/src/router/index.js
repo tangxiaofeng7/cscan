@@ -79,6 +79,12 @@ const routes = [
         name: 'User',
         component: () => import('@/views/User.vue'),
         meta: { title: '用户管理', icon: 'User', roles: ['superadmin'] }
+      },
+      {
+        path: 'organization',
+        name: 'Organization',
+        component: () => import('@/views/Organization.vue'),
+        meta: { title: '组织管理', icon: 'OfficeBuilding' }
       }
     ]
   }

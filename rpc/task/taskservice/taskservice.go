@@ -7,7 +7,7 @@ package taskservice
 import (
 	"context"
 
-	"cscan/rpc/task/pb"
+	"cscan/rpc/task/pb/pb"
 
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"

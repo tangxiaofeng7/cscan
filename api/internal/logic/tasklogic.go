@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"encoding/json"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -33,8 +34,6 @@ func NewMainTaskListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Main
 }
 
 func (l *MainTaskListLogic) MainTaskList(req *types.MainTaskListReq, workspaceId string) (resp *types.MainTaskListResp, err error) {
-	taskModel := l.svcCtx.GetMainTaskModel(workspaceId)
-
 	// 构建查询条件
 	filter := bson.M{}
 	if req.Name != "" {
@@ -44,16 +43,52 @@ func (l *MainTaskListLogic) MainTaskList(req *types.MainTaskListReq, workspaceId
 		filter["status"] = req.Status
 	}
 
-	// 查询总数
-	total, err := taskModel.Count(l.ctx, filter)
-	if err != nil {
-		return &types.MainTaskListResp{Code: 500, Msg: "查询失败"}, nil
-	}
+	var total int64
+	var tasks []model.MainTask
 
-	// 查询列表
-	tasks, err := taskModel.Find(l.ctx, filter, req.Page, req.PageSize)
-	if err != nil {
-		return &types.MainTaskListResp{Code: 500, Msg: "查询失败"}, nil
+	// 如果 workspaceId 为空，查询所有工作空间
+	if workspaceId == "" {
+		workspaces, _ := l.svcCtx.WorkspaceModel.Find(l.ctx, bson.M{}, 1, 100)
+		
+		var allTasks []model.MainTask
+		for _, ws := range workspaces {
+			taskModel := l.svcCtx.GetMainTaskModel(ws.Id.Hex())
+			wsTotal, _ := taskModel.Count(l.ctx, filter)
+			total += wsTotal
+			
+			wsTasks, _ := taskModel.Find(l.ctx, filter, 0, 0)
+			allTasks = append(allTasks, wsTasks...)
+		}
+		
+		// 按创建时间排序
+		sort.Slice(allTasks, func(i, j int) bool {
+			return allTasks[i].CreateTime.After(allTasks[j].CreateTime)
+		})
+		
+		// 分页
+		start := (req.Page - 1) * req.PageSize
+		end := start + req.PageSize
+		if start > len(allTasks) {
+			start = len(allTasks)
+		}
+		if end > len(allTasks) {
+			end = len(allTasks)
+		}
+		tasks = allTasks[start:end]
+	} else {
+		taskModel := l.svcCtx.GetMainTaskModel(workspaceId)
+
+		// 查询总数
+		total, err = taskModel.Count(l.ctx, filter)
+		if err != nil {
+			return &types.MainTaskListResp{Code: 500, Msg: "查询失败"}, nil
+		}
+
+		// 查询列表
+		tasks, err = taskModel.Find(l.ctx, filter, req.Page, req.PageSize)
+		if err != nil {
+			return &types.MainTaskListResp{Code: 500, Msg: "查询失败"}, nil
+		}
 	}
 
 	// 转换响应
@@ -124,6 +159,13 @@ func (l *MainTaskCreateLogic) MainTaskCreate(req *types.MainTaskCreateReq, works
 	taskConfig := map[string]interface{}{
 		"target": req.Target,
 	}
+	// 添加组织ID到配置
+	if req.OrgId != "" {
+		taskConfig["orgId"] = req.OrgId
+		l.Logger.Infof("MainTaskCreate: orgId set to %s", req.OrgId)
+	} else {
+		l.Logger.Infof("MainTaskCreate: orgId is empty")
+	}
 	// 合并 profile 配置
 	if profile.Config != "" {
 		var profileConfig map[string]interface{}
@@ -146,6 +188,7 @@ func (l *MainTaskCreateLogic) MainTaskCreate(req *types.MainTaskCreateReq, works
 		Target:      req.Target,
 		ProfileId:   req.ProfileId,
 		ProfileName: profile.Name,
+		OrgId:       req.OrgId,
 		IsCron:      req.IsCron,
 		CronRule:    req.CronRule,
 		Config:      string(configBytes), // 保存配置用于后续启动
@@ -436,6 +479,13 @@ func (l *MainTaskStartLogic) MainTaskStart(req *types.MainTaskControlReq, worksp
 		return &types.BaseResp{Code: 500, Msg: "解析任务配置失败"}, nil
 	}
 	target, _ := taskConfig["target"].(string)
+	
+	// Debug: 打印配置中的orgId
+	if orgId, ok := taskConfig["orgId"].(string); ok && orgId != "" {
+		l.Logger.Infof("MainTaskStart: orgId in config = %s", orgId)
+	} else {
+		l.Logger.Infof("MainTaskStart: orgId not found in config")
+	}
 
 	// 从配置中获取批次大小，默认50
 	batchSize := 50

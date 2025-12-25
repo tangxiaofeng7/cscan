@@ -76,6 +76,10 @@
             <el-icon><User /></el-icon>
             <template #title>用户管理</template>
           </el-menu-item>
+          <el-menu-item index="/organization">
+            <el-icon><OfficeBuilding /></el-icon>
+            <template #title>组织管理</template>
+          </el-menu-item>
         </el-sub-menu>
       </el-menu>
     </el-aside>
@@ -91,11 +95,11 @@
           <!-- 工作空间选择器 -->
           <el-select 
             v-model="workspaceStore.currentWorkspaceId" 
-            placeholder="默认工作空间" 
-            clearable
+            placeholder="全部空间" 
             style="width: 160px; margin-right: 16px;"
             @change="handleWorkspaceChange"
           >
+            <el-option label="全部空间" value="all" />
             <el-option 
               v-for="ws in workspaceStore.workspaces" 
               :key="ws.id" 
@@ -142,7 +146,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
 import { useWorkspaceStore } from '@/stores/workspace'
-import { Setting, Sunny, Moon, Cpu, Tools } from '@element-plus/icons-vue'
+import { Setting, Sunny, Moon, Cpu, Tools, OfficeBuilding } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const userStore = useUserStore()
