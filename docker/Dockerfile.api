@@ -37,10 +37,13 @@ RUN apk add --no-cache ca-certificates tzdata unzip
 # 调试输出
 RUN echo "Target architecture: ${TARGETARCH}"
 
-# 根据架构选择对应的 nuclei 安装包
-COPY poc/nuclei_3.6.1_linux_${TARGETARCH}.zip /tmp/nuclei.zip
+# 复制所有架构的 nuclei 安装包
+COPY poc/nuclei_3.6.1_linux_amd64.zip /tmp/nuclei_amd64.zip
+COPY poc/nuclei_3.6.1_linux_arm64.zip /tmp/nuclei_arm64.zip
+
+# 根据架构选择对应的 nuclei 安装
 RUN echo "Building for architecture: ${TARGETARCH}" \
-    && unzip /tmp/nuclei.zip -d /tmp/ \
+    && unzip /tmp/nuclei_${TARGETARCH}.zip -d /tmp/ \
     && find /tmp -name "nuclei" -type f -exec mv {} /usr/local/bin/ \; \
     && rm -rf /tmp/nuclei* \
     && chmod +x /usr/local/bin/nuclei

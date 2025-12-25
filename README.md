@@ -19,19 +19,15 @@
 - **分布式架构** - Worker 节点水平扩展，支持多节点并行扫描
 - **多工作空间** - 项目隔离，团队协作
 
-
-## 支持架构
-
-- **linux/amd64**
-- **linux/arm64**
-
 ## 快速开始
 
 ```bash
 git clone https://github.com/tangxiaofeng7/cscan.git
 cd cscan
-# 直接启动（Docker会自动选择合适的架构）
+# 直接启动
 docker-compose up -d --build
+# arm系统部署
+DOCKER_DEFAULT_PLATFORM=linux/arm64 docker-compose up -d --build
 ```
 
 访问 `http://localhost:3000`，默认账号 `admin / 123456`

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -497,8 +498,8 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			PortScan: &scheduler.PortScanConfig{Enable: true, Ports: "80,443,8080"},
 		}
 	}
-	// 输出端口阈值配置，方便调试
-	if config.PortScan != nil {
+	// 只在端口扫描启用时输出端口阈值配置
+	if config.PortScan != nil && config.PortScan.Enable {
 		w.taskLog(task.TaskId, LevelInfo, "Port threshold config: %d (0=no filter)", config.PortScan.PortThreshold)
 	}
 
@@ -521,6 +522,18 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 		if assetsJson, ok := resumeState["assets"].(string); ok && assetsJson != "" {
 			json.Unmarshal([]byte(assetsJson), &allAssets)
 			w.taskLog(task.TaskId, LevelInfo, "Restored %d assets from saved state", len(allAssets))
+		}
+	}
+
+	// 当端口扫描禁用但指纹识别启用时，需要从目标生成初始资产列表
+	// 否则指纹识别阶段会因为 allAssets 为空而跳过
+	if config.PortScan != nil && !config.PortScan.Enable && 
+		config.Fingerprint != nil && config.Fingerprint.Enable && 
+		len(allAssets) == 0 {
+		generatedAssets := w.generateAssetsFromTarget(target, config.PortScan)
+		if len(generatedAssets) > 0 {
+			allAssets = generatedAssets
+			w.taskLog(task.TaskId, LevelInfo, "Generated %d targets for fingerprint scan", len(allAssets))
 		}
 	}
 
@@ -1719,6 +1732,174 @@ func (c *WorkerHttpServiceChecker) SetMapping(serviceName string, isHttp bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.cache[serviceName] = isHttp
+}
+
+// generateAssetsFromTarget 从目标生成初始资产列表（用于端口扫描禁用时）
+// 支持的目标格式：
+// - 单个IP: 192.168.1.1
+// - IP范围: 192.168.1.1-192.168.1.10
+// - CIDR: 192.168.1.0/24
+// - 域名: example.com
+// - 带端口: 192.168.1.1:8080 或 example.com:443
+// - URL: http://example.com:8080
+func (w *Worker) generateAssetsFromTarget(target string, portConfig *scheduler.PortScanConfig) []*scanner.Asset {
+	var assets []*scanner.Asset
+	
+	// 默认端口列表
+	defaultPorts := []int{80, 443, 8080, 8443}
+	
+	// 如果配置了端口，解析端口列表
+	if portConfig != nil && portConfig.Ports != "" {
+		defaultPorts = parsePortList(portConfig.Ports)
+	}
+	
+	// 解析目标
+	targets := strings.Split(target, "\n")
+	for _, t := range targets {
+		t = strings.TrimSpace(t)
+		if t == "" {
+			continue
+		}
+		
+		// 处理URL格式
+		if strings.HasPrefix(t, "http://") || strings.HasPrefix(t, "https://") {
+			asset := w.parseURLToAsset(t)
+			if asset != nil {
+				assets = append(assets, asset)
+			}
+			continue
+		}
+		
+		// 处理带端口的格式 host:port
+		if strings.Contains(t, ":") && !strings.Contains(t, "/") {
+			parts := strings.Split(t, ":")
+			if len(parts) == 2 {
+				host := parts[0]
+				port := 80
+				if p, err := strconv.Atoi(parts[1]); err == nil {
+					port = p
+				}
+				asset := &scanner.Asset{
+					Host:      host,
+					Port:      port,
+					Authority: fmt.Sprintf("%s:%d", host, port),
+					IsHTTP:    scanner.IsHTTPService("", port),
+				}
+				assets = append(assets, asset)
+				continue
+			}
+		}
+		
+		// 处理CIDR格式 - 跳过，因为没有端口扫描无法确定开放端口
+		if strings.Contains(t, "/") {
+			w.logger.Warn("CIDR target %s skipped: port scan disabled, cannot determine open ports", t)
+			continue
+		}
+		
+		// 处理IP范围格式 - 跳过
+		if strings.Contains(t, "-") && !strings.Contains(t, ".") {
+			w.logger.Warn("IP range target %s skipped: port scan disabled, cannot determine open ports", t)
+			continue
+		}
+		
+		// 单个主机（IP或域名），使用默认端口
+		for _, port := range defaultPorts {
+			asset := &scanner.Asset{
+				Host:      t,
+				Port:      port,
+				Authority: fmt.Sprintf("%s:%d", t, port),
+				IsHTTP:    scanner.IsHTTPService("", port),
+			}
+			assets = append(assets, asset)
+		}
+	}
+	
+	return assets
+}
+
+// parseURLToAsset 解析URL为资产
+func (w *Worker) parseURLToAsset(urlStr string) *scanner.Asset {
+	// 简单解析URL
+	scheme := "http"
+	host := ""
+	port := 80
+	
+	if strings.HasPrefix(urlStr, "https://") {
+		scheme = "https"
+		port = 443
+		urlStr = strings.TrimPrefix(urlStr, "https://")
+	} else if strings.HasPrefix(urlStr, "http://") {
+		urlStr = strings.TrimPrefix(urlStr, "http://")
+	}
+	
+	// 移除路径部分
+	if idx := strings.Index(urlStr, "/"); idx > 0 {
+		urlStr = urlStr[:idx]
+	}
+	
+	// 解析host:port
+	if strings.Contains(urlStr, ":") {
+		parts := strings.Split(urlStr, ":")
+		host = parts[0]
+		if p, err := strconv.Atoi(parts[1]); err == nil {
+			port = p
+		}
+	} else {
+		host = urlStr
+	}
+	
+	if host == "" {
+		return nil
+	}
+	
+	return &scanner.Asset{
+		Host:      host,
+		Port:      port,
+		Authority: fmt.Sprintf("%s:%d", host, port),
+		Service:   scheme,
+		IsHTTP:    true,
+	}
+}
+
+// parsePortList 解析端口列表字符串
+func parsePortList(portsStr string) []int {
+	var ports []int
+	seen := make(map[int]bool)
+	
+	parts := strings.Split(portsStr, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		
+		// 处理端口范围 (如 80-90)
+		if strings.Contains(part, "-") {
+			rangeParts := strings.Split(part, "-")
+			if len(rangeParts) == 2 {
+				start, err1 := strconv.Atoi(strings.TrimSpace(rangeParts[0]))
+				end, err2 := strconv.Atoi(strings.TrimSpace(rangeParts[1]))
+				if err1 == nil && err2 == nil && start <= end {
+					for p := start; p <= end && p <= 65535; p++ {
+						if !seen[p] {
+							seen[p] = true
+							ports = append(ports, p)
+						}
+					}
+				}
+			}
+		} else {
+			// 单个端口
+			if p, err := strconv.Atoi(part); err == nil && p > 0 && p <= 65535 {
+				if !seen[p] {
+					seen[p] = true
+					ports = append(ports, p)
+				}
+			}
+		}
+	}
+	
+	return ports
 }
 
 // loadHttpServiceMappings 从RPC服务加载HTTP服务映射配置

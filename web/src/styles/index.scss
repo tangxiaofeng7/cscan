@@ -784,6 +784,22 @@ html.light {
     th {
       background-color: #fafafa !important;
     }
+    
+    // 浅色主题表格背景
+    background-color: #fff !important;
+    
+    .el-table__body-wrapper,
+    .el-table__inner-wrapper,
+    .el-scrollbar,
+    .el-scrollbar__wrap,
+    .el-scrollbar__view {
+      background-color: #fff !important;
+    }
+    
+    // 表格空状态
+    .el-table__empty-block {
+      background-color: #fff !important;
+    }
   }
 }
 
@@ -914,41 +930,64 @@ html.dark {
 
 // ============================================
 // 全局表格滚动条背景修复（解决条纹问题）
+// 只在深色主题下生效
 // ============================================
-.el-table .el-scrollbar__view {
-  background-color: #1d1e1f !important;
-}
-
-.el-table .el-scrollbar__wrap {
-  background-color: #1d1e1f !important;
-}
-
-.el-table .el-scrollbar {
-  background-color: #1d1e1f !important;
-}
-
-.el-table .el-table__body-wrapper {
-  background-color: #1d1e1f !important;
-}
-
-.el-table__inner-wrapper {
-  background-color: #1d1e1f !important;
-}
-
-.el-table {
-  background-color: #1d1e1f !important;
-  
-  &::before,
-  &::after {
+html.dark {
+  .el-table .el-scrollbar__view {
     background-color: #1d1e1f !important;
   }
-}
 
-// 直接针对表格内部所有div
-.el-table > div {
-  background-color: #1d1e1f !important;
-}
+  .el-table .el-scrollbar__wrap {
+    background-color: #1d1e1f !important;
+  }
 
-.el-table__inner-wrapper > div {
-  background-color: #1d1e1f !important;
+  .el-table .el-scrollbar {
+    background-color: #1d1e1f !important;
+  }
+
+  .el-table .el-table__body-wrapper {
+    background-color: #1d1e1f !important;
+  }
+
+  .el-table__inner-wrapper {
+    background-color: #1d1e1f !important;
+  }
+
+  .el-table {
+    background-color: #1d1e1f !important;
+    
+    &::before,
+    &::after {
+      background-color: #1d1e1f !important;
+    }
+  }
+
+  // 直接针对表格内部所有div
+  .el-table > div {
+    background-color: #1d1e1f !important;
+  }
+
+  .el-table__inner-wrapper > div {
+    background-color: #1d1e1f !important;
+  }
+  
+  // 表格空状态修复 - 关键修复
+  .el-table__empty-block {
+    background-color: #1d1e1f !important;
+  }
+  
+  .el-table__empty-text {
+    color: var(--text-muted) !important;
+    background-color: transparent !important;
+  }
+  
+  // 表格placeholder区域（数据不足时的空白）
+  .el-table__placeholder {
+    background-color: #1d1e1f !important;
+  }
+  
+  // 虚拟滚动表格的空白区域
+  .el-table .el-table__body-wrapper .el-scrollbar__bar {
+    background-color: transparent !important;
+  }
 }

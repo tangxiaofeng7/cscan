@@ -272,8 +272,8 @@ async function handleBatchDelete() {
     word-break: break-all;
     max-height: 300px;
     overflow: auto;
-    background: #1e1e1e;
-    color: #d4d4d4;
+    background: #1e1e1e !important;
+    color: #d4d4d4 !important;
     padding: 12px;
     border-radius: 6px;
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -281,24 +281,28 @@ async function handleBatchDelete() {
     line-height: 1.5;
     border: 1px solid #3c3c3c;
   }
+}
 
-  // 浅色主题适配
-  :deep(.el-dialog) {
+// 证据链代码块样式 - 使用 :deep 穿透 scoped 样式
+:deep(.el-descriptions) {
+  .el-descriptions__content {
     .result-pre {
-      background: #1e1e1e;
-      color: #d4d4d4;
-      border: 1px solid #3c3c3c;
+      background: #1e1e1e !important;
+      color: #d4d4d4 !important;
     }
   }
 }
 
-// 证据链代码块样式
-:deep(.el-descriptions) {
-  .el-descriptions__cell {
-    .result-pre {
-      background: #1e1e1e;
-      color: #d4d4d4;
-    }
+// 对话框内的代码块样式
+:deep(.el-dialog) {
+  .result-pre {
+    background: #1e1e1e !important;
+    color: #d4d4d4 !important;
+  }
+  
+  .el-descriptions__content .result-pre {
+    background: #1e1e1e !important;
+    color: #d4d4d4 !important;
   }
 }
 </style>

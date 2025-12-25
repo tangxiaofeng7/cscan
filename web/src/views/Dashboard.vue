@@ -4,7 +4,7 @@
     <div class="welcome-section">
       <div class="welcome-left">
         <h2>Hello, {{ userStore.username }}!</h2>
-        <span class="role-tag">{{ userStore.isSuperAdmin ? '超级管理员' : '普通用户' }}</span>
+        <span class="role-tag">管理员</span>
       </div>
       <div class="welcome-right">
         <span class="time">{{ currentTime }}</span>

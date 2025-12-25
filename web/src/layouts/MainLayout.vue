@@ -74,7 +74,7 @@
             <el-icon><Folder /></el-icon>
             <template #title>工作空间</template>
           </el-menu-item>
-          <el-menu-item v-if="userStore.isSuperAdmin" index="/user">
+          <el-menu-item index="/user">
             <el-icon><User /></el-icon>
             <template #title>用户管理</template>
           </el-menu-item>

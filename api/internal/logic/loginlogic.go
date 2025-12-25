@@ -61,6 +61,7 @@ func (l *LoginLogic) Login(req *types.LoginReq) (resp *types.LoginResp, err erro
 		Token:       token,
 		UserId:      user.Id.Hex(),
 		Username:    user.Username,
+		Role:        "admin", // 所有用户都是管理员
 		WorkspaceId: workspaceId,
 	}, nil
 }
@@ -69,6 +70,7 @@ func (l *LoginLogic) generateToken(userId, username string, iat, expire int64) (
 	claims := jwt.MapClaims{
 		"userId":   userId,
 		"username": username,
+		"role":     "admin", // 所有用户都是管理员
 		"iat":      iat,
 		"exp":      iat + expire,
 	}

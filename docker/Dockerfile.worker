@@ -51,18 +51,22 @@ ENV CHROMEDP_NO_SANDBOX=true
 # 调试输出
 RUN echo "Target architecture: ${TARGETARCH}"
 
-# 安装 nuclei
-COPY poc/nuclei_3.6.1_linux_${TARGETARCH}.zip /tmp/nuclei.zip
+# 复制所有架构的工具包
+COPY poc/nuclei_3.6.1_linux_amd64.zip /tmp/nuclei_amd64.zip
+COPY poc/nuclei_3.6.1_linux_arm64.zip /tmp/nuclei_arm64.zip
+COPY poc/httpx_1.7.4_linux_amd64.zip /tmp/httpx_amd64.zip
+COPY poc/httpx_1.7.4_linux_arm64.zip /tmp/httpx_arm64.zip
+
+# 安装 nuclei - 根据架构选择对应文件
 RUN echo "Installing nuclei for architecture: ${TARGETARCH}" \
-    && unzip /tmp/nuclei.zip -d /tmp/ \
+    && unzip /tmp/nuclei_${TARGETARCH}.zip -d /tmp/ \
     && find /tmp -name "nuclei" -type f -exec mv {} /usr/local/bin/ \; \
     && rm -rf /tmp/nuclei* \
     && chmod +x /usr/local/bin/nuclei
 
-# 安装 httpx
-COPY poc/httpx_1.7.4_linux_${TARGETARCH}.zip /tmp/httpx.zip
+# 安装 httpx - 根据架构选择对应文件
 RUN echo "Installing httpx for architecture: ${TARGETARCH}" \
-    && unzip /tmp/httpx.zip -d /tmp/ \
+    && unzip /tmp/httpx_${TARGETARCH}.zip -d /tmp/ \
     && find /tmp -name "httpx" -type f -exec mv {} /usr/local/bin/ \; \
     && rm -rf /tmp/httpx* \
     && chmod +x /usr/local/bin/httpx
