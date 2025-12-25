@@ -58,10 +58,7 @@
             <el-icon><Stamp /></el-icon>
             <template #title>指纹管理</template>
           </el-menu-item>
-          <el-menu-item index="/worker">
-            <el-icon><Connection /></el-icon>
-            <template #title>Worker管理</template>
-          </el-menu-item>
+
         </el-sub-menu>
         
         <!-- 系统管理分组 -->
@@ -70,6 +67,10 @@
             <el-icon><Tools /></el-icon>
             <span>系统管理</span>
           </template>
+          <el-menu-item index="/worker">
+            <el-icon><Connection /></el-icon>
+            <template #title>Worker管理</template>
+          </el-menu-item>
           <el-menu-item index="/workspace">
             <el-icon><Folder /></el-icon>
             <template #title>工作空间</template>

@@ -27,6 +27,44 @@ func WorkerListHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	}
 }
 
+// WorkerDeleteHandler Worker删除
+func WorkerDeleteHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.WorkerDeleteReq
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httpx.OkJson(w, &types.WorkerDeleteResp{Code: 400, Msg: "参数解析失败"})
+			return
+		}
+
+		l := logic.NewWorkerDeleteLogic(r.Context(), svcCtx)
+		resp, err := l.WorkerDelete(&req)
+		if err != nil {
+			response.Error(w, err)
+			return
+		}
+		httpx.OkJson(w, resp)
+	}
+}
+
+// WorkerRenameHandler Worker重命名
+func WorkerRenameHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.WorkerRenameReq
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			httpx.OkJson(w, &types.WorkerRenameResp{Code: 400, Msg: "参数解析失败"})
+			return
+		}
+
+		l := logic.NewWorkerRenameLogic(r.Context(), svcCtx)
+		resp, err := l.WorkerRename(&req)
+		if err != nil {
+			response.Error(w, err)
+			return
+		}
+		httpx.OkJson(w, resp)
+	}
+}
+
 // WorkerLogsHandler SSE实时日志推送
 func WorkerLogsHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

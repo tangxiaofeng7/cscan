@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"cscan/api/internal/svc"
@@ -27,6 +28,7 @@ func NewWorkerListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Worker
 
 type WorkerStatus struct {
 	WorkerName         string  `json:"workerName"`
+	IP                 string  `json:"ip"`
 	CPULoad            float64 `json:"cpuLoad"`
 	MemUsed            float64 `json:"memUsed"`
 	TaskStartedNumber  int     `json:"taskStartedNumber"`
@@ -86,6 +88,7 @@ func (l *WorkerListLogic) WorkerList() (resp *types.WorkerListResp, err error) {
 
 		list = append(list, types.Worker{
 			Name:         status.WorkerName,
+			IP:           status.IP,
 			CPULoad:      status.CPULoad,
 			MemUsed:      status.MemUsed,
 			TaskCount:    status.TaskExecutedNumber,
@@ -100,4 +103,108 @@ func (l *WorkerListLogic) WorkerList() (resp *types.WorkerListResp, err error) {
 		Msg:  "success",
 		List: list,
 	}, nil
+}
+
+
+// WorkerDeleteLogic Worker删除逻辑
+type WorkerDeleteLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewWorkerDeleteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *WorkerDeleteLogic {
+	return &WorkerDeleteLogic{
+		Logger: logx.WithContext(ctx),
+		ctx:    ctx,
+		svcCtx: svcCtx,
+	}
+}
+
+func (l *WorkerDeleteLogic) WorkerDelete(req *types.WorkerDeleteReq) (resp *types.WorkerDeleteResp, err error) {
+	if req.Name == "" {
+		return &types.WorkerDeleteResp{Code: 400, Msg: "Worker名称不能为空"}, nil
+	}
+
+	rdb := l.svcCtx.RedisClient
+
+	// 1. 通过Pub/Sub发送停止命令（立即通知在线Worker）
+	stopMsg := fmt.Sprintf(`{"action":"stop","workerName":"%s"}`, req.Name)
+	rdb.Publish(l.ctx, "cscan:worker:control", stopMsg)
+	l.Logger.Infof("[WorkerDelete] Sent stop command to worker: %s", req.Name)
+
+	// 2. 删除Worker状态数据
+	workerKey := fmt.Sprintf("worker:%s", req.Name)
+	rdb.Del(l.ctx, workerKey)
+
+	// 3. 删除控制信号（避免新启动的同名Worker被误停止）
+	ctrlKey := fmt.Sprintf("worker_ctrl:%s", req.Name)
+	rdb.Del(l.ctx, ctrlKey)
+
+	l.Logger.Infof("[WorkerDelete] Deleted worker data: %s", req.Name)
+
+	return &types.WorkerDeleteResp{Code: 0, Msg: "Worker已删除，停止信号已发送"}, nil
+}
+
+// WorkerRenameLogic Worker重命名逻辑
+type WorkerRenameLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewWorkerRenameLogic(ctx context.Context, svcCtx *svc.ServiceContext) *WorkerRenameLogic {
+	return &WorkerRenameLogic{
+		Logger: logx.WithContext(ctx),
+		ctx:    ctx,
+		svcCtx: svcCtx,
+	}
+}
+
+func (l *WorkerRenameLogic) WorkerRename(req *types.WorkerRenameReq) (resp *types.WorkerRenameResp, err error) {
+	if req.OldName == "" || req.NewName == "" {
+		return &types.WorkerRenameResp{Code: 400, Msg: "Worker名称不能为空"}, nil
+	}
+
+	if req.OldName == req.NewName {
+		return &types.WorkerRenameResp{Code: 400, Msg: "新旧名称相同"}, nil
+	}
+
+	rdb := l.svcCtx.RedisClient
+
+	// 1. 获取原Worker状态数据
+	oldKey := fmt.Sprintf("worker:%s", req.OldName)
+	data, err := rdb.Get(l.ctx, oldKey).Result()
+	if err != nil {
+		return &types.WorkerRenameResp{Code: 404, Msg: "Worker不存在"}, nil
+	}
+
+	// 2. 检查新名称是否已存在
+	newKey := fmt.Sprintf("worker:%s", req.NewName)
+	exists, _ := rdb.Exists(l.ctx, newKey).Result()
+	if exists > 0 {
+		return &types.WorkerRenameResp{Code: 400, Msg: "新名称已被使用"}, nil
+	}
+
+	// 3. 更新状态数据中的workerName
+	var status map[string]interface{}
+	if err := json.Unmarshal([]byte(data), &status); err != nil {
+		return &types.WorkerRenameResp{Code: 500, Msg: "数据解析失败"}, nil
+	}
+	status["workerName"] = req.NewName
+
+	// 4. 保存到新key
+	newData, _ := json.Marshal(status)
+	rdb.Set(l.ctx, newKey, newData, 10*time.Minute)
+
+	// 5. 删除旧key
+	rdb.Del(l.ctx, oldKey)
+
+	// 6. 发送重命名命令给Worker（让Worker更新自己的名称）
+	renameMsg := fmt.Sprintf(`{"action":"rename","workerName":"%s","newName":"%s"}`, req.OldName, req.NewName)
+	rdb.Publish(l.ctx, "cscan:worker:control", renameMsg)
+
+	l.Logger.Infof("[WorkerRename] Renamed worker from %s to %s", req.OldName, req.NewName)
+
+	return &types.WorkerRenameResp{Code: 0, Msg: "重命名成功"}, nil
 }

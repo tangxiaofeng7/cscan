@@ -81,6 +81,8 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 
 		// Worker管理
 		{Method: http.MethodPost, Path: "/api/v1/worker/list", Handler: worker.WorkerListHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/worker/delete", Handler: worker.WorkerDeleteHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/worker/rename", Handler: worker.WorkerRenameHandler(svcCtx)},
 
 		// 在线API搜索
 		{Method: http.MethodPost, Path: "/api/v1/onlineapi/search", Handler: onlineapi.OnlineSearchHandler(svcCtx)},

@@ -196,18 +196,20 @@ type AssetHistoryResp struct {
 
 // ==================== 任务管理 ====================
 type MainTask struct {
-	Id          string `json:"id"`
-	TaskId      string `json:"taskId"` // UUID，用于日志查询
-	Name        string `json:"name"`
-	Target      string `json:"target"`
-	ProfileId   string `json:"profileId"`
-	ProfileName string `json:"profileName"`
-	Status      string `json:"status"`
-	Progress    int    `json:"progress"`
-	Result      string `json:"result"`
-	IsCron      bool   `json:"isCron"`
-	CronRule    string `json:"cronRule"`
-	CreateTime  string `json:"createTime"`
+	Id           string `json:"id"`
+	TaskId       string `json:"taskId"` // UUID，用于日志查询
+	Name         string `json:"name"`
+	Target       string `json:"target"`
+	ProfileId    string `json:"profileId"`
+	ProfileName  string `json:"profileName"`
+	Status       string `json:"status"`
+	Progress     int    `json:"progress"`
+	Result       string `json:"result"`
+	IsCron       bool   `json:"isCron"`
+	CronRule     string `json:"cronRule"`
+	CreateTime   string `json:"createTime"`
+	SubTaskCount int    `json:"subTaskCount"` // 子任务总数
+	SubTaskDone  int    `json:"subTaskDone"`  // 已完成子任务数
 }
 
 type MainTaskListReq struct {
@@ -421,6 +423,7 @@ type TaskStatResp struct {
 // ==================== Worker管理 ====================
 type Worker struct {
 	Name         string  `json:"name"`
+	IP           string  `json:"ip"`
 	CPULoad      float64 `json:"cpuLoad"`
 	MemUsed      float64 `json:"memUsed"`
 	TaskCount    int     `json:"taskCount"`    // 已执行任务数
@@ -433,6 +436,25 @@ type WorkerListResp struct {
 	Code int      `json:"code"`
 	Msg  string   `json:"msg"`
 	List []Worker `json:"list"`
+}
+
+type WorkerDeleteReq struct {
+	Name string `json:"name"` // Worker名称
+}
+
+type WorkerDeleteResp struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
+}
+
+type WorkerRenameReq struct {
+	OldName string `json:"oldName"` // 原Worker名称
+	NewName string `json:"newName"` // 新Worker名称
+}
+
+type WorkerRenameResp struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
 }
 
 // ==================== 在线API搜索 ====================

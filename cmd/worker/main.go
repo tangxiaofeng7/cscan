@@ -17,7 +17,7 @@ var (
 	serverAddr  = flag.String("s", "localhost:9000", "server address")
 	redisAddr   = flag.String("r", "localhost:6379", "redis address for log streaming")
 	redisPass   = flag.String("rp", "", "redis password")
-	workerName  = flag.String("n", "txf's计算机", "worker name")
+	workerName  = flag.String("n", "", "worker name (default: hostname-pid)")
 	concurrency = flag.Int("c", 5, "concurrency")
 )
 
@@ -34,8 +34,12 @@ func main() {
 		name = worker.GetWorkerName()
 	}
 
+	// 获取本机IP
+	ip := worker.GetLocalIP()
+
 	config := worker.WorkerConfig{
 		Name:        name,
+		IP:          ip,
 		ServerAddr:  *serverAddr,
 		RedisAddr:   *redisAddr,
 		RedisPass:   *redisPass,
@@ -52,8 +56,11 @@ func main() {
 	// 启动Worker
 	w.Start()
 
-	fmt.Printf("Worker %s started, connecting to %s\n", name, *serverAddr)
-	fmt.Printf("Concurrency: %d\n", *concurrency)
+	fmt.Printf("Worker started:\n")
+	fmt.Printf("  Name: %s\n", name)
+	fmt.Printf("  IP: %s\n", ip)
+	fmt.Printf("  Server: %s\n", *serverAddr)
+	fmt.Printf("  Concurrency: %d\n", *concurrency)
 
 	// 等待退出信号
 	quit := make(chan os.Signal, 1)

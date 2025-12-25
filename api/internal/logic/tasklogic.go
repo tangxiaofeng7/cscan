@@ -60,18 +60,20 @@ func (l *MainTaskListLogic) MainTaskList(req *types.MainTaskListReq, workspaceId
 	list := make([]types.MainTask, 0, len(tasks))
 	for _, t := range tasks {
 		list = append(list, types.MainTask{
-			Id:          t.Id.Hex(),
-			TaskId:      t.TaskId, // UUID，用于日志查询
-			Name:        t.Name,
-			Target:      t.Target,
-			ProfileId:   t.ProfileId,
-			ProfileName: t.ProfileName,
-			Status:      t.Status,
-			Progress:    t.Progress,
-			Result:      t.Result,
-			IsCron:      t.IsCron,
-			CronRule:    t.CronRule,
-			CreateTime:  t.CreateTime.Format("2006-01-02 15:04:05"),
+			Id:           t.Id.Hex(),
+			TaskId:       t.TaskId, // UUID，用于日志查询
+			Name:         t.Name,
+			Target:       t.Target,
+			ProfileId:    t.ProfileId,
+			ProfileName:  t.ProfileName,
+			Status:       t.Status,
+			Progress:     t.Progress,
+			Result:       t.Result,
+			IsCron:       t.IsCron,
+			CronRule:     t.CronRule,
+			CreateTime:   t.CreateTime.Format("2006-01-02 15:04:05"),
+			SubTaskCount: t.SubTaskCount,
+			SubTaskDone:  t.SubTaskDone,
 		})
 	}
 
@@ -427,12 +429,17 @@ func (l *MainTaskStartLogic) MainTaskStart(req *types.MainTaskControlReq, worksp
 	}
 	target, _ := taskConfig["target"].(string)
 
+	// 从配置中获取批次大小，默认50
+	batchSize := 50
+	if bs, ok := taskConfig["batchSize"].(float64); ok && bs > 0 {
+		batchSize = int(bs)
+	}
+
 	// 使用目标拆分器判断是否需要拆分
-	// 每批50个IP，适合分布式并发处理
-	splitter := scheduler.NewTargetSplitter(50)
+	splitter := scheduler.NewTargetSplitter(batchSize)
 	batches := splitter.SplitTargets(target)
 
-	l.Logger.Infof("Task %s target split into %d batches", task.TaskId, len(batches))
+	l.Logger.Infof("Task %s target split into %d batches (batchSize=%d)", task.TaskId, len(batches), batchSize)
 
 	// 更新主任务状态为PENDING，记录子任务数量
 	update := bson.M{

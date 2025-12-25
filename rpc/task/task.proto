@@ -177,6 +177,7 @@ message KeepAliveReq {
   int32 taskStartedNumber = 4;
   int32 taskExecutedNumber = 5;
   bool isDaemon = 6;
+  string ip = 7;
 }
 
 message KeepAliveResp {

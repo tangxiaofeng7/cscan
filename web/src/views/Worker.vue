@@ -14,8 +14,24 @@
     </el-card>
 
     <el-card style="margin-bottom: 20px">
-      <el-table :data="tableData" v-loading="loading" stripe max-height="100">
-        <el-table-column prop="name" label="Worker名称" min-width="200" />
+      <el-table :data="tableData" v-loading="loading" stripe max-height="500">
+        <el-table-column prop="name" label="Worker名称" min-width="150">
+          <template #default="{ row }">
+            <span 
+              class="editable-name" 
+              @click="openRenameDialog(row)"
+              :title="'点击修改名称'"
+            >
+              {{ row.name }}
+              <el-icon class="edit-icon"><Edit /></el-icon>
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="ip" label="IP地址" width="140">
+          <template #default="{ row }">
+            {{ row.ip || '-' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="cpuLoad" label="CPU负载" width="120">
           <template #default="{ row }">
             <el-progress :percentage="Math.round(row.cpuLoad)" :stroke-width="10" :color="getLoadColor(row.cpuLoad)" />
@@ -41,10 +57,40 @@
           </template>
         </el-table-column>
         <el-table-column prop="updateTime" label="最后响应" width="160" />
+        <el-table-column label="操作" width="100" fixed="right">
+          <template #default="{ row }">
+            <el-popconfirm
+              title="确定要删除该Worker吗？这将停止Worker并清除其数据"
+              confirm-button-text="确定"
+              cancel-button-text="取消"
+              @confirm="deleteWorker(row.name)"
+            >
+              <template #reference>
+                <el-button size="small" type="danger" :icon="Delete">删除</el-button>
+              </template>
+            </el-popconfirm>
+          </template>
+        </el-table-column>
       </el-table>
 
       <el-empty v-if="!loading && tableData.length === 0" description="暂无Worker节点" />
     </el-card>
+
+    <!-- 重命名对话框 -->
+    <el-dialog v-model="renameDialogVisible" title="修改Worker名称" width="400px">
+      <el-form :model="renameForm" label-width="80px">
+        <el-form-item label="原名称">
+          <el-input v-model="renameForm.oldName" disabled />
+        </el-form-item>
+        <el-form-item label="新名称">
+          <el-input v-model="renameForm.newName" placeholder="请输入新的Worker名称" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="renameDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitRename" :loading="renameLoading">确定</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 实时日志 -->
     <el-card>
@@ -74,8 +120,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { Refresh } from '@element-plus/icons-vue'
+import { ref, onMounted, onUnmounted, nextTick, watch, reactive } from 'vue'
+import { Refresh, Delete, Edit } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import request from '@/api/request'
 
 const loading = ref(false)
@@ -88,6 +135,14 @@ const autoRefresh = ref(true)
 let pollingTimer = null
 let workerRefreshTimer = null
 let logIdSet = new Set() // 用于去重
+
+// 重命名相关
+const renameDialogVisible = ref(false)
+const renameLoading = ref(false)
+const renameForm = reactive({
+  oldName: '',
+  newName: ''
+})
 
 onMounted(() => {
   loadData()
@@ -216,6 +271,56 @@ function getLoadColor(value) {
   if (value < 80) return '#E6A23C'
   return '#F56C6C'
 }
+
+async function deleteWorker(workerName) {
+  try {
+    const res = await request.post('/worker/delete', { name: workerName })
+    if (res.code === 0) {
+      ElMessage.success('Worker已删除，停止信号已发送')
+      loadData()
+    } else {
+      ElMessage.error(res.msg || '删除失败')
+    }
+  } catch (e) {
+    ElMessage.error('删除失败: ' + e.message)
+  }
+}
+
+function openRenameDialog(row) {
+  renameForm.oldName = row.name
+  renameForm.newName = row.name
+  renameDialogVisible.value = true
+}
+
+async function submitRename() {
+  if (!renameForm.newName.trim()) {
+    ElMessage.warning('请输入新的Worker名称')
+    return
+  }
+  if (renameForm.newName === renameForm.oldName) {
+    renameDialogVisible.value = false
+    return
+  }
+
+  renameLoading.value = true
+  try {
+    const res = await request.post('/worker/rename', {
+      oldName: renameForm.oldName,
+      newName: renameForm.newName.trim()
+    })
+    if (res.code === 0) {
+      ElMessage.success('重命名成功')
+      renameDialogVisible.value = false
+      loadData()
+    } else {
+      ElMessage.error(res.msg || '重命名失败')
+    }
+  } catch (e) {
+    ElMessage.error('重命名失败: ' + e.message)
+  } finally {
+    renameLoading.value = false
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -275,6 +380,27 @@ function getLoadColor(value) {
     color: #6a6a6a;
     text-align: center;
     padding: 50px;
+  }
+
+  .editable-name {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    
+    &:hover {
+      color: #409eff;
+      
+      .edit-icon {
+        opacity: 1;
+      }
+    }
+    
+    .edit-icon {
+      opacity: 0;
+      font-size: 14px;
+      transition: opacity 0.2s;
+    }
   }
 }
 </style>

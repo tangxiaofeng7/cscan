@@ -34,9 +34,14 @@
             <el-tag :type="getStatusType(row.status)">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="progress" label="进度" width="100">
+        <el-table-column prop="progress" label="进度" width="150">
           <template #default="{ row }">
-            <el-progress :percentage="row.progress" :stroke-width="6" />
+            <div>
+              <el-progress :percentage="row.progress" :stroke-width="6" />
+              <div v-if="row.subTaskCount > 1" class="sub-task-info">
+                子任务: {{ row.subTaskDone }}/{{ row.subTaskCount }}
+              </div>
+            </div>
           </template>
         </el-table-column>
         <el-table-column label="定时任务" width="100">
@@ -94,7 +99,12 @@
           <el-tag :type="getStatusType(currentTask.status)">{{ currentTask.status }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="进度">
-          <el-progress :percentage="currentTask.progress" :stroke-width="10" style="width: 150px" />
+          <div>
+            <el-progress :percentage="currentTask.progress" :stroke-width="10" style="width: 150px" />
+            <div v-if="currentTask.subTaskCount > 1" class="sub-task-info">
+              子任务: {{ currentTask.subTaskDone }}/{{ currentTask.subTaskCount }}
+            </div>
+          </div>
         </el-descriptions-item>
         <el-descriptions-item label="创建时间">{{ currentTask.createTime }}</el-descriptions-item>
         <el-descriptions-item label="定时任务">
@@ -153,6 +163,11 @@
         </el-form-item>
         <el-form-item label="描述">
           <el-input v-model="profileForm.description" placeholder="请输入描述" />
+        </el-form-item>
+        <el-divider content-position="left">任务分发</el-divider>
+        <el-form-item label="任务拆分">
+          <el-input-number v-model="profileForm.batchSize" :min="10" :max="1000" :step="10" />
+          <span class="form-hint">每批目标数量，多Worker时自动拆分并行执行 (0=不拆分)</span>
         </el-form-item>
         <el-divider content-position="left">扫描选项</el-divider>
         <el-form-item label="端口扫描">
@@ -325,14 +340,32 @@
     </el-dialog>
 
     <!-- 任务日志对话框 -->
-    <el-dialog v-model="logDialogVisible" title="任务日志" width="900px" @close="closeLogDialog">
+    <el-dialog v-model="logDialogVisible" title="任务日志" width="1000px" @close="closeLogDialog">
+      <div class="log-filter">
+        <el-select v-model="logWorkerFilter" placeholder="筛选Worker" clearable size="small" style="width: 150px">
+          <el-option label="全部Worker" value="" />
+          <el-option v-for="w in logWorkers" :key="w" :label="w" :value="w" />
+        </el-select>
+        <el-select v-model="logSubTaskFilter" placeholder="筛选子任务" clearable size="small" style="width: 150px; margin-left: 10px">
+          <el-option label="全部子任务" value="" />
+          <el-option v-for="s in logSubTasks" :key="s" :label="s === 'main' ? '主任务' : `子任务 ${s}`" :value="s" />
+        </el-select>
+        <el-select v-model="logLevelFilter" placeholder="筛选级别" clearable size="small" style="width: 120px; margin-left: 10px">
+          <el-option label="全部级别" value="" />
+          <el-option label="INFO" value="INFO" />
+          <el-option label="WARN" value="WARN" />
+          <el-option label="ERROR" value="ERROR" />
+        </el-select>
+        <span class="log-stats">共 {{ filteredLogs.length }} 条日志</span>
+      </div>
       <div class="log-container" ref="logContainerRef">
-        <div v-if="taskLogs.length === 0" class="log-empty">暂无日志</div>
-        <div v-for="(log, index) in taskLogs" :key="index" class="log-entry" :class="'log-' + log.level.toLowerCase()">
-          <span class="log-time">{{ log.timestamp }}</span>
+        <div v-if="filteredLogs.length === 0" class="log-empty">暂无日志</div>
+        <div v-for="(log, index) in filteredLogs" :key="index" class="log-entry" :class="'log-' + log.level.toLowerCase()">
+          <span class="log-time">{{ formatLogTime(log.timestamp) }}</span>
           <span class="log-level">[{{ log.level }}]</span>
           <span class="log-worker">{{ log.workerName }}</span>
-          <span class="log-message">{{ log.message }}</span>
+          <span v-if="log.subTask" class="log-subtask">[{{ log.subTask === 'main' ? '主' : log.subTask }}]</span>
+          <span class="log-message">{{ log.displayMessage }}</span>
         </div>
       </div>
       <template #footer>
@@ -344,7 +377,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Setting, Delete } from '@element-plus/icons-vue'
@@ -373,9 +406,71 @@ const autoRefresh = ref(true)
 const taskLogs = ref([])
 const currentLogTaskId = ref('')
 const logIdSet = new Set() // 用于日志去重
+const logWorkerFilter = ref('')
+const logSubTaskFilter = ref('')
+const logLevelFilter = ref('')
 let refreshTimer = null
 let logEventSource = null
 let logPollingTimer = null // 日志轮询定时器
+
+// 从日志中提取Worker列表
+const logWorkers = computed(() => {
+  const workers = new Set()
+  taskLogs.value.forEach(log => {
+    if (log.workerName) workers.add(log.workerName)
+  })
+  return Array.from(workers).sort()
+})
+
+// 从日志中提取子任务列表
+const logSubTasks = computed(() => {
+  const subTasks = new Set()
+  taskLogs.value.forEach(log => {
+    if (log.subTask) subTasks.add(log.subTask)
+  })
+  return Array.from(subTasks).sort((a, b) => {
+    if (a === 'main') return -1
+    if (b === 'main') return 1
+    return parseInt(a) - parseInt(b)
+  })
+})
+
+// 筛选后的日志
+const filteredLogs = computed(() => {
+  return taskLogs.value.filter(log => {
+    if (logWorkerFilter.value && log.workerName !== logWorkerFilter.value) return false
+    if (logSubTaskFilter.value && log.subTask !== logSubTaskFilter.value) return false
+    if (logLevelFilter.value && log.level !== logLevelFilter.value) return false
+    return true
+  })
+})
+
+// 格式化日志时间（只显示时分秒）
+function formatLogTime(timestamp) {
+  if (!timestamp) return ''
+  // 如果是完整时间格式，只取时分秒部分
+  const match = timestamp.match(/(\d{2}:\d{2}:\d{2})/)
+  return match ? match[1] : timestamp
+}
+
+// 解析日志消息，提取子任务信息并简化显示
+function parseLogMessage(log) {
+  let message = log.message || ''
+  let subTask = 'main'
+  
+  // 提取 [Sub-X] 标记
+  const subMatch = message.match(/^\[Sub-(\d+)\]\s*/)
+  if (subMatch) {
+    subTask = subMatch[1]
+    message = message.replace(subMatch[0], '')
+  }
+  
+  return {
+    ...log,
+    subTask,
+    displayMessage: message
+  }
+}
 
 const editForm = reactive({
   id: '',
@@ -394,6 +489,7 @@ const profileForm = reactive({
   id: '',
   name: '',
   description: '',
+  batchSize: 50,
   portscanEnable: true,
   portscanTool: 'naabu',
   portscanRate: 1000,
@@ -559,6 +655,7 @@ function showProfileForm(row = null) {
       id: row.id,
       name: row.name,
       description: row.description,
+      batchSize: config.batchSize || 50,
       portscanEnable: config.portscan?.enable ?? true,
       portscanTool: config.portscan?.tool || 'naabu',
       portscanRate: config.portscan?.rate || 1000,
@@ -581,6 +678,7 @@ function showProfileForm(row = null) {
       id: '',
       name: '',
       description: '',
+      batchSize: 50,
       portscanEnable: true,
       portscanTool: 'naabu',
       portscanRate: 1000,
@@ -605,6 +703,7 @@ function showProfileForm(row = null) {
 async function handleSaveProfile() {
   await profileFormRef.value.validate()
   const config = {
+    batchSize: profileForm.batchSize,
     portscan: { 
       enable: profileForm.portscanEnable, 
       tool: profileForm.portscanTool,
@@ -807,7 +906,8 @@ async function refreshLogs() {
         const logId = (log.timestamp || '') + (log.message || '')
         if (!logIdSet.has(logId)) {
           logIdSet.add(logId)
-          taskLogs.value.push(log)
+          // 解析日志消息，提取子任务信息
+          taskLogs.value.push(parseLogMessage(log))
         }
       }
       // 按时间排序
@@ -861,7 +961,8 @@ function connectLogStream() {
       const logId = (log.timestamp || '') + (log.message || '')
       if (!logIdSet.has(logId)) {
         logIdSet.add(logId)
-        taskLogs.value.push(log)
+        // 解析日志消息，提取子任务信息
+        taskLogs.value.push(parseLogMessage(log))
         scrollToBottom()
       }
     } catch (err) {
@@ -888,6 +989,10 @@ function closeLogDialog() {
   currentLogTaskId.value = ''
   taskLogs.value = []
   logIdSet.clear()
+  // 重置筛选条件
+  logWorkerFilter.value = ''
+  logSubTaskFilter.value = ''
+  logLevelFilter.value = ''
   // 关闭SSE连接
   if (logEventSource) {
     logEventSource.close()
@@ -920,10 +1025,28 @@ function closeLogDialog() {
     font-size: 12px;
     margin-left: 10px;
   }
+  
+  .sub-task-info {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+}
+
+.log-filter {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  
+  .log-stats {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: 12px;
+  }
 }
 
 .log-container {
-  max-height: 400px;
+  max-height: 450px;
   overflow-y: auto;
   background-color: #1e1e1e;
   border-radius: 4px;
@@ -948,18 +1071,27 @@ function closeLogDialog() {
 .log-time {
   color: #6a9955;
   margin-right: 8px;
+  font-size: 11px;
 }
 
 .log-level {
   font-weight: bold;
-  margin-right: 8px;
-  min-width: 50px;
+  margin-right: 6px;
+  min-width: 45px;
   display: inline-block;
+  font-size: 11px;
 }
 
 .log-worker {
   color: #569cd6;
-  margin-right: 8px;
+  margin-right: 6px;
+  font-size: 11px;
+}
+
+.log-subtask {
+  color: #ce9178;
+  margin-right: 6px;
+  font-size: 11px;
 }
 
 .log-message {

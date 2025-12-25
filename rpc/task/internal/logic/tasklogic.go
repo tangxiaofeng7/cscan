@@ -405,10 +405,14 @@ func (l *TaskLogic) KeepAlive(in *pb.KeepAliveReq) (*pb.KeepAliveResp, error) {
 		return &pb.KeepAliveResp{Status: "error"}, nil
 	}
 
+	// 调试：打印收到的 IP
+	l.Logger.Infof("[KeepAlive] Worker=%s, IP=%s", in.WorkerName, in.Ip)
+
 	// 保存Worker状态到Redis
 	key := fmt.Sprintf("worker:%s", in.WorkerName)
 	status := map[string]interface{}{
 		"workerName":         in.WorkerName,
+		"ip":                 in.Ip,
 		"cpuLoad":            in.CpuLoad,
 		"memUsed":            in.MemUsed,
 		"taskStartedNumber":  in.TaskStartedNumber,
@@ -418,6 +422,7 @@ func (l *TaskLogic) KeepAlive(in *pb.KeepAliveReq) (*pb.KeepAliveResp, error) {
 	}
 
 	data, _ := json.Marshal(status)
+	l.Logger.Infof("[KeepAlive] Saving to Redis: key=%s, data=%s", key, string(data))
 	l.svcCtx.RedisClient.Set(l.ctx, key, data, 10*time.Minute)
 
 	// 检查是否有控制指令
