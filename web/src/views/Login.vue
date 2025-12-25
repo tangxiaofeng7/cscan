@@ -3,7 +3,7 @@
     <div class="login-box">
       <div class="login-header">
         <h1>CSCAN</h1>
-        <p>网络安全资产扫描平台</p>
+        <p>资产安全扫描平台</p>
       </div>
       <el-form ref="formRef" :model="form" :rules="rules" class="login-form">
         <el-form-item prop="username">
