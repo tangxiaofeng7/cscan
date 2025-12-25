@@ -285,7 +285,14 @@ func (l *TaskLogic) NewTask(in *pb.NewTaskReq) (*pb.NewTaskResp, error) {
 }
 
 func (l *TaskLogic) SaveTaskResult(in *pb.SaveTaskResultReq) (*pb.SaveTaskResultResp, error) {
-	l.Logger.Infof("SaveTaskResult: workspaceId=%s, mainTaskId=%s, assets=%d", in.WorkspaceId, in.MainTaskId, len(in.Assets))
+	l.Logger.Infof("SaveTaskResult: workspaceId=%s, mainTaskId=%s, orgId=%s, assets=%d", in.WorkspaceId, in.MainTaskId, in.OrgId, len(in.Assets))
+	
+	// Debug: 打印orgId是否为空
+	if in.OrgId == "" {
+		l.Logger.Infof("SaveTaskResult: orgId is EMPTY")
+	} else {
+		l.Logger.Infof("SaveTaskResult: orgId is SET to %s", in.OrgId)
+	}
 	
 	if in.WorkspaceId == "" {
 		l.Logger.Error("SaveTaskResult: workspaceId is empty")
@@ -298,11 +305,16 @@ func (l *TaskLogic) SaveTaskResult(in *pb.SaveTaskResultReq) (*pb.SaveTaskResult
 	var newCount, updateCount int
 	for _, asset := range in.Assets {
 		doc := convertPbAssetToModel(asset, in.MainTaskId)
+		// 设置组织ID
+		if in.OrgId != "" {
+			doc.OrgId = in.OrgId
+		}
 		
 		// 根据host:port查找是否存在（同IP同端口覆盖）
 		existing, err := assetModel.FindByHostPort(l.ctx, doc.Host, doc.Port)
 		if err != nil || existing == nil {
 			// 新增
+			l.Logger.Infof("SaveTaskResult: Inserting new asset %s:%d with orgId=%s", doc.Host, doc.Port, doc.OrgId)
 			if err := assetModel.Insert(l.ctx, doc); err == nil {
 				newCount++
 			}
@@ -599,6 +611,9 @@ func buildAssetUpdate(doc *model.Asset) bson.M {
 	}
 	if doc.Server != "" {
 		update["server"] = doc.Server
+	}
+	if doc.OrgId != "" {
+		update["org_id"] = doc.OrgId
 	}
 	return update
 }

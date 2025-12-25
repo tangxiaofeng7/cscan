@@ -122,6 +122,7 @@ message SaveTaskResultReq {
   string workspaceId = 1;
   string mainTaskId = 2;
   repeated AssetDocument assets = 3;
+  string orgId = 4;
 }
 
 message SaveTaskResultResp {

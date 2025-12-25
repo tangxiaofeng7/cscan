@@ -21,6 +21,17 @@
             <el-form-item label="应用">
               <el-input v-model="searchForm.app" placeholder="指纹" clearable style="width: 100px" @keyup.enter="handleSearch" />
             </el-form-item>
+            <el-form-item label="组织">
+              <el-select v-model="searchForm.orgId" placeholder="全部组织" clearable style="width: 120px" @change="handleSearch">
+                <el-option label="全部组织" value="" />
+                <el-option
+                  v-for="org in organizations"
+                  :key="org.id"
+                  :label="org.name"
+                  :value="org.id"
+                />
+              </el-select>
+            </el-form-item>
           </el-form>
         </el-tab-pane>
       <el-tab-pane label="语法查询" name="syntax">
@@ -95,7 +106,7 @@
               <a :href="getAssetUrl(row)" target="_blank" class="asset-link">{{ row.authority }}</a>
               <el-icon v-if="row.authority" class="link-icon"><Link /></el-icon>
             </div>
-            <div class="org-text">{{ row.org || '暂无' }}</div>
+            <div class="org-text">{{ row.orgName || '默认组织' }}</div>
           </template>
         </el-table-column>
         <el-table-column label="IP" width="140">
@@ -106,8 +117,8 @@
         </el-table-column>
         <el-table-column label="端口-协议" width="120">
           <template #default="{ row }">
-            <span>{{ row.port }}</span>
-            <span v-if="row.service" class="service-text"> {{ row.service }}</span>
+            <span class="port-text">{{ row.port }}</span>
+            <span v-if="row.service" class="service-text">{{ row.service }}</span>
           </template>
         </el-table-column>
         <el-table-column label="标题-指纹" min-width="200">
@@ -235,6 +246,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Delete, Link } from '@element-plus/icons-vue'
 import { getAssetList, getAssetStat, deleteAsset, batchDeleteAsset, getAssetHistory } from '@/api/asset'
 import { useWorkspaceStore } from '@/stores/workspace'
+import request from '@/api/request'
 
 const workspaceStore = useWorkspaceStore()
 const loading = ref(false)
@@ -245,6 +257,7 @@ const historyVisible = ref(false)
 const historyLoading = ref(false)
 const historyList = ref([])
 const currentAsset = ref(null)
+const organizations = ref([])
 
 const stat = reactive({
   total: 0,
@@ -263,6 +276,7 @@ const searchForm = reactive({
   service: '',
   title: '',
   app: '',
+  orgId: '',
   onlyUpdated: false,
   sortByUpdate: true
 })
@@ -283,6 +297,7 @@ function handleWorkspaceChanged() {
 onMounted(() => {
   loadData()
   loadStat()
+  loadOrganizations()
   window.addEventListener('workspace-changed', handleWorkspaceChanged)
 })
 
@@ -298,7 +313,8 @@ async function loadData() {
       pageSize: pagination.pageSize,
       onlyUpdated: searchForm.onlyUpdated,
       sortByUpdate: searchForm.sortByUpdate,
-      workspaceId: workspaceStore.currentWorkspaceId || ''
+      workspaceId: workspaceStore.currentWorkspaceId || '',
+      orgId: searchForm.orgId || ''
     }
 
     // 根据当前Tab决定使用哪种查询方式
@@ -332,6 +348,20 @@ async function loadStat() {
     stat.topService = res.topService || []
     stat.topApp = res.topApp || []
     stat.topTitle = res.topTitle || []
+  }
+}
+
+async function loadOrganizations() {
+  try {
+    const res = await request.post('/organization/list', { page: 1, pageSize: 100 })
+    // 处理嵌套响应结构
+    const data = res.data || res
+    if (data.code === 0) {
+      // 资产筛选显示所有组织（包括禁用的，用于查看历史数据）
+      organizations.value = data.list || []
+    }
+  } catch (e) {
+    console.error('Failed to load organizations:', e)
   }
 }
 
@@ -425,6 +455,7 @@ function handleReset() {
     service: '',
     title: '',
     app: '',
+    orgId: '',
     onlyUpdated: false,
     sortByUpdate: true
   })
@@ -771,6 +802,11 @@ function handleAppTagClick(app) {
       font-size: 12px;
     }
 
+    .port-text {
+      font-weight: 500;
+      margin-right: 8px;
+    }
+
     .service-text {
       color: #67c23a;
       font-size: 12px;
@@ -813,8 +849,9 @@ function handleAppTagClick(app) {
       .fingerprint-tabs {
         :deep(.el-tabs__header) {
           margin-bottom: 0;
-          background: var(--el-fill-color-light);
+          background: var(--el-fill-color-darker);
           border-color: var(--el-border-color);
+          border-radius: 4px 4px 0 0;
         }
         
         :deep(.el-tabs__nav) {
@@ -822,15 +859,17 @@ function handleAppTagClick(app) {
         }
         
         :deep(.el-tabs__item) {
-          padding: 0 10px;
+          padding: 0 12px;
           height: 28px;
           line-height: 28px;
           font-size: 12px;
-          color: var(--el-text-color-regular);
+          color: var(--el-text-color-secondary);
+          border: none;
           
           &.is-active {
             color: var(--el-color-primary);
-            background: var(--el-bg-color);
+            background: var(--el-bg-color-overlay);
+            border-radius: 4px 4px 0 0;
           }
           
           &:hover {
@@ -840,7 +879,7 @@ function handleAppTagClick(app) {
         
         :deep(.el-tabs__content) {
           padding: 0;
-          background: var(--el-bg-color);
+          background: transparent;
         }
         
         :deep(.el-tab-pane) {

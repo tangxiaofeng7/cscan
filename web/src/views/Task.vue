@@ -271,6 +271,16 @@
             />
           </el-select>
         </el-form-item>
+        <el-form-item label="所属组织">
+          <el-select v-model="form.orgId" placeholder="选择组织（可选，默认为默认组织）" clearable style="width: 100%">
+            <el-option
+              v-for="org in organizations"
+              :key="org.id"
+              :label="org.name"
+              :value="org.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="扫描目标" prop="target">
           <el-input
             v-model="form.target"
@@ -406,6 +416,7 @@ import { Plus, Setting, Delete } from '@element-plus/icons-vue'
 import { getTaskList, createTask, deleteTask, batchDeleteTask, getTaskProfileList, saveTaskProfile, deleteTaskProfile, retryTask, startTask, pauseTask, resumeTask, stopTask, updateTask, getTaskLogs } from '@/api/task'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { validateTargets, formatValidationErrors } from '@/utils/target'
+import request from '@/api/request'
 
 const router = useRouter()
 const workspaceStore = useWorkspaceStore()
@@ -419,6 +430,7 @@ const editDialogVisible = ref(false)
 const logDialogVisible = ref(false)
 const tableData = ref([])
 const profiles = ref([])
+const organizations = ref([])
 const formRef = ref()
 const profileFormRef = ref()
 const editFormRef = ref()
@@ -565,6 +577,7 @@ const form = reactive({
   target: '',
   profileId: '',
   workspaceId: '',
+  orgId: '',
   isCron: false,
   cronRule: ''
 })
@@ -587,6 +600,7 @@ function handleWorkspaceChanged() {
 onMounted(() => {
   loadData()
   loadProfiles()
+  loadOrganizations()
   // 如果默认开启自动刷新，启动定时器
   if (autoRefresh.value) {
     startAutoRefresh()
@@ -651,6 +665,20 @@ async function loadProfiles() {
   }
 }
 
+async function loadOrganizations() {
+  try {
+    const res = await request.post('/organization/list', { page: 1, pageSize: 100 })
+    // 处理嵌套响应结构
+    const data = res.data || res
+    if (data.code === 0) {
+      // 只显示启用状态的组织
+      organizations.value = (data.list || []).filter(org => org.status === 'enable')
+    }
+  } catch (e) {
+    console.error('Failed to load organizations:', e)
+  }
+}
+
 function getStatusType(status) {
   const map = {
     CREATED: 'info',
@@ -665,11 +693,19 @@ function getStatusType(status) {
 }
 
 function showCreateDialog() {
+  // 如果当前是"全部空间"(all)，则使用"默认工作空间"，否则使用当前工作空间
+  let wsId = workspaceStore.currentWorkspaceId
+  if (wsId === 'all' || !wsId) {
+    // 查找名为"默认工作空间"的工作空间
+    const defaultWs = workspaceStore.workspaces.find(ws => ws.name === '默认工作空间')
+    wsId = defaultWs ? defaultWs.id : (workspaceStore.workspaces.length > 0 ? workspaceStore.workspaces[0].id : '')
+  }
   Object.assign(form, { 
     name: '', 
     target: '', 
     profileId: '', 
-    workspaceId: workspaceStore.currentWorkspaceId || '',
+    workspaceId: wsId,
+    orgId: '',
     isCron: false, 
     cronRule: '' 
   })

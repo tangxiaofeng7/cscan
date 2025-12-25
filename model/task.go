@@ -29,6 +29,7 @@ type MainTask struct {
 	Target      string             `bson:"target" json:"target"`
 	ProfileId   string             `bson:"profile_id" json:"profileId"`
 	ProfileName string             `bson:"profile_name" json:"profileName"`
+	OrgId       string             `bson:"org_id,omitempty" json:"orgId"`
 	Status      string             `bson:"status" json:"status"`
 	Progress    int                `bson:"progress" json:"progress"`
 	Result      string             `bson:"result" json:"result"`

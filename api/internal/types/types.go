@@ -84,6 +84,38 @@ type WorkspaceSaveReq struct {
 	Description string `json:"description,optional"`
 }
 
+// ==================== 组织管理 ====================
+type Organization struct {
+	Id          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Status      string `json:"status"`
+	CreateTime  string `json:"createTime"`
+}
+
+type OrganizationListResp struct {
+	Code  int            `json:"code"`
+	Msg   string         `json:"msg"`
+	Total int            `json:"total"`
+	List  []Organization `json:"list"`
+}
+
+type OrganizationSaveReq struct {
+	Id          string `json:"id,optional"`
+	Name        string `json:"name"`
+	Description string `json:"description,optional"`
+	Status      string `json:"status,optional"`
+}
+
+type OrganizationDeleteReq struct {
+	Id string `json:"id"`
+}
+
+type OrganizationUpdateStatusReq struct {
+	Id     string `json:"id"`
+	Status string `json:"status"`
+}
+
 // ==================== 资产管理 ====================
 type Asset struct {
 	Id         string   `json:"id"`
@@ -107,7 +139,10 @@ type Asset struct {
 	IsUpdated  bool     `json:"isUpdated"`
 	CreateTime string   `json:"createTime"`
 	UpdateTime string   `json:"updateTime"`
-	// 新增字段 - 风险评分
+	// 组织
+	OrgId   string `json:"orgId,omitempty"`
+	OrgName string `json:"orgName,omitempty"`
+	// 风险评分
 	RiskScore float64 `json:"riskScore,omitempty"`
 	RiskLevel string  `json:"riskLevel,omitempty"`
 }
@@ -122,6 +157,7 @@ type AssetListReq struct {
 	Title        string `json:"title,optional"`
 	App          string `json:"app,optional"`
 	HttpStatus   string `json:"httpStatus,optional"`
+	OrgId        string `json:"orgId,optional"`
 	OnlyNew      bool   `json:"onlyNew,optional"`
 	OnlyUpdated  bool   `json:"onlyUpdated,optional"`
 	ExcludeCdn   bool   `json:"excludeCdn,optional"`
@@ -230,6 +266,7 @@ type MainTaskCreateReq struct {
 	Name      string `json:"name"`
 	Target    string `json:"target"`
 	ProfileId string `json:"profileId"`
+	OrgId     string `json:"orgId,optional"`
 	IsCron    bool   `json:"isCron,optional"`
 	CronRule  string `json:"cronRule,optional"`
 }

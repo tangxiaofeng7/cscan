@@ -47,7 +47,7 @@ type Asset struct {
 	IconHashFile  string             `bson:"icon_hash_file,omitempty" json:"iconHashFile"`
 	IconHashBytes []byte             `bson:"icon_hash_bytes,omitempty" json:"-"`
 	Screenshot    string             `bson:"screenshot,omitempty" json:"screenshot"`
-	OrgId         string             `bson:"org,omitempty" json:"orgId"`
+	OrgId         string             `bson:"org_id,omitempty" json:"orgId"`
 	ColorTag      string             `bson:"color,omitempty" json:"colorTag"`
 	Memo          string             `bson:"memo,omitempty" json:"memo"`
 	IsCDN         bool               `bson:"cdn,omitempty" json:"isCdn"`
