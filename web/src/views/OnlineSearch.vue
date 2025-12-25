@@ -30,6 +30,7 @@
           <el-button type="primary" :loading="loading" @click="handleSearch">搜索</el-button>
           <el-button @click="handleImport" :disabled="!tableData.length">导入资产</el-button>
           <el-button @click="showConfigDialog">API配置</el-button>
+          <el-button @click="showHelpDialog">语法帮助</el-button>
         </el-form-item>
       </el-form>
 
@@ -115,10 +116,9 @@
       </template>
     </el-dialog>
 
-    <!-- 语法帮助 -->
-    <el-card class="help-card">
-      <template #header>语法帮助</template>
-      <el-tabs v-model="activeTab">
+    <!-- 语法帮助对话框 -->
+    <el-dialog v-model="helpDialogVisible" title="语法帮助" width="650px">
+      <el-tabs v-model="helpTab">
         <el-tab-pane label="Fofa" name="fofa">
           <div class="syntax-help">
             <p><code>ip="1.1.1.1"</code> - 搜索指定IP</p>
@@ -152,7 +152,7 @@
           </div>
         </el-tab-pane>
       </el-tabs>
-    </el-card>
+    </el-dialog>
   </div>
 </template>
 
@@ -164,9 +164,10 @@ import request from '@/api/request'
 const loading = ref(false)
 const tableData = ref([])
 const total = ref(0)
-const activeTab = ref('fofa')
 const configDialogVisible = ref(false)
 const configTab = ref('fofa')
+const helpDialogVisible = ref(false)
+const helpTab = ref('fofa')
 
 const searchForm = reactive({
   source: 'fofa',
@@ -248,6 +249,10 @@ function showConfigDialog() {
   configDialogVisible.value = true
 }
 
+function showHelpDialog() {
+  helpDialogVisible.value = true
+}
+
 async function saveConfig() {
   const platform = configTab.value
   const config = apiConfigs[platform]
@@ -311,18 +316,16 @@ async function saveConfig() {
     }
   }
 
-  .help-card {
-    .syntax-help {
-      p {
-        margin: 8px 0;
-        line-height: 1.6;
+  .syntax-help {
+    p {
+      margin: 8px 0;
+      line-height: 1.6;
 
-        code {
-          background: var(--el-fill-color-light);
-          padding: 2px 6px;
-          border-radius: 4px;
-          color: #e83e8c;
-        }
+      code {
+        background: var(--el-fill-color-light);
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: #e83e8c;
       }
     }
   }
