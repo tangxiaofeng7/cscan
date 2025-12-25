@@ -34,25 +34,9 @@ func NewReportDetailLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Repo
 func (l *ReportDetailLogic) ReportDetail(req *types.ReportDetailReq, workspaceId string) (*types.ReportDetailResp, error) {
 	l.Logger.Infof("ReportDetail: taskId=%s, workspaceId=%s", req.TaskId, workspaceId)
 	
-	// 获取任务信息 - 先在指定工作空间查找，找不到则在默认工作空间查找
+	// 获取任务信息
 	taskModel := l.svcCtx.GetMainTaskModel(workspaceId)
 	task, err := taskModel.FindById(l.ctx, req.TaskId)
-	
-	// 如果在当前工作空间找不到，尝试在默认工作空间查找
-	actualWorkspaceId := workspaceId
-	if err != nil && workspaceId != "" {
-		l.Logger.Infof("Task not found in workspace %s, trying default workspace", workspaceId)
-		taskModel = l.svcCtx.GetMainTaskModel("")
-		task, err = taskModel.FindById(l.ctx, req.TaskId)
-		if err == nil {
-			actualWorkspaceId = ""
-		}
-	}
-	
-	// 如果还是找不到，尝试在默认工作空间查找（workspaceId 本身就是空的情况）
-	if err != nil && workspaceId == "" {
-		l.Logger.Infof("Task not found in default workspace, error: %v", err)
-	}
 	
 	if err != nil {
 		l.Logger.Errorf("FindById failed: %v", err)
@@ -60,86 +44,46 @@ func (l *ReportDetailLogic) ReportDetail(req *types.ReportDetailReq, workspaceId
 	}
 	
 	// 确定用于查询资产的 taskId
-	// 资产保存时使用的是 task.Id.Hex() (MongoDB ObjectID) 作为 taskId
-	queryTaskId := task.Id.Hex()
-	l.Logger.Infof("Found task: name=%s, taskId(UUID)=%s, queryTaskId(ObjectID)=%s, actualWorkspaceId=%s", task.Name, task.TaskId, queryTaskId, actualWorkspaceId)
+	// 资产保存时使用的是 task.TaskId (UUID) 作为 taskId
+	queryTaskId := task.TaskId
+	l.Logger.Infof("Found task: name=%s, taskId(UUID)=%s, objectId=%s, workspaceId=%s", task.Name, task.TaskId, task.Id.Hex(), workspaceId)
 
-	// 获取资产列表 - 使用实际的工作空间
-	assetModel := l.svcCtx.GetAssetModel(actualWorkspaceId)
+	// 获取资产列表
+	assetModel := l.svcCtx.GetAssetModel(workspaceId)
 	
-	// 先尝试用 ObjectID 查询
+	// 先尝试用 UUID 查询
 	assets, err := assetModel.Find(l.ctx, bson.M{"taskId": queryTaskId}, 0, 0)
 	if err != nil {
 		l.Logger.Errorf("查询资产失败: %v", err)
 	}
-	l.Logger.Infof("Found %d assets for queryTaskId(ObjectID)=%s in workspace=%s", len(assets), queryTaskId, actualWorkspaceId)
+	l.Logger.Infof("Found %d assets for queryTaskId(UUID)=%s", len(assets), queryTaskId)
 	
-	// 如果没找到，尝试用 UUID 查询（兼容旧数据）
+	// 如果没找到，尝试用 ObjectID 查询（兼容旧数据）
 	if len(assets) == 0 {
-		l.Logger.Infof("No assets found with ObjectID, trying UUID: %s", task.TaskId)
-		assets, err = assetModel.Find(l.ctx, bson.M{"taskId": task.TaskId}, 0, 0)
+		l.Logger.Infof("No assets found with UUID, trying ObjectID: %s", task.Id.Hex())
+		assets, err = assetModel.Find(l.ctx, bson.M{"taskId": task.Id.Hex()}, 0, 0)
 		if err != nil {
-			l.Logger.Errorf("查询资产(UUID)失败: %v", err)
+			l.Logger.Errorf("查询资产(ObjectID)失败: %v", err)
 		}
-		l.Logger.Infof("Found %d assets for taskId(UUID)=%s", len(assets), task.TaskId)
-	}
-	
-	// 如果在当前工作空间找不到资产，尝试在默认工作空间查找
-	if len(assets) == 0 && actualWorkspaceId != "" {
-		l.Logger.Infof("No assets found in workspace %s, trying default workspace", actualWorkspaceId)
-		defaultAssetModel := l.svcCtx.GetAssetModel("")
-		assets, err = defaultAssetModel.Find(l.ctx, bson.M{"taskId": queryTaskId}, 0, 0)
-		if err != nil {
-			l.Logger.Errorf("查询默认工作空间资产失败: %v", err)
-		}
-		l.Logger.Infof("Found %d assets in default workspace with ObjectID", len(assets))
-		
-		// 也尝试用 UUID 查询默认工作空间
-		if len(assets) == 0 {
-			assets, err = defaultAssetModel.Find(l.ctx, bson.M{"taskId": task.TaskId}, 0, 0)
-			if err != nil {
-				l.Logger.Errorf("查询默认工作空间资产(UUID)失败: %v", err)
-			}
-			l.Logger.Infof("Found %d assets in default workspace with UUID", len(assets))
-		}
+		l.Logger.Infof("Found %d assets for taskId(ObjectID)=%s", len(assets), task.Id.Hex())
 	}
 
-	// 获取漏洞列表 - 使用实际的工作空间
-	vulModel := l.svcCtx.GetVulModel(actualWorkspaceId)
+	// 获取漏洞列表
+	vulModel := l.svcCtx.GetVulModel(workspaceId)
 	vuls, err := vulModel.Find(l.ctx, bson.M{"task_id": queryTaskId}, 0, 0)
 	if err != nil {
 		l.Logger.Errorf("查询漏洞失败: %v", err)
 	}
-	l.Logger.Infof("Found %d vuls for queryTaskId(ObjectID)=%s in workspace=%s", len(vuls), queryTaskId, actualWorkspaceId)
+	l.Logger.Infof("Found %d vuls for queryTaskId(UUID)=%s", len(vuls), queryTaskId)
 	
-	// 如果没找到，尝试用 UUID 查询（兼容旧数据）
+	// 如果没找到，尝试用 ObjectID 查询（兼容旧数据）
 	if len(vuls) == 0 {
-		l.Logger.Infof("No vuls found with ObjectID, trying UUID: %s", task.TaskId)
-		vuls, err = vulModel.Find(l.ctx, bson.M{"task_id": task.TaskId}, 0, 0)
+		l.Logger.Infof("No vuls found with UUID, trying ObjectID: %s", task.Id.Hex())
+		vuls, err = vulModel.Find(l.ctx, bson.M{"task_id": task.Id.Hex()}, 0, 0)
 		if err != nil {
-			l.Logger.Errorf("查询漏洞(UUID)失败: %v", err)
+			l.Logger.Errorf("查询漏洞(ObjectID)失败: %v", err)
 		}
-		l.Logger.Infof("Found %d vuls for taskId(UUID)=%s", len(vuls), task.TaskId)
-	}
-	
-	// 如果在当前工作空间找不到漏洞，尝试在默认工作空间查找
-	if len(vuls) == 0 && actualWorkspaceId != "" {
-		l.Logger.Infof("No vuls found in workspace %s, trying default workspace", actualWorkspaceId)
-		defaultVulModel := l.svcCtx.GetVulModel("")
-		vuls, err = defaultVulModel.Find(l.ctx, bson.M{"task_id": queryTaskId}, 0, 0)
-		if err != nil {
-			l.Logger.Errorf("查询默认工作空间漏洞失败: %v", err)
-		}
-		l.Logger.Infof("Found %d vuls in default workspace with ObjectID", len(vuls))
-		
-		// 也尝试用 UUID 查询默认工作空间
-		if len(vuls) == 0 {
-			vuls, err = defaultVulModel.Find(l.ctx, bson.M{"task_id": task.TaskId}, 0, 0)
-			if err != nil {
-				l.Logger.Errorf("查询默认工作空间漏洞(UUID)失败: %v", err)
-			}
-			l.Logger.Infof("Found %d vuls in default workspace with UUID", len(vuls))
-		}
+		l.Logger.Infof("Found %d vuls for taskId(ObjectID)=%s", len(vuls), task.Id.Hex())
 	}
 
 	// 统计信息

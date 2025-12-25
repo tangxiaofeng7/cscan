@@ -21,6 +21,7 @@ type ServiceContext struct {
 	FingerprintModel        *model.FingerprintModel
 	CustomPocModel          *model.CustomPocModel
 	HttpServiceMappingModel *model.HttpServiceMappingModel
+	WorkspaceModel          *model.WorkspaceModel
 }
 
 func NewServiceContext(c config.Config) *ServiceContext {
@@ -50,6 +51,7 @@ func NewServiceContext(c config.Config) *ServiceContext {
 		FingerprintModel:        model.NewFingerprintModel(mongoDB),
 		CustomPocModel:          model.NewCustomPocModel(mongoDB),
 		HttpServiceMappingModel: model.NewHttpServiceMappingModel(mongoDB),
+		WorkspaceModel:          model.NewWorkspaceModel(mongoDB),
 	}
 }
 

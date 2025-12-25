@@ -19,13 +19,16 @@ export const useUserStore = defineStore('user', () => {
       userId.value = res.userId
       username.value = res.username
       role.value = res.role
-      workspaceId.value = res.workspaceId
+      workspaceId.value = res.workspaceId || ''
 
       localStorage.setItem('token', res.token)
       localStorage.setItem('userId', res.userId)
       localStorage.setItem('username', res.username)
       localStorage.setItem('role', res.role)
-      localStorage.setItem('workspaceId', res.workspaceId)
+      localStorage.setItem('workspaceId', res.workspaceId || '')
+      
+      // 清除之前的工作空间选择，让新登录的用户使用默认工作空间
+      localStorage.removeItem('currentWorkspaceId')
     }
     return res
   }

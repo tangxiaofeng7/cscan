@@ -49,11 +49,12 @@ func (l *LoginLogic) Login(req *types.LoginReq) (resp *types.LoginResp, err erro
 		}, nil
 	}
 
-	// 获取默认工作空间
+	// 获取默认工作空间 - 如果用户没有分配工作空间，使用空字符串（对应 default 工作空间）
 	workspaceId := ""
 	if len(user.WorkspaceIds) > 0 {
 		workspaceId = user.WorkspaceIds[0]
 	}
+	// 注意：workspaceId 为空时，后端会使用 "default" 工作空间
 
 	return &types.LoginResp{
 		Code:        0,
