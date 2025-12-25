@@ -97,7 +97,35 @@
       <template #header>
         <div class="log-header">
           <span>Worker运行日志</span>
-          <div>
+          <div class="log-filters">
+            <el-select 
+              v-model="filterWorker" 
+              placeholder="筛选Worker" 
+              clearable 
+              size="small"
+              style="width: 150px; margin-right: 10px"
+            >
+              <el-option label="全部Worker" value="" />
+              <el-option 
+                v-for="worker in tableData" 
+                :key="worker.name" 
+                :label="worker.name" 
+                :value="worker.name" 
+              />
+            </el-select>
+            <el-select 
+              v-model="filterLevel" 
+              placeholder="筛选级别" 
+              clearable 
+              size="small"
+              style="width: 120px; margin-right: 10px"
+            >
+              <el-option label="全部级别" value="" />
+              <el-option label="INFO" value="INFO" />
+              <el-option label="WARN" value="WARN" />
+              <el-option label="ERROR" value="ERROR" />
+              <el-option label="DEBUG" value="DEBUG" />
+            </el-select>
             <el-switch v-model="autoScroll" active-text="自动滚动" style="margin-right: 15px" />
             <el-button size="small" @click="clearLogs">清空</el-button>
             <el-button size="small" :type="isConnected ? 'success' : 'danger'" @click="toggleConnection">
@@ -107,12 +135,13 @@
         </div>
       </template>
       <div ref="logContainer" class="log-container">
-        <div v-for="(log, index) in logs" :key="index" class="log-item" :class="'log-' + log.level?.toLowerCase()">
+        <div v-for="(log, index) in filteredLogs" :key="index" class="log-item" :class="'log-' + log.level?.toLowerCase()">
           <span class="log-time">{{ log.timestamp }}</span>
           <span class="log-level">[{{ log.level }}]</span>
           <span class="log-worker">[{{ log.workerName }}]</span>
           <span class="log-message">{{ log.message }}</span>
         </div>
+        <div v-if="filteredLogs.length === 0 && logs.length > 0" class="log-empty">没有匹配的日志</div>
         <div v-if="logs.length === 0" class="log-empty">暂无日志，请确保Worker启动时指定了Redis地址参数 -r</div>
       </div>
     </el-card>
@@ -120,7 +149,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, watch, reactive } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch, reactive, computed } from 'vue'
 import { Refresh, Delete, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
@@ -132,9 +161,26 @@ const logContainer = ref(null)
 const autoScroll = ref(true)
 const isConnected = ref(false)
 const autoRefresh = ref(true)
+const filterWorker = ref('')
+const filterLevel = ref('')
 let pollingTimer = null
 let workerRefreshTimer = null
 let logIdSet = new Set() // 用于去重
+
+// 筛选后的日志
+const filteredLogs = computed(() => {
+  return logs.value.filter(log => {
+    // 筛选 Worker
+    if (filterWorker.value && log.workerName !== filterWorker.value) {
+      return false
+    }
+    // 筛选级别
+    if (filterLevel.value && log.level?.toUpperCase() !== filterLevel.value) {
+      return false
+    }
+    return true
+  })
+})
 
 // 重命名相关
 const renameDialogVisible = ref(false)
@@ -155,7 +201,7 @@ onUnmounted(() => {
   stopWorkerRefresh()
 })
 
-watch(logs, () => {
+watch(filteredLogs, () => {
   if (autoScroll.value) {
     nextTick(() => {
       if (logContainer.value) {
@@ -331,6 +377,15 @@ async function submitRename() {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    
+    .log-filters {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
   }
 
   .log-container {

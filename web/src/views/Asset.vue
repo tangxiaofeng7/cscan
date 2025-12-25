@@ -4,16 +4,6 @@
     <el-card class="search-card">
       <!-- Tab切换 -->
       <el-tabs v-model="activeTab" class="search-tabs">
-        <el-tab-pane label="语法查询" name="syntax">
-          <el-input v-model="searchForm.query" placeholder="输入搜索语法，如: port=80 && service=http" style="width: 100%" @keyup.enter="handleSearch" />
-          <div class="syntax-hints">
-            <span class="hint-title">语法示例：</span>
-            <span class="hint-item" @click="searchForm.query = 'port=80'">port=80</span>
-            <span class="hint-item" @click="searchForm.query = 'port=80 && service=http'">port=80 && service=http</span>
-            <span class="hint-item" @click="searchForm.query = 'title=&quot;后台管理&quot;'">title="后台管理"</span>
-            <span class="hint-item" @click="searchForm.query = 'app=nginx && port=443'">app=nginx && port=443</span>
-          </div>
-        </el-tab-pane>
         <el-tab-pane label="快捷查询" name="quick">
           <el-form :model="searchForm" inline>
             <el-form-item label="主机">
@@ -32,6 +22,16 @@
               <el-input v-model="searchForm.app" placeholder="指纹" clearable style="width: 100px" @keyup.enter="handleSearch" />
             </el-form-item>
           </el-form>
+        </el-tab-pane>
+      <el-tab-pane label="语法查询" name="syntax">
+          <el-input v-model="searchForm.query" placeholder="输入搜索语法，如: port=80 && service=http" style="width: 100%" @keyup.enter="handleSearch" />
+          <div class="syntax-hints">
+            <span class="hint-title">语法示例：</span>
+            <span class="hint-item" @click="searchForm.query = 'port=80'">port=80</span>
+            <span class="hint-item" @click="searchForm.query = 'port=80 && service=http'">port=80 && service=http</span>
+            <span class="hint-item" @click="searchForm.query = 'title=&quot;后台管理&quot;'">title="后台管理"</span>
+            <span class="hint-item" @click="searchForm.query = 'app=nginx && port=443'">app=nginx && port=443</span>
+          </div>
         </el-tab-pane>
         <el-tab-pane label="统计信息" name="stat">
           <div class="stat-panel">

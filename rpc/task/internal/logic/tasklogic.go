@@ -198,6 +198,63 @@ func (l *TaskLogic) UpdateTask(in *pb.UpdateTaskReq) (*pb.UpdateTaskResp, error)
 				}
 			}
 		}
+	} else {
+		// Redis 中没有任务信息，尝试在所有工作空间查找并更新
+		l.Logger.Infof("Task info not found in Redis for taskId=%s, trying to find in all workspaces", in.TaskId)
+		
+		// 计算进度
+		progress := 0
+		switch in.State {
+		case "STARTED":
+			progress = 10
+		case "PAUSED":
+			progress = 50
+		case "SUCCESS":
+			progress = 100
+		case "FAILURE":
+			progress = 100
+		case "STOPPED":
+			progress = 100
+		}
+		
+		update := bson.M{
+			"status":   in.State,
+			"progress": progress,
+			"worker":   in.Worker,
+		}
+		
+		if in.State == "PAUSED" {
+			update["task_state"] = in.Result
+		} else {
+			update["result"] = in.Result
+		}
+		
+		// 获取所有工作空间
+		workspaces, err := l.svcCtx.WorkspaceModel.Find(l.ctx, bson.M{}, 1, 100)
+		if err != nil {
+			l.Logger.Errorf("Failed to get workspaces: %v", err)
+		}
+		
+		updated := false
+		// 遍历所有工作空间查找任务
+		for _, ws := range workspaces {
+			taskModel := l.svcCtx.GetMainTaskModel(ws.Id.Hex())
+			if err := taskModel.UpdateByTaskId(l.ctx, in.TaskId, update); err == nil {
+				l.Logger.Infof("Updated task %s in workspace %s", in.TaskId, ws.Name)
+				updated = true
+				break
+			}
+		}
+		
+		// 如果在所有工作空间都没找到，尝试默认工作空间
+		if !updated {
+			taskModel := l.svcCtx.GetMainTaskModel("")
+			if err := taskModel.UpdateByTaskId(l.ctx, in.TaskId, update); err != nil {
+				l.Logger.Errorf("Update task in all workspaces failed for taskId=%s", in.TaskId)
+			} else {
+				l.Logger.Infof("Updated task %s in default workspace", in.TaskId)
+			}
+		}
 	}
 	
 	return &pb.UpdateTaskResp{

@@ -502,14 +502,16 @@ func (l *MainTaskStartLogic) MainTaskStart(req *types.MainTaskControlReq, worksp
 			continue
 		}
 
-		// 保存子任务信息到 Redis
-		subTaskInfoKey := "cscan:task:info:" + subTaskId
-		subTaskInfoData, _ := json.Marshal(map[string]string{
-			"workspaceId": workspaceId,
-			"mainTaskId":  task.Id.Hex(),
-			"parentTaskId": task.TaskId,
-		})
-		l.svcCtx.RedisClient.Set(l.ctx, subTaskInfoKey, subTaskInfoData, 24*time.Hour)
+		// 只有多批次时才保存子任务信息到 Redis（单批次时使用主任务信息）
+		if len(batches) > 1 {
+			subTaskInfoKey := "cscan:task:info:" + subTaskId
+			subTaskInfoData, _ := json.Marshal(map[string]string{
+				"workspaceId": workspaceId,
+				"mainTaskId":  task.Id.Hex(),
+				"parentTaskId": task.TaskId,
+			})
+			l.svcCtx.RedisClient.Set(l.ctx, subTaskInfoKey, subTaskInfoData, 24*time.Hour)
+		}
 	}
 
 	return &types.BaseResp{Code: 0, Msg: "任务已启动"}, nil

@@ -1,16 +1,5 @@
 <template>
   <div class="workspace">
-    <!-- 顶部欢迎区 -->
-    <div class="welcome-section">
-      <div class="welcome-left">
-        <h2>Hello, {{ userStore.username }}!</h2>
-        <span class="role-tag">管理员</span>
-      </div>
-      <div class="welcome-right">
-        <span class="time">{{ currentTime }}</span>
-      </div>
-    </div>
-
     <el-row :gutter="20">
       <!-- 左侧主区域 -->
       <el-col :span="16">
