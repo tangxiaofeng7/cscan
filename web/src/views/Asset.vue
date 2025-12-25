@@ -649,7 +649,7 @@ function handleAppTagClick(app) {
       .syntax-hints {
         margin-top: 8px;
         font-size: 12px;
-        color: var(--text-muted);
+        color: var(--el-text-color-secondary);
         
         .hint-title {
           margin-right: 10px;
@@ -659,9 +659,9 @@ function handleAppTagClick(app) {
           display: inline-block;
           padding: 2px 8px;
           margin-right: 10px;
-          background: var(--bg-tertiary);
+          background: var(--el-fill-color-light);
           border-radius: 3px;
-          color: var(--text-secondary);
+          color: var(--el-text-color-regular);
           cursor: pointer;
           
           &:hover {
@@ -687,7 +687,7 @@ function handleAppTagClick(app) {
       
       .stat-title {
         font-weight: bold;
-        color: var(--text-primary);
+        color: var(--el-text-color-primary);
         margin-bottom: 8px;
         padding-bottom: 5px;
         border-bottom: 2px solid #409eff;
@@ -700,7 +700,7 @@ function handleAppTagClick(app) {
         cursor: pointer;
         
         &:hover {
-          background: var(--bg-hover);
+          background: var(--el-fill-color);
         }
         
         .stat-count {
@@ -741,7 +741,7 @@ function handleAppTagClick(app) {
       margin-bottom: 10px;
       
       .total-info {
-        color: var(--text-secondary);
+        color: var(--el-text-color-regular);
         font-size: 13px;
       }
     }
@@ -767,7 +767,7 @@ function handleAppTagClick(app) {
     }
     
     .org-text, .location-text {
-      color: var(--text-muted);
+      color: var(--el-text-color-secondary);
       font-size: 12px;
     }
 
@@ -813,8 +813,8 @@ function handleAppTagClick(app) {
       .fingerprint-tabs {
         :deep(.el-tabs__header) {
           margin-bottom: 0;
-          background: var(--bg-tertiary);
-          border-color: var(--border-color);
+          background: var(--el-fill-color-light);
+          border-color: var(--el-border-color);
         }
         
         :deep(.el-tabs__nav) {
@@ -826,21 +826,21 @@ function handleAppTagClick(app) {
           height: 28px;
           line-height: 28px;
           font-size: 12px;
-          color: var(--text-secondary);
+          color: var(--el-text-color-regular);
           
           &.is-active {
-            color: var(--primary-color);
-            background: var(--bg-secondary);
+            color: var(--el-color-primary);
+            background: var(--el-bg-color);
           }
           
           &:hover {
-            color: var(--primary-color);
+            color: var(--el-color-primary);
           }
         }
         
         :deep(.el-tabs__content) {
           padding: 0;
-          background: var(--bg-secondary);
+          background: var(--el-bg-color);
         }
         
         :deep(.el-tab-pane) {
@@ -851,16 +851,16 @@ function handleAppTagClick(app) {
       .tab-content {
         margin: 0;
         padding: 8px;
-        background: var(--bg-tertiary);
+        background: var(--el-fill-color-light);
         font-size: 11px;
         line-height: 1.5;
         max-height: 160px;
         overflow-y: auto;
         white-space: pre-wrap;
         word-break: break-all;
-        color: var(--text-secondary);
+        color: var(--el-text-color-regular);
         font-family: Consolas, Monaco, monospace;
-        border: 1px solid var(--border-color);
+        border: 1px solid var(--el-border-color);
         border-top: none;
         border-radius: 0 0 4px 4px;
       }
@@ -868,10 +868,10 @@ function handleAppTagClick(app) {
       .no-data {
         display: block;
         padding: 10px;
-        color: var(--text-muted);
+        color: var(--el-text-color-secondary);
         font-size: 12px;
         text-align: center;
-        background: var(--bg-tertiary);
+        background: var(--el-fill-color-light);
       }
     }
 
@@ -880,16 +880,16 @@ function handleAppTagClick(app) {
       height: 60px;
       border-radius: 4px;
       cursor: pointer;
-      border: 1px solid var(--border-color);
+      border: 1px solid var(--el-border-color);
     }
 
     .no-screenshot {
-      color: var(--text-muted);
+      color: var(--el-text-color-secondary);
     }
 
     .update-time {
       font-size: 12px;
-      color: var(--text-secondary);
+      color: var(--el-text-color-regular);
     }
 
     .pagination {
@@ -901,14 +901,14 @@ function handleAppTagClick(app) {
   .history-current {
     margin-bottom: 15px;
     padding: 10px;
-    background: var(--bg-tertiary);
+    background: var(--el-fill-color-light);
     border-radius: 4px;
   }
 
   .history-empty {
     text-align: center;
     padding: 40px;
-    color: var(--text-muted);
+    color: var(--el-text-color-secondary);
   }
 }
 </style>

@@ -49,27 +49,40 @@ func (l *ReportDetailLogic) ReportDetail(req *types.ReportDetailReq, workspaceId
 		}
 	}
 	
+	// 如果还是找不到，尝试在默认工作空间查找（workspaceId 本身就是空的情况）
+	if err != nil && workspaceId == "" {
+		l.Logger.Infof("Task not found in default workspace, error: %v", err)
+	}
+	
 	if err != nil {
 		l.Logger.Errorf("FindById failed: %v", err)
 		return &types.ReportDetailResp{Code: 400, Msg: "任务不存在"}, nil
 	}
 	
 	// 确定用于查询资产的 taskId
-	// 优先使用 task.TaskId (UUID)，如果为空则使用 task.Id.Hex() (MongoDB ObjectID)
-	queryTaskId := task.TaskId
-	if queryTaskId == "" {
-		queryTaskId = task.Id.Hex()
-		l.Logger.Infof("task.TaskId is empty, using task.Id.Hex() as queryTaskId: %s", queryTaskId)
-	}
-	l.Logger.Infof("Found task: name=%s, taskId=%s, queryTaskId=%s, actualWorkspaceId=%s", task.Name, task.TaskId, queryTaskId, actualWorkspaceId)
+	// 资产保存时使用的是 task.Id.Hex() (MongoDB ObjectID) 作为 taskId
+	queryTaskId := task.Id.Hex()
+	l.Logger.Infof("Found task: name=%s, taskId(UUID)=%s, queryTaskId(ObjectID)=%s, actualWorkspaceId=%s", task.Name, task.TaskId, queryTaskId, actualWorkspaceId)
 
 	// 获取资产列表 - 使用实际的工作空间
 	assetModel := l.svcCtx.GetAssetModel(actualWorkspaceId)
+	
+	// 先尝试用 ObjectID 查询
 	assets, err := assetModel.Find(l.ctx, bson.M{"taskId": queryTaskId}, 0, 0)
 	if err != nil {
 		l.Logger.Errorf("查询资产失败: %v", err)
 	}
-	l.Logger.Infof("Found %d assets for queryTaskId=%s in workspace=%s", len(assets), queryTaskId, actualWorkspaceId)
+	l.Logger.Infof("Found %d assets for queryTaskId(ObjectID)=%s in workspace=%s", len(assets), queryTaskId, actualWorkspaceId)
+	
+	// 如果没找到，尝试用 UUID 查询（兼容旧数据）
+	if len(assets) == 0 {
+		l.Logger.Infof("No assets found with ObjectID, trying UUID: %s", task.TaskId)
+		assets, err = assetModel.Find(l.ctx, bson.M{"taskId": task.TaskId}, 0, 0)
+		if err != nil {
+			l.Logger.Errorf("查询资产(UUID)失败: %v", err)
+		}
+		l.Logger.Infof("Found %d assets for taskId(UUID)=%s", len(assets), task.TaskId)
+	}
 	
 	// 如果在当前工作空间找不到资产，尝试在默认工作空间查找
 	if len(assets) == 0 && actualWorkspaceId != "" {
@@ -79,7 +92,16 @@ func (l *ReportDetailLogic) ReportDetail(req *types.ReportDetailReq, workspaceId
 		if err != nil {
 			l.Logger.Errorf("查询默认工作空间资产失败: %v", err)
 		}
-		l.Logger.Infof("Found %d assets in default workspace", len(assets))
+		l.Logger.Infof("Found %d assets in default workspace with ObjectID", len(assets))
+		
+		// 也尝试用 UUID 查询默认工作空间
+		if len(assets) == 0 {
+			assets, err = defaultAssetModel.Find(l.ctx, bson.M{"taskId": task.TaskId}, 0, 0)
+			if err != nil {
+				l.Logger.Errorf("查询默认工作空间资产(UUID)失败: %v", err)
+			}
+			l.Logger.Infof("Found %d assets in default workspace with UUID", len(assets))
+		}
 	}
 
 	// 获取漏洞列表 - 使用实际的工作空间
@@ -88,7 +110,17 @@ func (l *ReportDetailLogic) ReportDetail(req *types.ReportDetailReq, workspaceId
 	if err != nil {
 		l.Logger.Errorf("查询漏洞失败: %v", err)
 	}
-	l.Logger.Infof("Found %d vuls for queryTaskId=%s in workspace=%s", len(vuls), queryTaskId, actualWorkspaceId)
+	l.Logger.Infof("Found %d vuls for queryTaskId(ObjectID)=%s in workspace=%s", len(vuls), queryTaskId, actualWorkspaceId)
+	
+	// 如果没找到，尝试用 UUID 查询（兼容旧数据）
+	if len(vuls) == 0 {
+		l.Logger.Infof("No vuls found with ObjectID, trying UUID: %s", task.TaskId)
+		vuls, err = vulModel.Find(l.ctx, bson.M{"task_id": task.TaskId}, 0, 0)
+		if err != nil {
+			l.Logger.Errorf("查询漏洞(UUID)失败: %v", err)
+		}
+		l.Logger.Infof("Found %d vuls for taskId(UUID)=%s", len(vuls), task.TaskId)
+	}
 	
 	// 如果在当前工作空间找不到漏洞，尝试在默认工作空间查找
 	if len(vuls) == 0 && actualWorkspaceId != "" {
@@ -98,7 +130,16 @@ func (l *ReportDetailLogic) ReportDetail(req *types.ReportDetailReq, workspaceId
 		if err != nil {
 			l.Logger.Errorf("查询默认工作空间漏洞失败: %v", err)
 		}
-		l.Logger.Infof("Found %d vuls in default workspace", len(vuls))
+		l.Logger.Infof("Found %d vuls in default workspace with ObjectID", len(vuls))
+		
+		// 也尝试用 UUID 查询默认工作空间
+		if len(vuls) == 0 {
+			vuls, err = defaultVulModel.Find(l.ctx, bson.M{"task_id": task.TaskId}, 0, 0)
+			if err != nil {
+				l.Logger.Errorf("查询默认工作空间漏洞(UUID)失败: %v", err)
+			}
+			l.Logger.Infof("Found %d vuls in default workspace with UUID", len(vuls))
+		}
 	}
 
 	// 统计信息

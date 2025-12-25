@@ -2,7 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
 export const useThemeStore = defineStore('theme', () => {
-  const isDark = ref(localStorage.getItem('theme') === 'dark' || !localStorage.getItem('theme'))
+  // 从 localStorage 读取主题设置，默认为深色
+  const isDark = ref(localStorage.getItem('theme') !== 'light')
 
   function toggleTheme() {
     isDark.value = !isDark.value
@@ -13,13 +14,12 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   // 监听主题变化，更新 DOM 和 localStorage
+  // Element Plus 官方暗黑模式通过 html.dark 类名控制
   watch(isDark, (val) => {
     localStorage.setItem('theme', val ? 'dark' : 'light')
     if (val) {
       document.documentElement.classList.add('dark')
-      document.documentElement.classList.remove('light')
     } else {
-      document.documentElement.classList.add('light')
       document.documentElement.classList.remove('dark')
     }
   }, { immediate: true })

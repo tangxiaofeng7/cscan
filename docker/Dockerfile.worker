@@ -1,12 +1,6 @@
 # CSCAN Worker 扫描节点 Dockerfile
 
-# 声明全局构建参数
-ARG TARGETARCH
-
 FROM golang:1.24-alpine AS builder
-
-# 重新声明参数（多阶段构建需要）
-ARG TARGETARCH
 
 WORKDIR /app
 
@@ -20,14 +14,11 @@ RUN go mod download
 # 复制源代码
 COPY . .
 
-# 编译 Worker 服务（启用 CGO 以支持 libpcap）- 支持多架构
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o /cscan-worker ./cmd/worker/main.go
+# 编译 Worker 服务（启用 CGO 以支持 libpcap）- 仅支持 amd64
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /cscan-worker ./cmd/worker/main.go
 
 # 运行镜像
 FROM alpine:3.18
-
-# 重新声明构建参数
-ARG TARGETARCH
 
 WORKDIR /app
 
@@ -48,25 +39,16 @@ RUN apk add --no-cache \
 ENV CHROME_BIN=/usr/bin/chromium-browser
 ENV CHROMEDP_NO_SANDBOX=true
 
-# 调试输出
-RUN echo "Target architecture: ${TARGETARCH}"
-
-# 复制所有架构的工具包
-COPY poc/nuclei_3.6.1_linux_amd64.zip /tmp/nuclei_amd64.zip
-COPY poc/nuclei_3.6.1_linux_arm64.zip /tmp/nuclei_arm64.zip
-COPY poc/httpx_1.7.4_linux_amd64.zip /tmp/httpx_amd64.zip
-COPY poc/httpx_1.7.4_linux_arm64.zip /tmp/httpx_arm64.zip
-
-# 安装 nuclei - 根据架构选择对应文件
-RUN echo "Installing nuclei for architecture: ${TARGETARCH}" \
-    && unzip /tmp/nuclei_${TARGETARCH}.zip -d /tmp/ \
+# 安装 nuclei (仅 amd64)
+COPY poc/nuclei_3.6.1_linux_amd64.zip /tmp/nuclei.zip
+RUN unzip /tmp/nuclei.zip -d /tmp/ \
     && find /tmp -name "nuclei" -type f -exec mv {} /usr/local/bin/ \; \
     && rm -rf /tmp/nuclei* \
     && chmod +x /usr/local/bin/nuclei
 
-# 安装 httpx - 根据架构选择对应文件
-RUN echo "Installing httpx for architecture: ${TARGETARCH}" \
-    && unzip /tmp/httpx_${TARGETARCH}.zip -d /tmp/ \
+# 安装 httpx (仅 amd64)
+COPY poc/httpx_1.7.4_linux_amd64.zip /tmp/httpx.zip
+RUN unzip /tmp/httpx.zip -d /tmp/ \
     && find /tmp -name "httpx" -type f -exec mv {} /usr/local/bin/ \; \
     && rm -rf /tmp/httpx* \
     && chmod +x /usr/local/bin/httpx
@@ -80,4 +62,4 @@ ENV TZ=Asia/Shanghai
 # 复制编译产物
 COPY --from=builder /cscan-worker .
 
-CMD ["./cscan-worker", "-s", "cscan-rpc:9000", "-r", "redis:6379", "-n", "docker-worker"]
+CMD ["./cscan-worker", "-s", "cscan-rpc:9000", "-r", "redis:6379"]

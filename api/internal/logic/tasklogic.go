@@ -102,6 +102,14 @@ func NewMainTaskCreateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ma
 func (l *MainTaskCreateLogic) MainTaskCreate(req *types.MainTaskCreateReq, workspaceId string) (resp *types.BaseResp, err error) {
 	l.Logger.Infof("MainTaskCreate: name=%s, profileId=%s, workspaceId=%s", req.Name, req.ProfileId, workspaceId)
 
+	// 校验目标格式
+	if req.Target == "" {
+		return &types.BaseResp{Code: 400, Msg: "扫描目标不能为空"}, nil
+	}
+	if validationErrors := common.ValidateTargets(req.Target); len(validationErrors) > 0 {
+		return &types.BaseResp{Code: 400, Msg: common.FormatValidationErrors(validationErrors)}, nil
+	}
+
 	taskModel := l.svcCtx.GetMainTaskModel(workspaceId)
 
 	// 获取任务配置
@@ -755,6 +763,13 @@ func NewMainTaskUpdateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ma
 
 func (l *MainTaskUpdateLogic) MainTaskUpdate(req *types.MainTaskUpdateReq, workspaceId string) (resp *types.BaseResp, err error) {
 	taskModel := l.svcCtx.GetMainTaskModel(workspaceId)
+
+	// 如果更新了目标，校验目标格式
+	if req.Target != "" {
+		if validationErrors := common.ValidateTargets(req.Target); len(validationErrors) > 0 {
+			return &types.BaseResp{Code: 400, Msg: common.FormatValidationErrors(validationErrors)}, nil
+		}
+	}
 
 	// 获取任务
 	task, err := taskModel.FindById(l.ctx, req.Id)

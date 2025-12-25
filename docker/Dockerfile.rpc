@@ -1,12 +1,6 @@
 # CSCAN RPC 服务 Dockerfile
 
-# 声明全局构建参数
-ARG TARGETARCH
-
 FROM golang:1.24-alpine AS builder
-
-# 重新声明参数（多阶段构建需要）
-ARG TARGETARCH
 
 WORKDIR /app
 
@@ -20,8 +14,8 @@ RUN go mod download
 # 复制源代码
 COPY . .
 
-# 编译 RPC 服务 - 支持多架构
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -ldflags="-s -w" -o /cscan-rpc ./rpc/task/task.go
+# 编译 RPC 服务 - 仅支持 amd64
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /cscan-rpc ./rpc/task/task.go
 
 # 运行镜像
 FROM alpine:3.18

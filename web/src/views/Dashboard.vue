@@ -508,14 +508,14 @@ function getScoreColor(score) {
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 12px;
   margin-bottom: 20px;
   
   .welcome-left {
     h2 {
-      color: var(--text-primary);
+      color: var(--el-text-color-primary);
       font-size: 24px;
       font-weight: 600;
       margin: 0 0 8px 0;
@@ -525,7 +525,7 @@ function getScoreColor(score) {
       display: inline-block;
       padding: 4px 12px;
       background: rgba(64, 158, 255, 0.2);
-      color: var(--primary-color);
+      color: var(--el-color-primary);
       border-radius: 20px;
       font-size: 12px;
     }
@@ -533,15 +533,15 @@ function getScoreColor(score) {
   
   .welcome-right {
     .time {
-      color: var(--text-secondary);
+      color: var(--el-text-color-regular);
       font-size: 14px;
     }
   }
 }
 
 .dark-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
   border-radius: 12px;
   padding: 20px;
   margin-bottom: 20px;
@@ -553,13 +553,13 @@ function getScoreColor(score) {
     margin-bottom: 20px;
     
     .card-title {
-      color: var(--text-primary);
+      color: var(--el-text-color-primary);
       font-size: 16px;
       font-weight: 600;
     }
     
     .card-icon {
-      color: var(--text-secondary);
+      color: var(--el-text-color-regular);
       font-size: 18px;
     }
     
@@ -568,11 +568,11 @@ function getScoreColor(score) {
       gap: 16px;
       
       .stat-item {
-        color: var(--text-secondary);
+        color: var(--el-text-color-regular);
         font-size: 13px;
         
         strong {
-          color: var(--text-primary);
+          color: var(--el-text-color-primary);
           margin-right: 4px;
         }
       }
@@ -585,7 +585,7 @@ function getScoreColor(score) {
   display: flex;
   justify-content: space-between;
   padding: 16px 0;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
   
   .vul-stat-item {
     text-align: center;
@@ -596,16 +596,16 @@ function getScoreColor(score) {
       font-weight: 700;
       margin-bottom: 4px;
       
-      &.total { color: var(--text-primary); }
-      &.critical { color: var(--danger-color); }
-      &.high { color: var(--warning-color); }
-      &.medium { color: var(--primary-color); }
-      &.low { color: var(--success-color); }
-      &.info { color: var(--info-color); }
+      &.total { color: var(--el-text-color-primary); }
+      &.critical { color: var(--el-color-danger); }
+      &.high { color: var(--el-color-warning); }
+      &.medium { color: var(--el-color-primary); }
+      &.low { color: var(--el-color-success); }
+      &.info { color: var(--el-color-info); }
     }
     
     .vul-label {
-      color: var(--text-secondary);
+      color: var(--el-text-color-regular);
       font-size: 13px;
     }
   }
@@ -613,7 +613,7 @@ function getScoreColor(score) {
 
 .vul-chart-section, .task-chart-section {
   .chart-title {
-    color: var(--text-secondary);
+    color: var(--el-text-color-regular);
     font-size: 13px;
     margin: 16px 0 12px;
   }
@@ -628,7 +628,7 @@ function getScoreColor(score) {
   display: flex;
   justify-content: space-between;
   padding: 16px 0;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
   
   .asset-stat-item {
     text-align: center;
@@ -637,12 +637,12 @@ function getScoreColor(score) {
       display: block;
       font-size: 28px;
       font-weight: 700;
-      color: var(--text-primary);
+      color: var(--el-text-color-primary);
       margin-bottom: 4px;
     }
     
     .asset-label {
-      color: var(--text-secondary);
+      color: var(--el-text-color-regular);
       font-size: 13px;
     }
   }
@@ -650,7 +650,7 @@ function getScoreColor(score) {
 
 .asset-category-section {
   .chart-title {
-    color: var(--text-secondary);
+    color: var(--el-text-color-regular);
     font-size: 13px;
     margin: 16px 0 12px;
   }
@@ -663,7 +663,7 @@ function getScoreColor(score) {
       
       .category-name {
         width: 100px;
-        color: var(--text-secondary);
+        color: var(--el-text-color-regular);
         font-size: 13px;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -673,14 +673,14 @@ function getScoreColor(score) {
       .category-bar {
         flex: 1;
         height: 8px;
-        background: var(--border-color);
+        background: var(--el-border-color);
         border-radius: 4px;
         margin: 0 12px;
         overflow: hidden;
         
         .category-bar-fill {
           height: 100%;
-          background: linear-gradient(90deg, var(--primary-color), #66b1ff);
+          background: linear-gradient(90deg, var(--el-color-primary), var(--el-color-primary-light-3));
           border-radius: 4px;
           transition: width 0.3s;
         }
@@ -689,7 +689,7 @@ function getScoreColor(score) {
       .category-count {
         width: 40px;
         text-align: right;
-        color: var(--text-primary);
+        color: var(--el-text-color-primary);
         font-size: 13px;
       }
     }
@@ -701,7 +701,7 @@ function getScoreColor(score) {
   display: flex;
   justify-content: space-between;
   padding: 16px 0;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
   
   .task-stat-item {
     text-align: center;
@@ -710,16 +710,16 @@ function getScoreColor(score) {
       display: block;
       font-size: 24px;
       font-weight: 700;
-      color: var(--text-primary);
+      color: var(--el-text-color-primary);
       margin-bottom: 4px;
       
-      &.success { color: var(--success-color); }
-      &.warning { color: var(--warning-color); }
-      &.error { color: var(--danger-color); }
+      &.success { color: var(--el-color-success); }
+      &.warning { color: var(--el-color-warning); }
+      &.error { color: var(--el-color-danger); }
     }
     
     .task-label {
-      color: var(--text-secondary);
+      color: var(--el-text-color-regular);
       font-size: 13px;
     }
   }
@@ -742,37 +742,37 @@ function getScoreColor(score) {
       
       &.excellent {
         background: rgba(103, 194, 58, 0.15);
-        border: 3px solid var(--success-color);
+        border: 3px solid var(--el-color-success);
       }
       &.good {
         background: rgba(64, 158, 255, 0.15);
-        border: 3px solid var(--primary-color);
+        border: 3px solid var(--el-color-primary);
       }
       &.warning {
         background: rgba(230, 162, 60, 0.15);
-        border: 3px solid var(--warning-color);
+        border: 3px solid var(--el-color-warning);
       }
       &.danger {
         background: rgba(245, 108, 108, 0.15);
-        border: 3px solid var(--danger-color);
+        border: 3px solid var(--el-color-danger);
       }
       
       .score-value {
         font-size: 32px;
         font-weight: 700;
-        color: var(--text-primary);
+        color: var(--el-text-color-primary);
       }
     }
     
     .score-level {
-      color: var(--text-secondary);
+      color: var(--el-text-color-regular);
       font-size: 14px;
     }
   }
   
   .score-bar {
     height: 6px;
-    background: var(--border-color);
+    background: var(--el-border-color);
     border-radius: 3px;
     overflow: hidden;
     
@@ -790,7 +790,7 @@ function getScoreColor(score) {
     display: flex;
     align-items: center;
     padding: 10px 0;
-    border-bottom: 1px solid var(--border-light);
+    border-bottom: 1px solid var(--el-border-color-lighter);
     
     &:last-child {
       border-bottom: none;
@@ -803,7 +803,7 @@ function getScoreColor(score) {
     
     .vul-name {
       flex: 1;
-      color: var(--text-primary);
+      color: var(--el-text-color-primary);
       font-size: 13px;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -811,7 +811,7 @@ function getScoreColor(score) {
     }
     
     .vul-time {
-      color: var(--text-muted);
+      color: var(--el-text-color-secondary);
       font-size: 12px;
       margin-left: 12px;
     }
@@ -834,17 +834,17 @@ function getScoreColor(score) {
       height: 10px;
       border-radius: 50%;
       
-      &.online { background: var(--success-color); box-shadow: 0 0 8px rgba(103, 194, 58, 0.5); }
-      &.offline { background: var(--info-color); }
+      &.online { background: var(--el-color-success); box-shadow: 0 0 8px rgba(103, 194, 58, 0.5); }
+      &.offline { background: var(--el-color-info); }
     }
     
     .worker-label {
-      color: var(--text-secondary);
+      color: var(--el-text-color-regular);
       font-size: 13px;
     }
     
     .worker-count {
-      color: var(--text-primary);
+      color: var(--el-text-color-primary);
       font-size: 16px;
       font-weight: 600;
     }
@@ -863,24 +863,24 @@ function getScoreColor(score) {
     align-items: center;
     justify-content: center;
     padding: 16px;
-    background: var(--bg-tertiary);
+    background: var(--el-fill-color-light);
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.3s;
     
     &:hover {
-      background: var(--bg-hover);
+      background: var(--el-fill-color);
       transform: translateY(-2px);
     }
     
     .el-icon {
       font-size: 24px;
-      color: var(--primary-color);
+      color: var(--el-color-primary);
       margin-bottom: 8px;
     }
     
     span {
-      color: var(--text-secondary);
+      color: var(--el-text-color-regular);
       font-size: 13px;
     }
   }
@@ -890,18 +890,18 @@ function getScoreColor(score) {
 .view-all-btn {
   text-align: center;
   padding: 12px 0 0;
-  color: var(--primary-color);
+  color: var(--el-color-primary);
   font-size: 13px;
   cursor: pointer;
   
   &:hover {
-    color: #66b1ff;
+    color: var(--el-color-primary-light-3);
   }
 }
 
 .no-data {
   text-align: center;
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   padding: 40px 0;
   font-size: 14px;
 }

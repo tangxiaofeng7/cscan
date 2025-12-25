@@ -26,8 +26,8 @@ git clone https://github.com/tangxiaofeng7/cscan.git
 cd cscan
 # 直接启动
 docker-compose up -d --build
-# arm系统部署
-DOCKER_DEFAULT_PLATFORM=linux/arm64 docker-compose up -d --build
+# 指定多个worker
+docker-compose up -d --build --scale cscan-worker=3
 ```
 
 访问 `http://localhost:3000`，默认账号 `admin / 123456`

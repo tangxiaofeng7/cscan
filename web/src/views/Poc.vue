@@ -2703,14 +2703,14 @@ function startBatchPolling(batchId, taskIds) {
 
   .validate-logs {
     margin-top: 15px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--el-border-color);
     border-radius: 4px;
     overflow: hidden;
 
     .logs-header {
       padding: 8px 15px;
-      background: var(--bg-tertiary);
-      border-bottom: 1px solid var(--border-color);
+      background: var(--el-fill-color-light);
+      border-bottom: 1px solid var(--el-border-color);
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -2761,14 +2761,14 @@ function startBatchPolling(batchId, taskIds) {
 
   .validate-result {
     margin-top: 15px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--el-border-color);
     border-radius: 4px;
     overflow: hidden;
 
     .result-header {
       padding: 10px 15px;
-      background: var(--bg-tertiary);
-      border-bottom: 1px solid var(--border-color);
+      background: var(--el-fill-color-light);
+      border-bottom: 1px solid var(--el-border-color);
     }
 
     .result-details {
@@ -2793,14 +2793,14 @@ function startBatchPolling(batchId, taskIds) {
 
   .batch-validate-progress {
     margin-top: 15px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--el-border-color);
     border-radius: 4px;
     overflow: hidden;
 
     .progress-header {
       padding: 10px 15px;
-      background: var(--bg-tertiary);
-      border-bottom: 1px solid var(--border-color);
+      background: var(--el-fill-color-light);
+      border-bottom: 1px solid var(--el-border-color);
       display: flex;
       align-items: center;
     }
@@ -2844,14 +2844,14 @@ function startBatchPolling(batchId, taskIds) {
 
   .batch-validate-results {
     margin-top: 15px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--el-border-color);
     border-radius: 4px;
     overflow: hidden;
 
     .results-header {
       padding: 10px 15px;
-      background: var(--bg-tertiary);
-      border-bottom: 1px solid var(--border-color);
+      background: var(--el-fill-color-light);
+      border-bottom: 1px solid var(--el-border-color);
       display: flex;
       align-items: center;
       font-weight: 500;
@@ -2860,14 +2860,14 @@ function startBatchPolling(batchId, taskIds) {
 
   .import-preview {
     margin-top: 15px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--el-border-color);
     border-radius: 4px;
     overflow: hidden;
 
     .preview-header {
       padding: 10px 15px;
-      background: var(--bg-tertiary);
-      border-bottom: 1px solid var(--border-color);
+      background: var(--el-fill-color-light);
+      border-bottom: 1px solid var(--el-border-color);
       display: flex;
       align-items: center;
       font-weight: 500;

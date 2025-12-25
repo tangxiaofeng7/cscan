@@ -36,9 +36,6 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
-      platforms:
-        - linux/amd64
-        - linux/arm64
     image: cscan/api:latest
     container_name: cscan_api
     environment:
@@ -60,9 +57,6 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.rpc
-      platforms:
-        - linux/amd64
-        - linux/arm64
     image: cscan/rpc:latest
     container_name: cscan_rpc
     environment:
@@ -82,9 +76,6 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.worker
-      platforms:
-        - linux/amd64
-        - linux/arm64
     image: cscan/worker:latest
     environment:
       - SERVER_ADDR=cscan-rpc:9000
@@ -104,9 +95,6 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
-      platforms:
-        - linux/amd64
-        - linux/arm64
     image: cscan/web:latest
     container_name: cscan_web
     ports:

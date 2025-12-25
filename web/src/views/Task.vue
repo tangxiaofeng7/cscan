@@ -276,7 +276,7 @@
             v-model="form.target"
             type="textarea"
             :rows="5"
-            placeholder="每行一个目标，支持IP、IP段、域名"
+            placeholder="每行一个目标，支持格式:&#10;• IP: 192.168.1.1&#10;• CIDR: 192.168.1.0/24 (注意IP要完整)&#10;• IP范围: 192.168.1.1-192.168.1.100&#10;• 域名: example.com"
           />
         </el-form-item>
         <el-form-item label="任务配置" prop="profileId">
@@ -316,7 +316,7 @@
             v-model="editForm.target"
             type="textarea"
             :rows="5"
-            placeholder="每行一个目标，支持IP、IP段、域名"
+            placeholder="每行一个目标，支持格式:&#10;• IP: 192.168.1.1&#10;• CIDR: 192.168.1.0/24 (注意IP要完整)&#10;• IP范围: 192.168.1.1-192.168.1.100&#10;• 域名: example.com"
           />
         </el-form-item>
         <el-form-item label="任务配置" prop="profileId">
@@ -341,6 +341,21 @@
 
     <!-- 任务日志对话框 -->
     <el-dialog v-model="logDialogVisible" title="任务日志" width="1000px" @close="closeLogDialog">
+      <!-- 任务进度条 -->
+      <div class="log-progress" v-if="currentLogTask">
+        <div class="progress-info">
+          <span class="task-name">{{ currentLogTask.name }}</span>
+          <el-tag :type="getStatusType(currentLogTask.status)" size="small">{{ currentLogTask.status }}</el-tag>
+          <span v-if="currentLogTask.subTaskCount > 1" class="sub-task-info">
+            子任务: {{ currentLogTask.subTaskDone }}/{{ currentLogTask.subTaskCount }}
+          </span>
+        </div>
+        <el-progress 
+          :percentage="currentLogTask.progress" 
+          :status="currentLogTask.status === 'SUCCESS' ? 'success' : (currentLogTask.status === 'FAILURE' ? 'exception' : '')"
+          :stroke-width="12"
+        />
+      </div>
       <div class="log-filter">
         <el-select v-model="logWorkerFilter" placeholder="筛选Worker" clearable size="small" style="width: 150px">
           <el-option label="全部Worker" value="" />
@@ -356,6 +371,13 @@
           <el-option label="WARN" value="WARN" />
           <el-option label="ERROR" value="ERROR" />
         </el-select>
+        <el-switch
+          v-model="logAutoRefresh"
+          size="small"
+          active-text="自动刷新"
+          style="margin-left: 15px"
+          @change="handleLogAutoRefreshChange"
+        />
         <span class="log-stats">共 {{ filteredLogs.length }} 条日志</span>
       </div>
       <div class="log-container" ref="logContainerRef">
@@ -383,6 +405,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Setting, Delete } from '@element-plus/icons-vue'
 import { getTaskList, createTask, deleteTask, batchDeleteTask, getTaskProfileList, saveTaskProfile, deleteTaskProfile, retryTask, startTask, pauseTask, resumeTask, stopTask, updateTask, getTaskLogs } from '@/api/task'
 import { useWorkspaceStore } from '@/stores/workspace'
+import { validateTargets, formatValidationErrors } from '@/utils/target'
 
 const router = useRouter()
 const workspaceStore = useWorkspaceStore()
@@ -405,10 +428,12 @@ const selectedRows = ref([])
 const autoRefresh = ref(true)
 const taskLogs = ref([])
 const currentLogTaskId = ref('')
+const currentLogTask = ref(null) // 当前查看日志的任务信息
 const logIdSet = new Set() // 用于日志去重
 const logWorkerFilter = ref('')
 const logSubTaskFilter = ref('')
 const logLevelFilter = ref('')
+const logAutoRefresh = ref(true) // 日志自动刷新开关
 let refreshTimer = null
 let logEventSource = null
 let logPollingTimer = null // 日志轮询定时器
@@ -479,9 +504,26 @@ const editForm = reactive({
   profileId: ''
 })
 
+// 目标格式校验器
+const targetValidator = (rule, value, callback) => {
+  if (!value) {
+    callback(new Error('请输入扫描目标'))
+    return
+  }
+  const errors = validateTargets(value)
+  if (errors.length > 0) {
+    callback(new Error(formatValidationErrors(errors)))
+  } else {
+    callback()
+  }
+}
+
 const editRules = {
   name: [{ required: true, message: '请输入任务名称', trigger: 'blur' }],
-  target: [{ required: true, message: '请输入扫描目标', trigger: 'blur' }],
+  target: [
+    { required: true, message: '请输入扫描目标', trigger: 'blur' },
+    { validator: targetValidator, trigger: 'blur' }
+  ],
   profileId: [{ required: true, message: '请选择任务配置', trigger: 'change' }]
 }
 
@@ -529,7 +571,10 @@ const form = reactive({
 
 const rules = {
   name: [{ required: true, message: '请输入任务名称', trigger: 'blur' }],
-  target: [{ required: true, message: '请输入扫描目标', trigger: 'blur' }],
+  target: [
+    { required: true, message: '请输入扫描目标', trigger: 'blur' },
+    { validator: targetValidator, trigger: 'blur' }
+  ],
   profileId: [{ required: true, message: '请选择任务配置', trigger: 'change' }]
 }
 
@@ -885,19 +930,26 @@ async function handleUpdateTask() {
 
 async function showLogs(row) {
   currentLogTaskId.value = row.taskId // 使用taskId（UUID）而不是id（MongoDB ObjectID）
+  currentLogTask.value = { ...row } // 保存当前任务信息
   taskLogs.value = []
   logIdSet.clear()
   logDialogVisible.value = true
   await refreshLogs()
-  // 连接SSE实时日志流
-  connectLogStream()
-  // 同时启动轮询作为备选（确保日志能更新）
-  startLogPolling()
+  // 根据开关状态决定是否启动自动刷新
+  if (logAutoRefresh.value) {
+    // 连接SSE实时日志流
+    connectLogStream()
+    // 同时启动轮询作为备选（确保日志能更新）
+    startLogPolling()
+  }
 }
 
 async function refreshLogs() {
   if (!currentLogTaskId.value) return
   try {
+    // 同时刷新任务进度
+    await refreshTaskProgress()
+    
     const res = await getTaskLogs({ taskId: currentLogTaskId.value, limit: 500 })
     if (res.code === 0) {
       const newLogs = res.list || []
@@ -920,14 +972,40 @@ async function refreshLogs() {
   }
 }
 
+// 刷新任务进度
+async function refreshTaskProgress() {
+  if (!currentLogTask.value) return
+  // 从已加载的任务列表中查找更新
+  const task = tableData.value.find(t => t.id === currentLogTask.value.id)
+  if (task) {
+    currentLogTask.value = { ...task }
+  }
+}
+
 // 启动日志轮询
 function startLogPolling() {
-  if (logPollingTimer) return
+  if (logPollingTimer || !logAutoRefresh.value) return
   logPollingTimer = setInterval(async () => {
-    if (logDialogVisible.value && currentLogTaskId.value) {
+    if (logDialogVisible.value && currentLogTaskId.value && logAutoRefresh.value) {
+      // 同时刷新任务列表以获取最新进度
+      await loadData()
       await refreshLogs()
     }
   }, 2000) // 每2秒轮询一次
+}
+
+// 处理日志自动刷新开关变化
+function handleLogAutoRefreshChange(val) {
+  if (val) {
+    startLogPolling()
+    connectLogStream()
+  } else {
+    stopLogPolling()
+    if (logEventSource) {
+      logEventSource.close()
+      logEventSource = null
+    }
+  }
 }
 
 function scrollToBottom() {
@@ -987,6 +1065,7 @@ function stopLogPolling() {
 function closeLogDialog() {
   logDialogVisible.value = false
   currentLogTaskId.value = ''
+  currentLogTask.value = null
   taskLogs.value = []
   logIdSet.clear()
   // 重置筛选条件
@@ -1016,20 +1095,47 @@ function closeLogDialog() {
   
   .form-hint {
     margin-left: 10px;
-    color: var(--text-muted);
+    color: var(--el-text-color-secondary);
     font-size: 12px;
   }
   
   .option-desc {
-    color: var(--text-muted);
+    color: var(--el-text-color-secondary);
     font-size: 12px;
     margin-left: 10px;
   }
   
   .sub-task-info {
     font-size: 11px;
-    color: var(--text-muted);
+    color: var(--el-text-color-secondary);
     margin-top: 2px;
+  }
+}
+
+.log-progress {
+  margin-bottom: 15px;
+  padding: 12px 15px;
+  background-color: var(--el-fill-color-light);
+  border-radius: 6px;
+  border: 1px solid var(--el-border-color-lighter);
+  
+  .progress-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    
+    .task-name {
+      font-weight: 500;
+      font-size: 14px;
+      color: var(--el-text-color-primary);
+    }
+    
+    .sub-task-info {
+      font-size: 12px;
+      color: var(--el-text-color-secondary);
+      margin-left: auto;
+    }
   }
 }
 
@@ -1040,7 +1146,7 @@ function closeLogDialog() {
   
   .log-stats {
     margin-left: auto;
-    color: var(--text-muted);
+    color: var(--el-text-color-secondary);
     font-size: 12px;
   }
 }
@@ -1057,7 +1163,7 @@ function closeLogDialog() {
 }
 
 .log-empty {
-  color: var(--text-muted);
+  color: var(--el-text-color-secondary);
   text-align: center;
   padding: 20px;
 }

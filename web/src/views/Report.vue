@@ -190,6 +190,21 @@
       <el-icon class="is-loading" :size="40"><Loading /></el-icon>
       <p>加载报告中...</p>
     </div>
+    
+    <!-- 无数据状态 -->
+    <div v-if="!loading && reportData && reportData.assetCount === 0 && reportData.vulCount === 0" class="empty-container">
+      <el-empty description="暂无扫描结果">
+        <template #description>
+          <p>该任务暂无扫描结果</p>
+          <p style="color: #909399; font-size: 12px;">可能原因：任务未完成、目标无开放端口、或扫描配置问题</p>
+        </template>
+      </el-empty>
+    </div>
+    
+    <!-- 任务不存在 -->
+    <div v-if="!loading && !reportData" class="empty-container">
+      <el-empty description="任务不存在或加载失败" />
+    </div>
   </div>
 </template>
 
@@ -257,13 +272,17 @@ onMounted(() => {
 async function loadReport(taskId) {
   loading.value = true
   try {
+    console.log('Loading report for taskId:', taskId)
     const res = await getReportDetail({ taskId })
+    console.log('Report response:', res)
     if (res.code === 0) {
       reportData.value = res.data
+      console.log('Report data:', res.data)
     } else {
       ElMessage.error(res.msg || '加载报告失败')
     }
   } catch (e) {
+    console.error('Load report error:', e)
     ElMessage.error('加载报告失败')
   } finally {
     loading.value = false
@@ -531,6 +550,14 @@ function getScreenshotUrl(screenshot) {
     height: 300px;
     color: var(--el-text-color-secondary);
   }
+  
+  .empty-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 0;
+  }
 
   .app-tag {
     margin: 0;
@@ -543,9 +570,9 @@ function getScreenshotUrl(screenshot) {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--bg-tertiary);
+    background: var(--el-fill-color-light);
     border-radius: 4px;
-    color: var(--text-muted);
+    color: var(--el-text-color-secondary);
   }
 }
 </style>

@@ -10,9 +10,6 @@
         :default-active="$route.path"
         :collapse="isCollapse"
         router
-        :background-color="themeStore.isDark ? '#1d1e1f' : '#fff'"
-        :text-color="themeStore.isDark ? '#a3a6ad' : '#606266'"
-        :active-text-color="themeStore.isDark ? '#fff' : '#409eff'"
         :unique-opened="true"
       >
         <el-menu-item index="/dashboard">
@@ -177,22 +174,22 @@ function handleCommand(command) {
 }
 
 .aside {
-  background: var(--bg-secondary);
+  background: var(--el-bg-color);
   transition: width 0.3s, background 0.3s;
   overflow: hidden;
-  box-shadow: 2px 0 8px var(--shadow-color);
-  border-right: 1px solid var(--border-color);
+  box-shadow: var(--el-box-shadow-light);
+  border-right: 1px solid var(--el-border-color);
 
   .logo {
     height: 64px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--text-primary);
+    color: var(--el-text-color-primary);
     font-size: 18px;
     font-weight: 600;
     letter-spacing: 2px;
-    border-bottom: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--el-border-color);
 
     img {
       width: 36px;
@@ -211,11 +208,11 @@ function handleCommand(command) {
       transition: all 0.3s;
       
       &:hover {
-        background: var(--bg-hover) !important;
+        background: var(--el-fill-color) !important;
       }
       
       &.is-active {
-        background: linear-gradient(90deg, #409eff 0%, #66b1ff 100%) !important;
+        background: linear-gradient(90deg, var(--el-color-primary) 0%, var(--el-color-primary-light-3) 100%) !important;
         color: #fff !important;
       }
     }
@@ -226,7 +223,7 @@ function handleCommand(command) {
         border-radius: 8px;
         
         &:hover {
-          background: var(--bg-hover) !important;
+          background: var(--el-fill-color) !important;
         }
       }
       
@@ -239,14 +236,14 @@ function handleCommand(command) {
 }
 
 .header {
-  background: var(--bg-secondary);
-  box-shadow: 0 1px 4px var(--shadow-color);
+  background: var(--el-bg-color);
+  box-shadow: var(--el-box-shadow-light);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
   height: 64px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--el-border-color);
   transition: background 0.3s;
 
   .header-left {
@@ -257,11 +254,11 @@ function handleCommand(command) {
       font-size: 20px;
       cursor: pointer;
       margin-right: 20px;
-      color: var(--text-secondary);
+      color: var(--el-text-color-regular);
       transition: color 0.3s;
       
       &:hover {
-        color: var(--primary-color);
+        color: var(--el-color-primary);
       }
     }
   }
@@ -279,12 +276,12 @@ function handleCommand(command) {
       justify-content: center;
       border-radius: 8px;
       cursor: pointer;
-      color: var(--text-secondary);
+      color: var(--el-text-color-regular);
       transition: all 0.3s;
       
       &:hover {
-        background: var(--bg-hover);
-        color: var(--primary-color);
+        background: var(--el-fill-color);
+        color: var(--el-color-primary);
       }
       
       .el-icon {
@@ -301,19 +298,19 @@ function handleCommand(command) {
       transition: background 0.3s;
       
       &:hover {
-        background: var(--bg-hover);
+        background: var(--el-fill-color);
       }
 
       .username {
         margin-left: 8px;
-        color: var(--text-secondary);
+        color: var(--el-text-color-regular);
       }
     }
   }
 }
 
 .main {
-  background: var(--bg-primary);
+  background: var(--el-bg-color-page);
   padding: 20px;
   overflow-y: auto;
   transition: background 0.3s;
