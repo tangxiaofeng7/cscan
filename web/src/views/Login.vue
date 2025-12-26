@@ -1,5 +1,10 @@
 <template>
   <div class="login-container">
+    <!-- 主题切换按钮 -->
+    <div class="theme-switch" @click="themeStore.toggleTheme">
+      <el-icon v-if="themeStore.isDark"><Sunny /></el-icon>
+      <el-icon v-else><Moon /></el-icon>
+    </div>
     <div class="login-box">
       <div class="login-header">
         <h1>CSCAN</h1>
@@ -46,9 +51,12 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { useThemeStore } from '@/stores/theme'
+import { Sunny, Moon } from '@element-plus/icons-vue'
 
 const router = useRouter()
 const userStore = useUserStore()
+const themeStore = useThemeStore()
 const formRef = ref()
 const loading = ref(false)
 
@@ -85,16 +93,47 @@ async function handleLogin() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #0d0d0d;
+  background: #e8ecf1;
+  position: relative;
+  transition: background 0.3s;
+}
+
+.theme-switch {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid #d0d5dd;
+  color: #667085;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s;
+  
+  &:hover {
+    transform: scale(1.1);
+    border-color: #409eff;
+    color: #409eff;
+  }
+  
+  .el-icon {
+    font-size: 20px;
+  }
 }
 
 .login-box {
   width: 400px;
   padding: 40px;
-  background: #1a1a1a;
+  background: #fff;
   border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-  border: 1px solid #2a2a2a;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e4e7ed;
+  transition: all 0.3s;
 }
 
 .login-header {
@@ -103,47 +142,121 @@ async function handleLogin() {
 
   h1 {
     font-size: 32px;
-    color: #fff;
+    color: #1a1a2e;
     margin: 0 0 10px;
     letter-spacing: 4px;
+    font-weight: 600;
   }
 
   p {
-    color: #888;
+    color: #606266;
     margin: 0;
+    font-size: 14px;
   }
 }
 
 .login-form {
   :deep(.el-input__wrapper) {
-    background: #252525;
-    border: 1px solid #333;
+    background: #fff;
+    border: 1px solid #dcdfe6;
     box-shadow: none;
+    border-radius: 8px;
     
-    &:hover, &:focus {
+    &:hover {
+      border-color: #c0c4cc;
+    }
+    
+    &.is-focus {
       border-color: #409eff;
     }
   }
   
   :deep(.el-input__inner) {
-    color: #fff;
+    color: #303133;
     
     &::placeholder {
-      color: #666;
+      color: #a8abb2;
     }
   }
   
   :deep(.el-input__prefix) {
-    color: #666;
+    color: #909399;
   }
 
   .login-btn {
     width: 100%;
+    height: 44px;
     background: linear-gradient(90deg, #409eff 0%, #66b1ff 100%);
     border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: 2px;
     
     &:hover {
       background: linear-gradient(90deg, #66b1ff 0%, #409eff 100%);
+    }
+  }
+}
+</style>
+
+<!-- 暗黑模式样式 -->
+<style lang="scss">
+html.dark {
+  .login-container {
+    background: #0d0d0d;
+  }
+  
+  .theme-switch {
+    background: #252525;
+    border-color: #333;
+    color: #fbbf24;
+    
+    &:hover {
+      border-color: #fbbf24;
+    }
+  }
+  
+  .login-box {
+    background: #1a1a1a;
+    border-color: #2a2a2a;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+  
+  .login-header {
+    h1 {
+      color: #fff;
+    }
+    
+    p {
+      color: #888;
+    }
+  }
+  
+  .login-form {
+    .el-input__wrapper {
+      background: #252525 !important;
+      border-color: #333 !important;
+      
+      &:hover {
+        border-color: #444 !important;
+      }
+      
+      &.is-focus {
+        border-color: #409eff !important;
+      }
+    }
+    
+    .el-input__inner {
+      color: #fff !important;
+      
+      &::placeholder {
+        color: #666 !important;
+      }
+    }
+    
+    .el-input__prefix {
+      color: #666 !important;
     }
   }
 }
