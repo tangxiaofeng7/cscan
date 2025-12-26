@@ -10,10 +10,10 @@
 
 ## 特性
 
-- **资产发现** - 端口扫描 (Nmap/Masscan/Naabu)，服务识别
+- **资产发现** - 端口扫描 (Naabu/Masscan)，端口服务识别（Nmap）
 - **指纹识别** - Httpx + Wappalyzer + 自定义指纹引擎，3W+自定义指纹
-- **漏洞检测** - Nuclei 引擎，800+自定义POC
-- **Web 截图** - 基于 Chromedp 的网页截图功能/基于HTTPX的网页截图功能
+- **漏洞检测** - Nuclei SDK引擎，800+自定义POC
+- **Web 截图** - Chromedp / HTTPX 引擎
 - **在线数据源** - FOFA / Hunter / Quake API 聚合搜索与导入
 - **报告管理** - 任务报告生成，支持 Excel 导出
 - **分布式架构** - Worker 节点水平扩展，支持多节点并行扫描
