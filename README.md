@@ -20,7 +20,7 @@
 - **多工作空间** - 项目隔离，团队协作
 
 ## 目录
-<details>
+<details open>
 <summary>⭐ 快速开始 </summary>
 
 ```bash
