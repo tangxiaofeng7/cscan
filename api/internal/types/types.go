@@ -263,12 +263,13 @@ type MainTaskListResp struct {
 }
 
 type MainTaskCreateReq struct {
-	Name      string `json:"name"`
-	Target    string `json:"target"`
-	ProfileId string `json:"profileId"`
-	OrgId     string `json:"orgId,optional"`
-	IsCron    bool   `json:"isCron,optional"`
-	CronRule  string `json:"cronRule,optional"`
+	Name      string   `json:"name"`
+	Target    string   `json:"target"`
+	ProfileId string   `json:"profileId"`
+	OrgId     string   `json:"orgId,optional"`
+	IsCron    bool     `json:"isCron,optional"`
+	CronRule  string   `json:"cronRule,optional"`
+	Workers   []string `json:"workers,optional"` // 指定执行任务的 Worker 列表
 }
 
 type TaskProfile struct {

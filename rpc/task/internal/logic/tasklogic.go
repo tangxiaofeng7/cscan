@@ -42,10 +42,11 @@ func NewTaskLogic(ctx context.Context, svcCtx *svc.ServiceContext) *TaskLogic {
 func (l *TaskLogic) CheckTask(in *pb.CheckTaskReq) (*pb.CheckTaskResp, error) {
 	queueKey := "cscan:task:queue"
 	maxSkip := 100 // 最多跳过100个已停止的任务，防止无限循环
+	workerName := in.TaskId // TaskId 字段实际上是 Worker 名称
 	
 	for i := 0; i < maxSkip; i++ {
-		// 从 Redis 队列获取任务
-		results, err := l.svcCtx.RedisClient.ZPopMin(l.ctx, queueKey, 1).Result()
+		// 从 Redis 队列获取任务（使用 ZRange 而不是 ZPopMin，先检查再删除）
+		results, err := l.svcCtx.RedisClient.ZRangeWithScores(l.ctx, queueKey, 0, 0).Result()
 		if err != nil || len(results) == 0 {
 			// 没有任务
 			return &pb.CheckTaskResp{
@@ -56,14 +57,57 @@ func (l *TaskLogic) CheckTask(in *pb.CheckTaskReq) (*pb.CheckTaskResp, error) {
 
 		// 解析任务信息
 		var taskInfo struct {
-			TaskId      string `json:"taskId"`
-			MainTaskId  string `json:"mainTaskId"`
-			WorkspaceId string `json:"workspaceId"`
-			TaskName    string `json:"taskName"`
-			Config      string `json:"config"`
+			TaskId      string   `json:"taskId"`
+			MainTaskId  string   `json:"mainTaskId"`
+			WorkspaceId string   `json:"workspaceId"`
+			TaskName    string   `json:"taskName"`
+			Config      string   `json:"config"`
+			Workers     []string `json:"workers,omitempty"` // 指定的 Worker 列表
 		}
-		if err := json.Unmarshal([]byte(results[0].Member.(string)), &taskInfo); err != nil {
-			continue // 解析失败，跳过这个任务
+		taskData := results[0].Member.(string)
+		if err := json.Unmarshal([]byte(taskData), &taskInfo); err != nil {
+			// 解析失败，删除这个任务并继续
+			l.svcCtx.RedisClient.ZRem(l.ctx, queueKey, taskData)
+			continue
+		}
+
+		// 检查 Worker 匹配
+		if len(taskInfo.Workers) > 0 {
+			matched := false
+			for _, w := range taskInfo.Workers {
+				if w == workerName {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				// 当前 Worker 不在指定列表中，跳过这个任务（不删除，留给其他 Worker）
+				// 但需要检查下一个任务，所以使用 ZRange 获取更多任务
+				moreResults, _ := l.svcCtx.RedisClient.ZRangeWithScores(l.ctx, queueKey, int64(i), int64(i)).Result()
+				if len(moreResults) == 0 {
+					return &pb.CheckTaskResp{
+						IsExist:    false,
+						IsFinished: true,
+					}, nil
+				}
+				taskData = moreResults[0].Member.(string)
+				if err := json.Unmarshal([]byte(taskData), &taskInfo); err != nil {
+					continue
+				}
+				// 再次检查 Worker 匹配
+				if len(taskInfo.Workers) > 0 {
+					matched = false
+					for _, w := range taskInfo.Workers {
+						if w == workerName {
+							matched = true
+							break
+						}
+					}
+					if !matched {
+						continue // 继续检查下一个
+					}
+				}
+			}
 		}
 
 		// 检查任务是否已被停止（检查主任务的停止信号）
@@ -88,10 +132,15 @@ func (l *TaskLogic) CheckTask(in *pb.CheckTaskReq) (*pb.CheckTaskResp, error) {
 		ctrl, _ := l.svcCtx.RedisClient.Get(l.ctx, ctrlKey).Result()
 		if ctrl == "STOP" {
 			l.Logger.Infof("Task %s skipped because main task %s is stopped", taskInfo.TaskId, mainTaskId)
+			// 删除已停止的任务
+			l.svcCtx.RedisClient.ZRem(l.ctx, queueKey, taskData)
 			continue // 任务已停止，跳过，继续获取下一个
 		}
 
-		l.Logger.Infof("Dispatching task: taskId=%s, workspaceId=%s", taskInfo.TaskId, taskInfo.WorkspaceId)
+		// 任务匹配成功，从队列中删除
+		l.svcCtx.RedisClient.ZRem(l.ctx, queueKey, taskData)
+
+		l.Logger.Infof("Dispatching task: taskId=%s, workspaceId=%s, worker=%s", taskInfo.TaskId, taskInfo.WorkspaceId, workerName)
 
 		return &pb.CheckTaskResp{
 			IsExist:     true,

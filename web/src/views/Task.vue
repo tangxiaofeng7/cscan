@@ -325,6 +325,20 @@
             </el-option>
           </el-select>
         </el-form-item>
+        <el-form-item label="指定Worker">
+          <el-select v-model="form.workers" multiple placeholder="选择Worker（可选，不选则任意Worker执行）" clearable style="width: 100%">
+            <el-option
+              v-for="w in workers"
+              :key="w.name"
+              :label="w.name"
+              :value="w.name"
+            >
+              <span>{{ w.name }}</span>
+              <span class="option-desc">{{ w.ip }}</span>
+            </el-option>
+          </el-select>
+          <span class="form-hint">不选择则由任意在线Worker执行</span>
+        </el-form-item>
         <el-form-item label="定时任务">
           <el-switch v-model="form.isCron" />
         </el-form-item>
@@ -447,7 +461,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Setting, Delete, Search } from '@element-plus/icons-vue'
-import { getTaskList, createTask, deleteTask, batchDeleteTask, getTaskProfileList, saveTaskProfile, deleteTaskProfile, retryTask, startTask, pauseTask, resumeTask, stopTask, updateTask, getTaskLogs } from '@/api/task'
+import { getTaskList, createTask, deleteTask, batchDeleteTask, getTaskProfileList, saveTaskProfile, deleteTaskProfile, retryTask, startTask, pauseTask, resumeTask, stopTask, updateTask, getTaskLogs, getWorkerList } from '@/api/task'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { validateTargets, formatValidationErrors } from '@/utils/target'
 import request from '@/api/request'
@@ -465,6 +479,7 @@ const logDialogVisible = ref(false)
 const tableData = ref([])
 const profiles = ref([])
 const organizations = ref([])
+const workers = ref([]) // Worker 列表
 const formRef = ref()
 const profileFormRef = ref()
 const editFormRef = ref()
@@ -629,7 +644,8 @@ const form = reactive({
   workspaceId: '',
   orgId: '',
   isCron: false,
-  cronRule: ''
+  cronRule: '',
+  workers: [] // 指定执行任务的 Worker 列表
 })
 
 const rules = {
@@ -651,6 +667,7 @@ onMounted(() => {
   loadData()
   loadProfiles()
   loadOrganizations()
+  loadWorkers()
   // 如果默认开启自动刷新，启动定时器
   if (autoRefresh.value) {
     startAutoRefresh()
@@ -729,6 +746,19 @@ async function loadOrganizations() {
   }
 }
 
+async function loadWorkers() {
+  try {
+    const res = await getWorkerList()
+    const data = res.data || res
+    if (data.code === 0) {
+      // 只显示在线的 Worker (状态为 running)
+      workers.value = (data.list || []).filter(w => w.status === 'running')
+    }
+  } catch (e) {
+    console.error('Failed to load workers:', e)
+  }
+}
+
 function getStatusType(status) {
   const map = {
     CREATED: 'info',
@@ -743,6 +773,8 @@ function getStatusType(status) {
 }
 
 function showCreateDialog() {
+  // 刷新 Worker 列表
+  loadWorkers()
   // 如果当前是"全部空间"(all)，则使用"默认工作空间"，否则使用当前工作空间
   let wsId = workspaceStore.currentWorkspaceId
   if (wsId === 'all' || !wsId) {
@@ -757,7 +789,8 @@ function showCreateDialog() {
     workspaceId: wsId,
     orgId: '',
     isCron: false, 
-    cronRule: '' 
+    cronRule: '',
+    workers: []
   })
   dialogVisible.value = true
 }

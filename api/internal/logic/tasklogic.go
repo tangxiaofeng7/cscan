@@ -182,6 +182,11 @@ func (l *MainTaskCreateLogic) MainTaskCreate(req *types.MainTaskCreateReq, works
 	} else {
 		l.Logger.Infof("MainTaskCreate: orgId is empty")
 	}
+	// 添加指定 Worker 列表到配置
+	if len(req.Workers) > 0 {
+		taskConfig["workers"] = req.Workers
+		l.Logger.Infof("MainTaskCreate: workers set to %v", req.Workers)
+	}
 	// 合并 profile 配置
 	if profile.Config != "" {
 		var profileConfig map[string]interface{}
@@ -534,6 +539,16 @@ func (l *MainTaskStartLogic) MainTaskStart(req *types.MainTaskControlReq, worksp
 	})
 	l.svcCtx.RedisClient.Set(l.ctx, taskInfoKey, taskInfoData, 24*time.Hour)
 
+	// 从配置中获取指定的 Worker 列表
+	var workers []string
+	if w, ok := taskConfig["workers"].([]interface{}); ok {
+		for _, v := range w {
+			if s, ok := v.(string); ok {
+				workers = append(workers, s)
+			}
+		}
+	}
+
 	// 为每个批次创建子任务并推送到队列
 	for i, batch := range batches {
 		// 复制配置并替换目标
@@ -559,9 +574,10 @@ func (l *MainTaskStartLogic) MainTaskStart(req *types.MainTaskControlReq, worksp
 			TaskName:    task.Name,
 			Config:      string(subConfigBytes),
 			Priority:    1,
+			Workers:     workers, // 传递指定的 Worker 列表
 		}
 
-		l.Logger.Infof("Pushing sub-task %d/%d: taskId=%s, targets=%d", i+1, len(batches), subTaskId, len(strings.Split(batch, "\n")))
+		l.Logger.Infof("Pushing sub-task %d/%d: taskId=%s, targets=%d, workers=%v", i+1, len(batches), subTaskId, len(strings.Split(batch, "\n")), workers)
 
 		if err := l.svcCtx.Scheduler.PushTask(l.ctx, schedTask); err != nil {
 			l.Logger.Errorf("push sub-task to queue failed: %v", err)

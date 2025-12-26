@@ -55,3 +55,7 @@ export function updateTask(data) {
 export function getTaskLogs(data) {
   return request.post('/task/logs', data)
 }
+
+export function getWorkerList() {
+  return request.post('/worker/list')
+}

@@ -24,13 +24,14 @@ const (
 
 // TaskInfo 任务信息
 type TaskInfo struct {
-	TaskId      string `json:"taskId"`
-	MainTaskId  string `json:"mainTaskId"`
-	WorkspaceId string `json:"workspaceId"`
-	TaskName    string `json:"taskName"`
-	Config      string `json:"config"`
-	Priority    int    `json:"priority"`
-	CreateTime  string `json:"createTime"`
+	TaskId      string   `json:"taskId"`
+	MainTaskId  string   `json:"mainTaskId"`
+	WorkspaceId string   `json:"workspaceId"`
+	TaskName    string   `json:"taskName"`
+	Config      string   `json:"config"`
+	Priority    int      `json:"priority"`
+	CreateTime  string   `json:"createTime"`
+	Workers     []string `json:"workers,omitempty"` // 指定执行任务的 Worker 列表，为空表示任意 Worker
 }
 
 // Scheduler 任务调度器
