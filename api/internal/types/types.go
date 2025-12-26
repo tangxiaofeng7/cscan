@@ -494,6 +494,15 @@ type WorkerRenameResp struct {
 	Msg  string `json:"msg"`
 }
 
+type WorkerRestartReq struct {
+	Name string `json:"name"` // Worker名称
+}
+
+type WorkerRestartResp struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
+}
+
 // ==================== 在线API搜索 ====================
 type OnlineSearchReq struct {
 	Platform string `json:"platform"` // fofa/hunter/quake

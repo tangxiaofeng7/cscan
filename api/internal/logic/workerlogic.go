@@ -208,3 +208,44 @@ func (l *WorkerRenameLogic) WorkerRename(req *types.WorkerRenameReq) (resp *type
 
 	return &types.WorkerRenameResp{Code: 0, Msg: "重命名成功"}, nil
 }
+
+// WorkerRestartLogic Worker重启逻辑
+type WorkerRestartLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewWorkerRestartLogic(ctx context.Context, svcCtx *svc.ServiceContext) *WorkerRestartLogic {
+	return &WorkerRestartLogic{
+		Logger: logx.WithContext(ctx),
+		ctx:    ctx,
+		svcCtx: svcCtx,
+	}
+}
+
+func (l *WorkerRestartLogic) WorkerRestart(req *types.WorkerRestartReq) (resp *types.WorkerRestartResp, err error) {
+	if req.Name == "" {
+		return &types.WorkerRestartResp{Code: 400, Msg: "Worker名称不能为空"}, nil
+	}
+
+	rdb := l.svcCtx.RedisClient
+
+	// 检查Worker是否存在
+	workerKey := fmt.Sprintf("worker:%s", req.Name)
+	_, err = rdb.Get(l.ctx, workerKey).Result()
+	if err != nil {
+		return &types.WorkerRestartResp{Code: 404, Msg: "Worker不存在或已离线"}, nil
+	}
+
+	// 1. 先删除Redis中的Worker状态数据，让Worker重启后重新注册
+	rdb.Del(l.ctx, workerKey)
+	l.Logger.Infof("[WorkerRestart] Deleted worker data: %s", req.Name)
+
+	// 2. 通过Pub/Sub发送重启命令
+	restartMsg := fmt.Sprintf(`{"action":"restart","workerName":"%s"}`, req.Name)
+	rdb.Publish(l.ctx, "cscan:worker:control", restartMsg)
+	l.Logger.Infof("[WorkerRestart] Sent restart command to worker: %s", req.Name)
+
+	return &types.WorkerRestartResp{Code: 0, Msg: "重启命令已发送"}, nil
+}

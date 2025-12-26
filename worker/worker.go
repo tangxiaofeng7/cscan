@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"cscan/model"
@@ -2116,6 +2118,40 @@ func (w *Worker) handleControlCommand(payload string) {
 			w.Stop()
 			// 退出进程
 			os.Exit(0)
+		}()
+	case "restart":
+		w.logger.Info("Received restart command, restarting worker %s", w.config.Name)
+		go func() {
+			executable, err := os.Executable()
+			if err != nil {
+				w.logger.Error("Failed to get executable path: %v", err)
+				os.Exit(1)
+			}
+
+			if runtime.GOOS == "windows" {
+				// Windows: 启动新进程后退出当前进程
+				cmd := exec.Command(executable, os.Args[1:]...)
+				cmd.Stdout = os.Stdout
+				cmd.Stderr = os.Stderr
+				cmd.Stdin = os.Stdin
+				
+				if err := cmd.Start(); err != nil {
+					w.logger.Error("Failed to start new worker process: %v", err)
+					os.Exit(1)
+				}
+				
+				w.logger.Info("New worker process started, stopping current process")
+				w.Stop()
+				os.Exit(0)
+			} else {
+				// Linux/Unix: 使用 syscall.Exec 原地替换进程
+				w.Stop()
+				err = syscall.Exec(executable, os.Args, os.Environ())
+				if err != nil {
+					w.logger.Error("Failed to restart worker: %v", err)
+					os.Exit(1)
+				}
+			}
 		}()
 	case "rename":
 		if cmd.NewName != "" {

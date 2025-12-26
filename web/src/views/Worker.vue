@@ -57,8 +57,18 @@
           </template>
         </el-table-column>
         <el-table-column prop="updateTime" label="最后响应" width="160" />
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
+            <el-popconfirm
+              title="确定要重启该Worker吗？"
+              confirm-button-text="确定"
+              cancel-button-text="取消"
+              @confirm="restartWorker(row.name)"
+            >
+              <template #reference>
+                <el-button size="small" type="warning" :icon="RefreshRight" :disabled="row.status !== 'running'">重启</el-button>
+              </template>
+            </el-popconfirm>
             <el-popconfirm
               title="确定要删除该Worker吗？这将停止Worker并清除其数据"
               confirm-button-text="确定"
@@ -150,7 +160,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick, watch, reactive, computed } from 'vue'
-import { Refresh, Delete, Edit } from '@element-plus/icons-vue'
+import { Refresh, Delete, Edit, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
 
@@ -329,6 +339,21 @@ async function deleteWorker(workerName) {
     }
   } catch (e) {
     ElMessage.error('删除失败: ' + e.message)
+  }
+}
+
+async function restartWorker(workerName) {
+  try {
+    const res = await request.post('/worker/restart', { name: workerName })
+    if (res.code === 0) {
+      ElMessage.success('重启命令已发送')
+      // 延迟刷新，等待Worker重启
+      setTimeout(() => loadData(), 3000)
+    } else {
+      ElMessage.error(res.msg || '重启失败')
+    }
+  } catch (e) {
+    ElMessage.error('重启失败: ' + e.message)
   }
 }
 

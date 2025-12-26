@@ -98,7 +98,7 @@ go run rpc/task/task.go -f rpc/task/etc/task.yaml
 go run api/cscan.go -f api/etc/cscan.yaml
 
 # 4. 启动 Worker（可启动多个）
-go run cmd/worker/main.go -s localhost:9000 -r localhost:6379 -n worker1
+go run cmd/worker/main.go -s localhost:9000 -r localhost:6379
 
 # 5. 启动前端
 cd web && npm install && npm run dev
