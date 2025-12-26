@@ -20,6 +20,8 @@ type ScanConfig struct {
 	Options     interface{} `json:"options"`
 	WorkspaceId string      `json:"workspaceId"`
 	MainTaskId  string      `json:"mainTaskId"`
+	// TaskLogger 任务日志回调，用于将扫描日志推送到任务日志流
+	TaskLogger  func(level, format string, args ...interface{}) `json:"-"`
 }
 
 // ScanResult 扫描结果

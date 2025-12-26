@@ -58,6 +58,12 @@ type Worker struct {
 	taskExecuted int
 	isRunning    bool
 	
+	// 健康状态监控
+	lastCPUCheck     time.Time     // 上次CPU检查时间
+	cpuOverloadCount int           // CPU过载计数
+	isThrottled      bool          // 是否处于限流状态
+	throttleUntil    time.Time     // 限流结束时间
+	
 	// 日志组件
 	logger *WorkerLogger
 }
@@ -343,6 +349,11 @@ func (w *Worker) pullTask() bool {
 		return false
 	}
 
+	// 检查CPU负载，超过80%时暂停任务拉取，防止扫描引擎崩溃
+	if w.isCPUOverloaded() {
+		return false
+	}
+
 	// 通过 RPC 获取任务
 	resp, err := w.rpcClient.CheckTask(ctx, &pb.CheckTaskReq{
 		TaskId: w.config.Name,
@@ -605,6 +616,17 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			return
 		}
 
+		// 创建带超时的上下文，防止端口扫描卡死
+		portScanTimeout := 600 // 默认10分钟总超时
+		if config.PortScan != nil && config.PortScan.Timeout > 0 {
+			// 根据单个端口超时计算总超时（至少10分钟）
+			portScanTimeout = config.PortScan.Timeout * 100
+			if portScanTimeout < 600 {
+				portScanTimeout = 600
+			}
+		}
+		portCtx, portCancel := context.WithTimeout(ctx, time.Duration(portScanTimeout)*time.Second)
+
 		// 根据配置选择端口发现工具（默认使用Naabu)
 		portDiscoveryTool := "naabu"
 		if config.PortScan != nil && config.PortScan.Tool != "" {
@@ -613,17 +635,26 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 
 		var openPorts []*scanner.Asset
 		
+		// 创建任务日志回调
+		taskLogger := func(level, format string, args ...interface{}) {
+			w.taskLog(task.TaskId, level, format, args...)
+		}
+		
 		// 第一步：端口发现
 		switch portDiscoveryTool {
 		case "masscan":
 			w.taskLog(task.TaskId, LevelInfo, "Port scan: Masscan")
 			masscanScanner := w.scanners["masscan"]
-			masscanResult, err := masscanScanner.Scan(ctx, &scanner.ScanConfig{
-				Target:  target,
-				Options: config.PortScan,
+			masscanResult, err := masscanScanner.Scan(portCtx, &scanner.ScanConfig{
+				Target:     target,
+				Options:    config.PortScan,
+				TaskLogger: taskLogger,
 			})
-			// 检查是否被停止
-			if ctx.Err() != nil {
+			// 检查是否被停止或超时
+			if portCtx.Err() == context.DeadlineExceeded {
+				w.taskLog(task.TaskId, LevelWarn, "Port scan timeout, continuing with partial results")
+			} else if ctx.Err() != nil {
+				portCancel()
 				w.taskLog(task.TaskId, LevelInfo, "Task stopped")
 				return
 			}
@@ -637,12 +668,16 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 		default: // naabu
 			w.taskLog(task.TaskId, LevelInfo, "Port scan: Naabu")
 			naabuScanner := w.scanners["naabu"]
-			naabuResult, err := naabuScanner.Scan(ctx, &scanner.ScanConfig{
-				Target:  target,
-				Options: config.PortScan,
+			naabuResult, err := naabuScanner.Scan(portCtx, &scanner.ScanConfig{
+				Target:     target,
+				Options:    config.PortScan,
+				TaskLogger: taskLogger,
 			})
-			// 检查是否被停止
-			if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
+			// 检查是否被停止或超时
+			if portCtx.Err() == context.DeadlineExceeded {
+				w.taskLog(task.TaskId, LevelWarn, "Port scan timeout, continuing with partial results")
+			} else if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
+				portCancel()
 				w.taskLog(task.TaskId, LevelInfo, "Task stopped")
 				return
 			}
@@ -657,6 +692,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 		
 		// 检查是否被停止
 		if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
+			portCancel()
 			w.taskLog(task.TaskId, LevelInfo, "Task stopped")
 			return
 		}
@@ -673,8 +709,20 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			
 			nmapScanner := w.scanners["nmap"]
 			for host, ports := range hostPorts {
-				// 检查是否被停止
+				// 检查是否被停止或超时
+				if portCtx.Err() == context.DeadlineExceeded {
+					w.taskLog(task.TaskId, LevelWarn, "Port scan timeout during service detection, using partial results")
+					// 超时时使用端口发现阶段的结果
+					for _, asset := range openPorts {
+						if asset.Host == host {
+							asset.IsHTTP = scanner.IsHTTPService(asset.Service, asset.Port)
+							allAssets = append(allAssets, asset)
+						}
+					}
+					continue
+				}
 				if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
+					portCancel()
 					w.taskLog(task.TaskId, LevelInfo, "Task stopped")
 					return
 				}
@@ -686,7 +734,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				}
 				portsStr := strings.Join(portStrs, ",")
 				
-				nmapResult, err := nmapScanner.Scan(ctx, &scanner.ScanConfig{
+				nmapResult, err := nmapScanner.Scan(portCtx, &scanner.ScanConfig{
 					Target: host,
 					Options: &scanner.NmapOptions{
 						Ports:   portsStr,
@@ -696,6 +744,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				
 				// 检查是否被停止
 				if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
+					portCancel()
 					w.taskLog(task.TaskId, LevelInfo, "Task stopped")
 					return
 				}
@@ -739,6 +788,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			w.taskLog(task.TaskId, LevelInfo, "No open ports found")
 		}
 		
+		portCancel() // 释放端口扫描上下文
 		completedPhases["portscan"] = true
 	}
 
@@ -775,10 +825,23 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				w.loadCustomFingerprints(ctx, s.(*scanner.FingerprintScanner))
 			}
 			
-			result, err := s.Scan(ctx, &scanner.ScanConfig{
+			// 创建带超时的上下文，防止指纹识别卡死
+			fingerprintTimeout := config.Fingerprint.Timeout
+			if fingerprintTimeout <= 0 {
+				fingerprintTimeout = 300 // 默认5分钟总超时
+			}
+			fpCtx, fpCancel := context.WithTimeout(ctx, time.Duration(fingerprintTimeout)*time.Second)
+			
+			result, err := s.Scan(fpCtx, &scanner.ScanConfig{
 				Assets:  allAssets,
 				Options: config.Fingerprint,
 			})
+			fpCancel()
+			
+			// 检查是否超时
+			if fpCtx.Err() == context.DeadlineExceeded {
+				w.taskLog(task.TaskId, LevelWarn, "Fingerprint scan timeout after %ds, continuing with partial results", fingerprintTimeout)
+			}
 			
 			// 检查是否被取消
 			if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
@@ -879,6 +942,13 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				// 创建漏洞缓冲区，10个漏洞批量保存一次
 				vulBuffer := NewVulnerabilityBuffer(10)
 
+				// 创建带超时的上下文，防止POC扫描卡死
+				pocTimeout := config.PocScan.Timeout
+				if pocTimeout <= 0 {
+					pocTimeout = 600 // 默认10分钟总超时
+				}
+				pocCtx, pocCancel := context.WithTimeout(ctx, time.Duration(pocTimeout)*time.Second)
+
 				// 启动后台刷新协程
 				flushDone := make(chan struct{})
 				go func() {
@@ -887,16 +957,16 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 					defer ticker.Stop()
 					for {
 						select {
-						case <-ctx.Done():
+						case <-pocCtx.Done():
 							return
 						case <-flushDone:
 							return
 						case <-vulBuffer.flushChan:
-							vulBuffer.Flush(ctx, func(vuls []*scanner.Vulnerability) {
+							vulBuffer.Flush(pocCtx, func(vuls []*scanner.Vulnerability) {
 								w.saveVulResult(ctx, task.WorkspaceId, task.MainTaskId, vuls)
 							})
 						case <-ticker.C:
-							vulBuffer.Flush(ctx, func(vuls []*scanner.Vulnerability) {
+							vulBuffer.Flush(pocCtx, func(vuls []*scanner.Vulnerability) {
 								w.saveVulResult(ctx, task.WorkspaceId, task.MainTaskId, vuls)
 							})
 						}
@@ -911,6 +981,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 					ExcludeTags:     config.PocScan.ExcludeTags,
 					RateLimit:       config.PocScan.RateLimit,
 					Concurrency:     config.PocScan.Concurrency,
+					Timeout:         pocTimeout,
 					AutoScan:        false, // 标签已在Worker端生成
 					AutomaticScan:   false,
 					CustomPocOnly:   config.PocScan.CustomPocOnly,
@@ -931,15 +1002,21 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 					nucleiOpts.Concurrency = 25
 				}
 
-				result, err := s.Scan(ctx, &scanner.ScanConfig{
+				result, err := s.Scan(pocCtx, &scanner.ScanConfig{
 					Assets:  allAssets,
 					Options: nucleiOpts,
 				})
+				pocCancel()
 
 				// 扫描完成后，刷新剩余的漏洞
 				vulBuffer.Flush(ctx, func(vuls []*scanner.Vulnerability) {
 					w.saveVulResult(ctx, task.WorkspaceId, task.MainTaskId, vuls)
 				})
+
+				// 检查是否超时
+				if pocCtx.Err() == context.DeadlineExceeded {
+					w.taskLog(task.TaskId, LevelWarn, "POC scan timeout after %ds, continuing with partial results", pocTimeout)
+				}
 
 				// 检查是否被停止
 				if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
@@ -1152,6 +1229,71 @@ func (w *Worker) keepAlive() {
 	}
 }
 
+// CPU负载阈值常量
+const (
+	CPULoadThreshold     = 80.0  // CPU负载阈值，超过此值暂停任务拉取
+	CPULoadRecovery      = 60.0  // CPU负载恢复阈值，低于此值恢复任务拉取
+	CPUCheckInterval     = 5     // CPU检查间隔(秒)
+	CPUOverloadThreshold = 3     // 连续过载次数阈值，超过则进入限流
+	ThrottleDuration     = 30    // 限流持续时间(秒)
+)
+
+// isCPUOverloaded 检查CPU是否过载
+// 当CPU负载超过80%时返回true，暂停任务下发以防止扫描引擎崩溃
+// 实现智能限流：连续多次过载后进入限流状态，等待一段时间后自动恢复
+func (w *Worker) isCPUOverloaded() bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	
+	// 检查是否处于限流状态
+	if w.isThrottled {
+		if time.Now().Before(w.throttleUntil) {
+			return true // 仍在限流期间
+		}
+		// 限流期结束，重置状态
+		w.isThrottled = false
+		w.cpuOverloadCount = 0
+		w.logger.Info("CPU throttle period ended, resuming task fetch")
+	}
+	
+	// 避免频繁检查CPU
+	if time.Since(w.lastCPUCheck) < time.Duration(CPUCheckInterval)*time.Second {
+		return false
+	}
+	w.lastCPUCheck = time.Now()
+	
+	// 快速获取CPU使用率（1秒采样）
+	cpuPercent, err := cpu.Percent(time.Second, false)
+	if err != nil || len(cpuPercent) == 0 {
+		return false // 获取失败时不阻止任务
+	}
+
+	cpuLoad := cpuPercent[0]
+	
+	if cpuLoad >= CPULoadThreshold {
+		w.cpuOverloadCount++
+		w.logger.Warn("CPU load %.1f%% exceeds threshold %.1f%% (count: %d/%d)", 
+			cpuLoad, CPULoadThreshold, w.cpuOverloadCount, CPUOverloadThreshold)
+		
+		// 连续多次过载，进入限流状态
+		if w.cpuOverloadCount >= CPUOverloadThreshold {
+			w.isThrottled = true
+			w.throttleUntil = time.Now().Add(time.Duration(ThrottleDuration) * time.Second)
+			w.logger.Warn("Entering throttle mode for %d seconds to prevent engine crash", ThrottleDuration)
+		}
+		return true
+	} else if cpuLoad < CPULoadRecovery {
+		// CPU负载恢复正常，重置计数
+		if w.cpuOverloadCount > 0 {
+			w.cpuOverloadCount = 0
+			w.logger.Info("CPU load %.1f%% recovered below %.1f%%, resetting overload count", 
+				cpuLoad, CPULoadRecovery)
+		}
+	}
+	
+	return false
+}
+
 // sendHeartbeat 发送心跳
 func (w *Worker) sendHeartbeat() {
 	ctx, cancel := context.WithTimeout(w.ctx, 10*time.Second) // 继承父Context
@@ -1273,7 +1415,19 @@ func (w *Worker) reportStatusToRedis() {
 	w.mu.Lock()
 	taskStarted := w.taskStarted
 	taskExecuted := w.taskExecuted
+	isThrottled := w.isThrottled
+	cpuOverloadCount := w.cpuOverloadCount
 	w.mu.Unlock()
+
+	// 计算健康状态
+	healthStatus := "healthy"
+	if isThrottled {
+		healthStatus = "throttled"
+	} else if cpuLoad >= CPULoadThreshold {
+		healthStatus = "overloaded"
+	} else if cpuLoad >= CPULoadRecovery {
+		healthStatus = "warning"
+	}
 
 	// 保存状态到Redis
 	key := fmt.Sprintf("worker:%s", w.config.Name)
@@ -1285,6 +1439,9 @@ func (w *Worker) reportStatusToRedis() {
 		"taskStartedNumber":  taskStarted,
 		"taskExecutedNumber": taskExecuted,
 		"isDaemon":           false,
+		"healthStatus":       healthStatus,
+		"isThrottled":        isThrottled,
+		"cpuOverloadCount":   cpuOverloadCount,
 		"updateTime":         time.Now().Format("2006-01-02 15:04:05"),
 	}
 

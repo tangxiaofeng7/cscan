@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/projectdiscovery/goflags"
 	"github.com/projectdiscovery/naabu/v2/pkg/result"
@@ -39,9 +41,23 @@ func (s *NaabuScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResul
 	opts := &NaabuOptions{
 		Ports:         "80,443,8080",
 		Rate:          1000,
-		Timeout:       5,
+		Timeout:       60, // 单个目标扫描超时，默认60秒
 		ScanType:      "s", // SYN扫描
 		PortThreshold: 0,   // 默认不限制
+	}
+
+	// 日志函数，优先使用任务日志回调
+	logInfo := func(format string, args ...interface{}) {
+		if config.TaskLogger != nil {
+			config.TaskLogger("INFO", format, args...)
+		}
+		logx.Infof(format, args...)
+	}
+	logWarn := func(format string, args ...interface{}) {
+		if config.TaskLogger != nil {
+			config.TaskLogger("WARN", format, args...)
+		}
+		logx.Infof(format, args...)
 	}
 
 	// 从配置中提取选项
@@ -74,7 +90,6 @@ func (s *NaabuScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResul
 				if err := json.Unmarshal(data, &portConfig); err == nil {
 					if portConfig.Ports != "" {
 						opts.Ports = portConfig.Ports
-						logx.Infof("Naabu: parsed ports from config: %s", portConfig.Ports)
 					}
 					if portConfig.Rate > 0 {
 						opts.Rate = portConfig.Rate
@@ -89,8 +104,6 @@ func (s *NaabuScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResul
 			}
 		}
 	}
-
-	logx.Infof("Naabu Scan config - Ports: %s, Rate: %d, Timeout: %d, PortThreshold: %d", opts.Ports, opts.Rate, opts.Timeout, opts.PortThreshold)
 
 	// 解析目标
 	targets := parseTargets(config.Target)
@@ -107,7 +120,7 @@ func (s *NaabuScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResul
 	}
 
 	// 执行Naabu扫描
-	assets := s.runNaabu(ctx, targets, opts)
+	assets := s.runNaabuWithLogger(ctx, targets, opts, logInfo, logWarn)
 
 	return &ScanResult{
 		WorkspaceId: config.WorkspaceId,
@@ -116,70 +129,96 @@ func (s *NaabuScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResul
 	}, nil
 }
 
-// runNaabu 运行Naabu扫描
-func (s *NaabuScanner) runNaabu(ctx context.Context, targets []string, opts *NaabuOptions) []*Asset {
-	var assets []*Asset
-	var mu sync.Mutex
+// logFunc 日志函数类型
+type logFunc func(format string, args ...interface{})
 
-	// 实时端口阈值检测：记录每个主机的开放端口数量和是否已超过阈值
-	hostPortCount := make(map[string]int)
-	skippedHosts := make(map[string]bool)
+// runNaabuWithLogger 运行Naabu扫描（带日志回调）
+// 按单个目标拆分，串行执行，每个目标独立超时控制
+func (s *NaabuScanner) runNaabuWithLogger(ctx context.Context, targets []string, opts *NaabuOptions, logInfo, logWarn logFunc) []*Asset {
+	var allAssets []*Asset
 
 	// 处理端口配置
 	var portsStr string
 	var topPorts string
 
-	// 检查是否使用预定义端口集（使用Naabu内置的TopPorts功能）
 	switch opts.Ports {
 	case "top100":
 		topPorts = "100"
-		logx.Infof("Running Naabu scan on %d targets with top 100 ports, rate: %d", len(targets), opts.Rate)
 	case "top1000":
 		topPorts = "1000"
-		logx.Infof("Running Naabu scan on %d targets with top 1000 ports, rate: %d", len(targets), opts.Rate)
 	default:
-		// 其他情况使用自定义端口列表
 		ports := parsePorts(opts.Ports)
 		portsStr = portsToString(ports)
-		logx.Infof("Running Naabu scan on %d targets with %d ports, rate: %d", len(targets), len(ports), opts.Rate)
 	}
 
-	// 构建Naabu选项
+	timeout := opts.Timeout
+	if timeout <= 0 {
+		timeout = 60
+	}
+
+	logInfo("Naabu: scanning %d targets, timeout %ds/target", len(targets), timeout)
+
+	// 串行扫描每个目标
+	for i, target := range targets {
+		// 检查父context是否已取消
+		select {
+		case <-ctx.Done():
+			logInfo("Naabu: cancelled at %d/%d targets", i, len(targets))
+			return allAssets
+		default:
+		}
+
+		assets := s.scanSingleTargetWithLogger(ctx, target, portsStr, topPorts, opts, logInfo, logWarn)
+		allAssets = append(allAssets, assets...)
+	}
+
+	logInfo("Naabu: completed, found %d open ports", len(allAssets))
+	return allAssets
+}
+
+// scanSingleTargetWithLogger 扫描单个目标（带日志回调）
+func (s *NaabuScanner) scanSingleTargetWithLogger(ctx context.Context, target, portsStr, topPorts string, opts *NaabuOptions, logInfo, logWarn logFunc) []*Asset {
+	var assets []*Asset
+	var mu sync.Mutex
+	var foundPorts []string // 收集发现的端口
+
+	// 单个目标超时
+	timeout := opts.Timeout
+	if timeout <= 0 {
+		timeout = 60
+	}
+	targetCtx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
+	defer cancel()
+
+	// 端口计数，用于阈值检测
+	portCount := 0
+	skipped := false
+
 	options := runner.Options{
-		Host:     goflags.StringSlice(targets),
+		Host:     goflags.StringSlice([]string{target}),
 		Ports:    portsStr,
 		TopPorts: topPorts,
 		Rate:     opts.Rate,
+		Timeout:  5, // 单个端口连接超时
 		ScanType: opts.ScanType,
 		Silent:   true,
 		OnResult: func(hr *result.HostResult) {
 			mu.Lock()
 			defer mu.Unlock()
 
-			host := hr.Host
-
-			// 如果该主机已被标记为跳过，直接忽略后续结果
-			if skippedHosts[host] {
+			if skipped {
 				return
 			}
 
+			host := hr.Host
 			for _, port := range hr.Ports {
-				// 实时检测端口阈值
-				hostPortCount[host]++
-				if opts.PortThreshold > 0 && hostPortCount[host] > opts.PortThreshold {
-					// 第一次超过阈值时记录日志
-					if !skippedHosts[host] {
-						skippedHosts[host] = true
-						logx.Infof("Host %s exceeded port threshold (%d > %d), skipping as potential honeypot/firewall",
-							host, hostPortCount[host], opts.PortThreshold)
-						// 移除该主机已收集的所有端口
-						newAssets := make([]*Asset, 0, len(assets))
-						for _, a := range assets {
-							if a.Host != host {
-								newAssets = append(newAssets, a)
-							}
-						}
-						assets = newAssets
+				portCount++
+				if opts.PortThreshold > 0 && portCount > opts.PortThreshold {
+					if !skipped {
+						skipped = true
+						logWarn("Naabu: %s exceeded port threshold (%d), skipping", host, opts.PortThreshold)
+						assets = nil
+						foundPorts = nil
 					}
 					return
 				}
@@ -191,29 +230,29 @@ func (s *NaabuScanner) runNaabu(ctx context.Context, targets []string, opts *Naa
 					Category:  getCategory(host),
 				}
 				assets = append(assets, asset)
-				logx.Debugf("Naabu found: %s:%d", host, port.Port)
+				foundPorts = append(foundPorts, fmt.Sprintf("%d", port.Port))
 			}
 		},
 	}
 
-	// 创建Naabu runner
 	naabuRunner, err := runner.NewRunner(&options)
 	if err != nil {
-		logx.Errorf("Failed to create Naabu runner: %v", err)
+		logWarn("Naabu: failed to scan %s: %v", target, err)
 		return assets
 	}
 	defer naabuRunner.Close()
 
-	// 执行扫描
-	if err := naabuRunner.RunEnumeration(ctx); err != nil {
-		logx.Errorf("Naabu scan error: %v", err)
+	if err := naabuRunner.RunEnumeration(targetCtx); err != nil {
+		if targetCtx.Err() == context.DeadlineExceeded {
+			logWarn("Naabu: %s timeout after %ds", target, timeout)
+		} else if ctx.Err() == nil {
+			logWarn("Naabu: %s error: %v", target, err)
+		}
 	}
 
-	// 输出跳过的主机统计
-	if len(skippedHosts) > 0 {
-		logx.Infof("Naabu scan: skipped %d hosts due to port threshold", len(skippedHosts))
+	if len(foundPorts) > 0 {
+		logInfo("Naabu: %s -> %s", target, strings.Join(foundPorts, ","))
 	}
 
-	logx.Infof("Naabu scan completed, found %d open ports", len(assets))
 	return assets
 }

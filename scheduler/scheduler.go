@@ -154,7 +154,7 @@ type PortScanConfig struct {
 	Tool          string `json:"tool"` // tcp, masscan, nmap
 	Ports         string `json:"ports"`
 	Rate          int    `json:"rate"`
-	Timeout       int    `json:"timeout"`
+	Timeout       int    `json:"timeout"`       // 端口扫描超时时间(秒)，默认5秒
 	PortThreshold int    `json:"portThreshold"` // 开放端口数量阈值，超过则过滤该主机
 }
 
@@ -172,6 +172,8 @@ type FingerprintConfig struct {
 	Wappalyzer   bool `json:"wappalyzer"`
 	CustomEngine bool `json:"customEngine"` // 使用自定义指纹引擎（ARL格式）
 	Screenshot   bool `json:"screenshot"`
+	Timeout      int  `json:"timeout"`     // 指纹识别超时时间(秒)，默认30秒
+	Concurrency  int  `json:"concurrency"` // 指纹识别并发数，默认10
 }
 
 type PocScanConfig struct {
@@ -186,6 +188,7 @@ type PocScanConfig struct {
 	ExcludeTags       []string            `json:"excludeTags"`       // 排除标签
 	RateLimit         int                 `json:"rateLimit"`         // 速率限制
 	Concurrency       int                 `json:"concurrency"`       // 并发数
+	Timeout           int                 `json:"timeout"`           // 漏洞扫描超时时间(秒)，默认300秒
 	CustomPocOnly     bool                `json:"customPocOnly"`     // 只使用自定义POC
 	CustomTemplates   []string            `json:"customTemplates"`   // 自定义POC模板内容(YAML) - 已废弃
 	NucleiTemplates   []string            `json:"nucleiTemplates"`   // 从数据库获取的模板内容(YAML) - 已废弃

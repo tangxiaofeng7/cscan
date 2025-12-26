@@ -72,8 +72,8 @@ type FingerprintOptions struct {
 	IconHash     bool `json:"iconHash"`
 	Wappalyzer   bool `json:"wappalyzer"`
 	CustomEngine bool `json:"customEngine"` // 使用自定义指纹引擎
-	Timeout      int  `json:"timeout"`
-	Concurrency  int  `json:"concurrency"`
+	Timeout      int  `json:"timeout"`      // 单个目标超时时间(秒)，默认30秒
+	Concurrency  int  `json:"concurrency"`  // 并发数，默认10
 }
 
 

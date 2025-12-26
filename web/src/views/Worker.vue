@@ -49,11 +49,21 @@
             <span v-else>0</span>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="status" label="状态" width="120">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'running' ? 'success' : 'danger'">
-              {{ row.status === 'running' ? '运行中' : '离线' }}
-            </el-tag>
+            <div>
+              <el-tag :type="row.status === 'running' ? 'success' : 'danger'">
+                {{ row.status === 'running' ? '运行中' : '离线' }}
+              </el-tag>
+              <el-tag 
+                v-if="row.healthStatus && row.healthStatus !== 'healthy' && row.status === 'running'" 
+                :type="getHealthStatusType(row.healthStatus)"
+                size="small"
+                style="margin-left: 4px"
+              >
+                {{ getHealthStatusText(row.healthStatus) }}
+              </el-tag>
+            </div>
           </template>
         </el-table-column>
         <el-table-column prop="updateTime" label="最后响应" width="160" />
@@ -326,6 +336,26 @@ function getLoadColor(value) {
   if (value < 50) return '#67C23A'
   if (value < 80) return '#E6A23C'
   return '#F56C6C'
+}
+
+function getHealthStatusType(status) {
+  const types = {
+    'healthy': 'success',
+    'warning': 'warning',
+    'overloaded': 'danger',
+    'throttled': 'info'
+  }
+  return types[status] || 'info'
+}
+
+function getHealthStatusText(status) {
+  const texts = {
+    'healthy': '正常',
+    'warning': '负载较高',
+    'overloaded': '过载',
+    'throttled': '限流中'
+  }
+  return texts[status] || status
 }
 
 async function deleteWorker(workerName) {

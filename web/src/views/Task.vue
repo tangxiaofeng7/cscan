@@ -197,6 +197,10 @@
           <el-input-number v-model="profileForm.portThreshold" :min="0" :max="65535" :step="10" />
           <span class="form-hint">开放端口超过此数量的主机将被过滤 (0=不过滤)</span>
         </el-form-item>
+        <el-form-item v-if="profileForm.portscanEnable" label="扫描超时">
+          <el-input-number v-model="profileForm.portscanTimeout" :min="10" :max="300" :step="10" />
+          <span class="form-hint">单个目标扫描超时(秒)，默认60秒</span>
+        </el-form-item>
         <el-form-item label="指纹识别">
           <el-switch v-model="profileForm.fingerprintEnable" />
         </el-form-item>
@@ -218,6 +222,14 @@
               <span style="font-size: 12px">自定义指纹引擎将使用指纹管理中自定义的指纹进行识别</span>
             </template>
           </el-alert>
+        </el-form-item>
+        <el-form-item v-if="profileForm.fingerprintEnable" label="识别超时">
+          <el-input-number v-model="profileForm.fingerprintTimeout" :min="5" :max="120" :step="5" />
+          <span class="form-hint">单个目标指纹识别超时时间(秒)，默认30秒</span>
+        </el-form-item>
+        <el-form-item v-if="profileForm.fingerprintEnable" label="并发数">
+          <el-input-number v-model="profileForm.fingerprintConcurrency" :min="1" :max="50" :step="1" />
+          <span class="form-hint">指纹识别并发数，默认10</span>
         </el-form-item>
         <el-form-item label="漏洞扫描">
           <el-switch v-model="profileForm.pocscanEnable" />
@@ -247,6 +259,10 @@
             <el-checkbox label="low">Low</el-checkbox>
             <el-checkbox label="info">Info</el-checkbox>
           </el-checkbox-group>
+        </el-form-item>
+        <el-form-item v-if="profileForm.pocscanEnable" label="扫描超时">
+          <el-input-number v-model="profileForm.pocscanTimeout" :min="30" :max="3600" :step="30" />
+          <span class="form-hint">漏洞扫描总超时时间(秒)，默认300秒</span>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -549,17 +565,21 @@ const profileForm = reactive({
   portscanRate: 1000,
   ports: '80,443,8080',
   portThreshold: 100,
+  portscanTimeout: 60,
   fingerprintEnable: true,
   fingerprintHttpx: true,
   fingerprintIconHash: true,
   fingerprintWappalyzer: true,
   fingerprintCustomEngine: false,
   fingerprintScreenshot: false,
+  fingerprintTimeout: 30,
+  fingerprintConcurrency: 10,
   pocscanEnable: false,
   pocscanAutoScan: true,
   pocscanAutomaticScan: true,
   pocscanCustomOnly: false,
-  pocscanSeverity: ['critical', 'high', 'medium']
+  pocscanSeverity: ['critical', 'high', 'medium'],
+  pocscanTimeout: 300
 })
 
 const profileRules = {
@@ -742,17 +762,21 @@ function showProfileForm(row = null) {
       portscanRate: config.portscan?.rate || 1000,
       ports: config.portscan?.ports || '80,443,8080',
       portThreshold: config.portscan?.portThreshold || 100,
+      portscanTimeout: config.portscan?.timeout || 60,
       fingerprintEnable: config.fingerprint?.enable ?? true,
       fingerprintHttpx: config.fingerprint?.httpx ?? true,
       fingerprintIconHash: config.fingerprint?.iconHash ?? true,
       fingerprintWappalyzer: config.fingerprint?.wappalyzer ?? true,
       fingerprintCustomEngine: config.fingerprint?.customEngine ?? false,
       fingerprintScreenshot: config.fingerprint?.screenshot ?? false,
+      fingerprintTimeout: config.fingerprint?.timeout || 30,
+      fingerprintConcurrency: config.fingerprint?.concurrency || 10,
       pocscanEnable: config.pocscan?.enable ?? false,
       pocscanAutoScan: config.pocscan?.autoScan ?? true,
       pocscanAutomaticScan: config.pocscan?.automaticScan ?? true,
       pocscanCustomOnly: config.pocscan?.customPocOnly ?? false,
-      pocscanSeverity: config.pocscan?.severity ? config.pocscan.severity.split(',') : ['critical', 'high', 'medium']
+      pocscanSeverity: config.pocscan?.severity ? config.pocscan.severity.split(',') : ['critical', 'high', 'medium'],
+      pocscanTimeout: config.pocscan?.timeout || 300
     })
   } else {
     Object.assign(profileForm, {
@@ -765,17 +789,21 @@ function showProfileForm(row = null) {
       portscanRate: 1000,
       ports: '80,443,8080',
       portThreshold: 100,
+      portscanTimeout: 60,
       fingerprintEnable: true,
       fingerprintHttpx: true,
       fingerprintIconHash: true,
       fingerprintWappalyzer: true,
       fingerprintCustomEngine: false,
       fingerprintScreenshot: false,
+      fingerprintTimeout: 30,
+      fingerprintConcurrency: 10,
       pocscanEnable: false,
       pocscanAutoScan: true,
       pocscanAutomaticScan: true,
       pocscanCustomOnly: false,
-      pocscanSeverity: ['critical', 'high', 'medium']
+      pocscanSeverity: ['critical', 'high', 'medium'],
+      pocscanTimeout: 300
     })
   }
   profileFormVisible.value = true
@@ -790,7 +818,8 @@ async function handleSaveProfile() {
       tool: profileForm.portscanTool,
       rate: profileForm.portscanRate,
       ports: profileForm.ports,
-      portThreshold: profileForm.portThreshold
+      portThreshold: profileForm.portThreshold,
+      timeout: profileForm.portscanTimeout
     },
     fingerprint: { 
       enable: profileForm.fingerprintEnable,
@@ -798,7 +827,9 @@ async function handleSaveProfile() {
       iconHash: profileForm.fingerprintIconHash,
       wappalyzer: profileForm.fingerprintWappalyzer,
       customEngine: profileForm.fingerprintCustomEngine,
-      screenshot: profileForm.fingerprintScreenshot
+      screenshot: profileForm.fingerprintScreenshot,
+      timeout: profileForm.fingerprintTimeout,
+      concurrency: profileForm.fingerprintConcurrency
     },
     pocscan: { 
       enable: profileForm.pocscanEnable, 
@@ -806,7 +837,8 @@ async function handleSaveProfile() {
       autoScan: profileForm.pocscanAutoScan,
       automaticScan: profileForm.pocscanAutomaticScan,
       customPocOnly: profileForm.pocscanCustomOnly,
-      severity: profileForm.pocscanSeverity.join(',')
+      severity: profileForm.pocscanSeverity.join(','),
+      timeout: profileForm.pocscanTimeout
     }
   }
   const data = {
