@@ -24,44 +24,19 @@ db.user.insertOne({
 });
 
 // 创建默认任务配置
-db.task_profile.insertMany([
-    {
-        name: "快速扫描",
-        description: "仅进行端口扫描和服务识别",
-        config: JSON.stringify({
-            portscan: { enable: true, ports: "21,22,80,443,3306,6379,8080" },
-            fingerprint: { enable: true },
-            pocscan: { enable: false }
-        }),
-        sort_number: 1,
-        create_time: new Date(),
-        update_time: new Date()
-    },
-    {
-        name: "标准扫描",
-        description: "端口扫描+服务识别+指纹识别",
-        config: JSON.stringify({
-            portscan: { enable: true, ports: "top1000" },
-            fingerprint: { enable: true },
-            pocscan: { enable: false }
-        }),
-        sort_number: 2,
-        create_time: new Date(),
-        update_time: new Date()
-    },
-    {
-        name: "深度扫描",
-        description: "全端口扫描+服务识别+指纹识别+漏洞扫描",
-        config: JSON.stringify({
-            portscan: { enable: true, ports: "1-65535" },
-            fingerprint: { enable: true },
-            pocscan: { enable: true, pocTypes: ["nuclei"] }
-        }),
-        sort_number: 3,
-        create_time: new Date(),
-        update_time: new Date()
-    }
-]);
+db.task_profile.insertOne({
+    name: "默认扫描",
+    description: "cscan项目默认扫描配置",
+    config: JSON.stringify({
+        batchSize: 5,
+        portscan: { enable: true, tool: "naabu", rate: 1000, ports: "top1000", portThreshold: 50, timeout: 600 },
+        fingerprint: { enable: true, httpx: true, iconHash: true, wappalyzer: false, customEngine: true, screenshot: true, targetTimeout: 30, concurrency: 5 },
+        pocscan: { enable: true, useNuclei: true, autoScan: true, automaticScan: true, customPocOnly: false, severity: "critical,high,medium,low,info", targetTimeout: 600 }
+    }),
+    sort_number: 1,
+    create_time: new Date(),
+    update_time: new Date()
+});
 
 // 创建索引
 db.user.createIndex({ username: 1 }, { unique: true });

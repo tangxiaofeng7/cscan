@@ -151,11 +151,12 @@ type TaskConfig struct {
 
 type PortScanConfig struct {
 	Enable        bool   `json:"enable"`
-	Tool          string `json:"tool"` // tcp, masscan, nmap
+	Tool          string `json:"tool"`          // tcp, masscan, naabu
 	Ports         string `json:"ports"`
 	Rate          int    `json:"rate"`
 	Timeout       int    `json:"timeout"`       // 端口扫描超时时间(秒)，默认5秒
 	PortThreshold int    `json:"portThreshold"` // 开放端口数量阈值，超过则过滤该主机
+	ScanType      string `json:"scanType"`      // s=SYN, c=CONNECT，默认 c
 }
 
 type DomainScanConfig struct {
@@ -189,8 +190,7 @@ type PocScanConfig struct {
 	ExcludeTags       []string            `json:"excludeTags"`       // 排除标签
 	RateLimit         int                 `json:"rateLimit"`         // 速率限制
 	Concurrency       int                 `json:"concurrency"`       // 并发数
-	Timeout           int                 `json:"timeout"`           // 总超时时间(秒)，默认600秒
-	TargetTimeout     int                 `json:"targetTimeout"`     // 单个目标超时时间(秒)，默认60秒
+	TargetTimeout     int                 `json:"targetTimeout"`     // 单个目标超时时间(秒)，默认600秒
 	CustomPocOnly     bool                `json:"customPocOnly"`     // 只使用自定义POC
 	CustomTemplates   []string            `json:"customTemplates"`   // 自定义POC模板内容(YAML) - 已废弃
 	NucleiTemplates   []string            `json:"nucleiTemplates"`   // 从数据库获取的模板内容(YAML) - 已废弃

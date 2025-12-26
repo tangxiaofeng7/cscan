@@ -201,19 +201,14 @@ func (s *MasscanScanner) runMasscan(ctx context.Context, targets []string, opts 
 				// 实时检测端口阈值
 				hostPortCount[hostKey]++
 				if opts.PortThreshold > 0 && hostPortCount[hostKey] > opts.PortThreshold {
-					// 第一次超过阈值时记录日志
+					// 第一次超过阈值时记录日志并立即结束扫描
 					if !skippedHosts[hostKey] {
 						skippedHosts[hostKey] = true
-						logx.Infof("Host %s exceeded port threshold (%d > %d), skipping as potential honeypot/firewall",
+						logx.Infof("Host %s exceeded port threshold (%d > %d), stopping scan",
 							hostKey, hostPortCount[hostKey], opts.PortThreshold)
-						// 移除该主机已收集的所有端口
-						newAssets := make([]*Asset, 0, len(assets))
-						for _, a := range assets {
-							if a.Host != hostKey {
-								newAssets = append(newAssets, a)
-							}
-						}
-						assets = newAssets
+						// 终止masscan进程
+						cmd.Process.Kill()
+						return nil // 返回空结果，表示扫描被终止
 					}
 					continue
 				}
@@ -241,11 +236,6 @@ func (s *MasscanScanner) runMasscan(ctx context.Context, targets []string, opts 
 	}
 
 	cmd.Wait()
-
-	// 输出跳过的主机统计
-	if len(skippedHosts) > 0 {
-		logx.Infof("Masscan scan: skipped %d hosts due to port threshold", len(skippedHosts))
-	}
 
 	return assets
 }

@@ -166,7 +166,7 @@
         </el-form-item>
         <el-divider content-position="left">任务分发</el-divider>
         <el-form-item label="任务拆分">
-          <el-input-number v-model="profileForm.batchSize" :min="10" :max="1000" :step="10" />
+          <el-input-number v-model="profileForm.batchSize" :min="2" :max="1000" :step="10" />
           <span class="form-hint">每批目标数量，多Worker时自动拆分并行执行 (0=不拆分)</span>
         </el-form-item>
         <el-divider content-position="left">扫描选项</el-divider>
@@ -197,8 +197,15 @@
           <el-input-number v-model="profileForm.portThreshold" :min="0" :max="65535" :step="10" />
           <span class="form-hint">开放端口超过此数量的主机将被过滤 (0=不过滤)</span>
         </el-form-item>
+        <el-form-item v-if="profileForm.portscanEnable && profileForm.portscanTool === 'naabu'" label="扫描类型">
+          <el-radio-group v-model="profileForm.scanType">
+            <el-radio label="c">CONNECT</el-radio>
+            <el-radio label="s">SYN</el-radio>
+          </el-radio-group>
+          <span class="form-hint">CONNECT无需root权限，SYN更快但需要root</span>
+        </el-form-item>
         <el-form-item v-if="profileForm.portscanEnable" label="扫描超时">
-          <el-input-number v-model="profileForm.portscanTimeout" :min="10" :max="300" :step="10" />
+          <el-input-number v-model="profileForm.portscanTimeout" :min="5" :max="1200" :step="10" />
           <span class="form-hint">单个目标扫描超时(秒)，默认60秒</span>
         </el-form-item>
         <el-form-item label="指纹识别">
@@ -260,13 +267,9 @@
             <el-checkbox label="info">Info</el-checkbox>
           </el-checkbox-group>
         </el-form-item>
-        <el-form-item v-if="profileForm.pocscanEnable" label="扫描超时">
-          <el-input-number v-model="profileForm.pocscanTimeout" :min="30" :max="3600" :step="30" />
-          <span class="form-hint">漏洞扫描总超时时间(秒)，默认600秒</span>
-        </el-form-item>
         <el-form-item v-if="profileForm.pocscanEnable" label="目标超时">
-          <el-input-number v-model="profileForm.pocscanTargetTimeout" :min="10" :max="300" :step="10" />
-          <span class="form-hint">单个目标扫描超时时间(秒)，默认60秒</span>
+          <el-input-number v-model="profileForm.pocscanTargetTimeout" :min="30" :max="600" :step="30" />
+          <span class="form-hint">单个目标扫描超时时间(秒)，默认600秒</span>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -591,6 +594,7 @@ const profileForm = reactive({
   portscanRate: 1000,
   ports: '80,443,8080',
   portThreshold: 100,
+  scanType: 'c',
   portscanTimeout: 60,
   fingerprintEnable: true,
   fingerprintHttpx: true,
@@ -605,8 +609,7 @@ const profileForm = reactive({
   pocscanAutomaticScan: true,
   pocscanCustomOnly: false,
   pocscanSeverity: ['critical', 'high', 'medium'],
-  pocscanTimeout: 600,
-  pocscanTargetTimeout: 60
+  pocscanTargetTimeout: 600
 })
 
 const profileRules = {
@@ -789,6 +792,7 @@ function showProfileForm(row = null) {
       portscanRate: config.portscan?.rate || 1000,
       ports: config.portscan?.ports || '80,443,8080',
       portThreshold: config.portscan?.portThreshold || 100,
+      scanType: config.portscan?.scanType || 'c',
       portscanTimeout: config.portscan?.timeout || 60,
       fingerprintEnable: config.fingerprint?.enable ?? true,
       fingerprintHttpx: config.fingerprint?.httpx ?? true,
@@ -803,8 +807,7 @@ function showProfileForm(row = null) {
       pocscanAutomaticScan: config.pocscan?.automaticScan ?? true,
       pocscanCustomOnly: config.pocscan?.customPocOnly ?? false,
       pocscanSeverity: config.pocscan?.severity ? config.pocscan.severity.split(',') : ['critical', 'high', 'medium'],
-      pocscanTimeout: config.pocscan?.timeout || 600,
-      pocscanTargetTimeout: config.pocscan?.targetTimeout || 60
+      pocscanTargetTimeout: config.pocscan?.targetTimeout || 600
     })
   } else {
     Object.assign(profileForm, {
@@ -817,6 +820,7 @@ function showProfileForm(row = null) {
       portscanRate: 1000,
       ports: '80,443,8080',
       portThreshold: 100,
+      scanType: 'c',
       portscanTimeout: 60,
       fingerprintEnable: true,
       fingerprintHttpx: true,
@@ -831,8 +835,7 @@ function showProfileForm(row = null) {
       pocscanAutomaticScan: true,
       pocscanCustomOnly: false,
       pocscanSeverity: ['critical', 'high', 'medium'],
-      pocscanTimeout: 600,
-      pocscanTargetTimeout: 60
+      pocscanTargetTimeout: 600
     })
   }
   profileFormVisible.value = true
@@ -848,6 +851,7 @@ async function handleSaveProfile() {
       rate: profileForm.portscanRate,
       ports: profileForm.ports,
       portThreshold: profileForm.portThreshold,
+      scanType: profileForm.scanType,
       timeout: profileForm.portscanTimeout
     },
     fingerprint: { 
@@ -867,7 +871,6 @@ async function handleSaveProfile() {
       automaticScan: profileForm.pocscanAutomaticScan,
       customPocOnly: profileForm.pocscanCustomOnly,
       severity: profileForm.pocscanSeverity.join(','),
-      timeout: profileForm.pocscanTimeout,
       targetTimeout: profileForm.pocscanTargetTimeout
     }
   }
