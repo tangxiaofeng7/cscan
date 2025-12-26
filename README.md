@@ -8,7 +8,7 @@
 
 ---
 
-## 特性
+## 介绍
 
 - **资产发现** - 端口扫描 (Naabu/Masscan)，端口服务识别（Nmap）
 - **指纹识别** - Httpx + Wappalyzer + 自定义指纹引擎，3W+自定义指纹
@@ -19,7 +19,9 @@
 - **分布式架构** - Worker 节点水平扩展，支持多节点并行扫描
 - **多工作空间** - 项目隔离，团队协作
 
-## 快速开始
+## 目录
+<details>
+<summary>⭐ 快速开始 </summary>
 
 ```bash
 git clone https://github.com/tangxiaofeng7/cscan.git
@@ -31,12 +33,10 @@ docker-compose up -d --build --scale cscan-worker=3
 ```
 
 访问 `http://localhost:3000`，默认账号 `admin / 123456`
+</details>
 
-
-## 交流群
-<img src="images/cscan.jpg" alt="交流群" width="200"/>
-
-## 截图
+<details>
+<summary>⭐ 截图 </summary>
 
 #### 工作台
 <img src="images/index.png" alt="工作台" width="600"/>
@@ -58,8 +58,10 @@ docker-compose up -d --build --scale cscan-worker=3
 
 #### 指纹管理
 <img src="images/finger.png" alt="指纹管理" width="600"/>
+</details>
 
-## 架构
+<details>
+<summary>⭐ 架构 </summary>
 
 ```
 Vue3 Web ──▶ API Server ──▶ MongoDB
@@ -84,8 +86,10 @@ Vue3 Web ──▶ API Server ──▶ MongoDB
 | 指纹识别 | Httpx, Wappalyzer, 自定义引擎 |
 | 漏洞扫描 | Nuclei |
 | 截图引擎 | Httpx, Chromedp (Chromium) |
+</details>
 
-## 本地开发
+<details>
+<summary>⭐ 本地开发 </summary>
 
 ```bash
 # 1. 启动依赖服务（MongoDB + Redis）
@@ -131,8 +135,10 @@ go run cmd/worker/main.go [options]
 ```bash
 docker-compose up -d --scale cscan-worker=3
 ```
+</details>
 
-## 项目结构
+<details>
+<summary>⭐ 项目结构 </summary>
 
 ```
 ├── api/            # HTTP API 服务
@@ -160,8 +166,9 @@ docker-compose up -d --scale cscan-worker=3
 ├── docker/         # Docker 配置
 └── poc/            # POC 文件
 ```
+</details>
 
-## 功能模块
+## 核心功能
 
 ### 任务管理
 - 创建扫描任务，支持 IP/域名/CIDR 目标
@@ -209,3 +216,6 @@ docker-compose up -d --scale cscan-worker=3
 ## License
 
 MIT
+
+## 加入交流群
+<img src="images/cscan.jpg" alt="交流群" width="200"/>

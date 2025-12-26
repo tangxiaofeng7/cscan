@@ -107,6 +107,13 @@ func (s *FingerprintScanner) Scan(ctx context.Context, config *ScanConfig) (*Sca
 		opts.TargetTimeout = 30
 	}
 
+	// 日志辅助函数
+	taskLog := func(level, format string, args ...interface{}) {
+		if config.TaskLogger != nil {
+			config.TaskLogger(level, format, args...)
+		}
+	}
+
 	result := &ScanResult{
 		WorkspaceId: config.WorkspaceId,
 		MainTaskId:  config.MainTaskId,
@@ -152,21 +159,25 @@ func (s *FingerprintScanner) Scan(ctx context.Context, config *ScanConfig) (*Sca
 			// 如果没有使用httpx，或者httpx没有获取到信息，使用内置方法
 			if !useHttpx || (asset.Title == "" && asset.HttpStatus == "") {
 				logx.Debugf("Fingerprint [%d/%d]: %s:%d (builtin)", i+1, len(httpAssets), asset.Host, asset.Port)
+				taskLog("INFO", "Fingerprint [%d/%d]: %s:%d", i+1, len(httpAssets), asset.Host, asset.Port)
 				// 为单个目标创建超时上下文
 				targetCtx, targetCancel := context.WithTimeout(ctx, time.Duration(opts.TargetTimeout)*time.Second)
 				s.fingerprint(targetCtx, asset, opts)
 				if targetCtx.Err() == context.DeadlineExceeded {
 					logx.Debugf("Fingerprint: %s:%d timeout after %ds", asset.Host, asset.Port, opts.TargetTimeout)
+					taskLog("WARN", "Fingerprint: %s:%d timeout", asset.Host, asset.Port)
 				}
 				targetCancel()
 			} else {
 				// 使用了httpx，但仍需执行勾选的其他功能（不包括截图，因为httpx已处理）
 				logx.Debugf("Fingerprint [%d/%d]: %s:%d (additional)", i+1, len(httpAssets), asset.Host, asset.Port)
+				taskLog("INFO", "Fingerprint [%d/%d]: %s:%d", i+1, len(httpAssets), asset.Host, asset.Port)
 				// 为单个目标创建超时上下文
 				targetCtx, targetCancel := context.WithTimeout(ctx, time.Duration(opts.TargetTimeout)*time.Second)
 				s.runAdditionalFingerprint(targetCtx, asset, opts)
 				if targetCtx.Err() == context.DeadlineExceeded {
 					logx.Debugf("Fingerprint: %s:%d timeout after %ds", asset.Host, asset.Port, opts.TargetTimeout)
+					taskLog("WARN", "Fingerprint: %s:%d timeout", asset.Host, asset.Port)
 				}
 				targetCancel()
 			}

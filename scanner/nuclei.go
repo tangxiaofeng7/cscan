@@ -76,8 +76,8 @@ type NucleiOptions struct {
 	ExcludeTemplates     []string                      `json:"excludeTemplates"`     // 排除模板
 	RateLimit            int                           `json:"rateLimit"`            // 速率限制
 	Concurrency          int                           `json:"concurrency"`          // 并发数
-	Timeout              int                           `json:"timeout"`              // 总超时时间(秒)
-	TargetTimeout        int                           `json:"targetTimeout"`        // 单个目标超时时间(秒)，默认60秒
+	Timeout              int                           `json:"timeout"`              // 总超时时间(秒)，由调用方根据目标数量计算
+	TargetTimeout        int                           `json:"targetTimeout"`        // 单个目标超时时间(秒)，默认600秒
 	Retries              int                           `json:"retries"`              // 重试次数
 	AutoScan             bool                          `json:"autoScan"`             // 基于自定义标签映射自动扫描
 	AutomaticScan        bool                          `json:"automaticScan"`        // 基于Wappalyzer技术的自动扫描（nuclei -as）
@@ -102,7 +102,7 @@ func (s *NucleiScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResu
 		RateLimit:     150,
 		Concurrency:   25,
 		Timeout:       600,  // 总超时默认10分钟
-		TargetTimeout: 60,   // 单目标超时默认60秒
+		TargetTimeout: 600,  // 单目标超时默认600秒
 		Retries:       1,
 	}
 	if config.Options != nil {
@@ -113,7 +113,7 @@ func (s *NucleiScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResu
 
 	// 设置默认值
 	if opts.TargetTimeout <= 0 {
-		opts.TargetTimeout = 60
+		opts.TargetTimeout = 600
 	}
 
 	// 自动扫描模式1: 基于自定义标签映射
@@ -185,6 +185,13 @@ func (s *NucleiScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResu
 	var vuls []*Vulnerability
 	seen := make(map[string]bool)
 
+	// 日志辅助函数
+	taskLog := func(level, format string, args ...interface{}) {
+		if config.TaskLogger != nil {
+			config.TaskLogger(level, format, args...)
+		}
+	}
+
 	// 串行扫描每个目标，每个目标独立超时
 	for i, target := range targets {
 		select {
@@ -196,6 +203,7 @@ func (s *NucleiScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResu
 		}
 
 		logx.Debugf("Nuclei [%d/%d]: %s", i+1, len(targets), target)
+		taskLog("INFO", "POC [%d/%d]: %s", i+1, len(targets), target)
 
 		// 为单个目标创建超时上下文
 		targetCtx, targetCancel := context.WithTimeout(ctx, time.Duration(opts.TargetTimeout)*time.Second)
@@ -206,6 +214,7 @@ func (s *NucleiScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResu
 		// 检查是否超时
 		if targetCtx.Err() == context.DeadlineExceeded {
 			logx.Debugf("Nuclei: %s timeout after %ds", target, opts.TargetTimeout)
+			taskLog("WARN", "POC: %s timeout", target)
 		}
 		targetCancel()
 

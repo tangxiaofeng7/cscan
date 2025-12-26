@@ -657,7 +657,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				w.taskLog(task.TaskId, LevelError, "Masscan error: %v", err)
 			}
 			if masscanResult != nil && len(masscanResult.Assets) > 0 {
-				openPorts = filterByPortThreshold(masscanResult.Assets, config.PortScan.PortThreshold)
+				openPorts = masscanResult.Assets
 				w.taskLog(task.TaskId, LevelInfo, "Found %d open ports", len(openPorts))
 			}
 		default: // naabu
@@ -669,6 +669,10 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				TaskLogger: taskLogger,
 				OnProgress: onProgress,
 			})
+			// 检查是否有目标超过端口阈值（不终止任务，只记录警告）
+			if err == scanner.ErrPortThresholdExceeded {
+				w.taskLog(task.TaskId, LevelWarn, "Some targets exceeded port threshold and were skipped")
+			}
 			// 检查是否被停止或超时
 			if portCtx.Err() == context.DeadlineExceeded {
 				w.taskLog(task.TaskId, LevelWarn, "Port scan timeout, continuing with partial results")
@@ -677,11 +681,11 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				w.taskLog(task.TaskId, LevelInfo, "Task stopped")
 				return
 			}
-			if err != nil {
+			if err != nil && err != scanner.ErrPortThresholdExceeded {
 				w.taskLog(task.TaskId, LevelError, "Naabu error: %v", err)
 			}
 			if naabuResult != nil && len(naabuResult.Assets) > 0 {
-				openPorts = filterByPortThreshold(naabuResult.Assets, config.PortScan.PortThreshold)
+				openPorts = naabuResult.Assets
 				w.taskLog(task.TaskId, LevelInfo, "Found %d open ports", len(openPorts))
 			}
 		}
@@ -833,9 +837,15 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			}
 			fpCtx, fpCancel := context.WithTimeout(ctx, time.Duration(fingerprintTimeout)*time.Second)
 			
+			// 创建任务日志回调
+			fpTaskLogger := func(level, format string, args ...interface{}) {
+				w.taskLog(task.TaskId, level, format, args...)
+			}
+			
 			result, err := s.Scan(fpCtx, &scanner.ScanConfig{
-				Assets:  allAssets,
-				Options: config.Fingerprint,
+				Assets:     allAssets,
+				Options:    config.Fingerprint,
+				TaskLogger: fpTaskLogger,
 			})
 			fpCancel()
 			
@@ -907,7 +917,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			// 获取单目标超时配置
 			pocTargetTimeout := config.PocScan.TargetTimeout
 			if pocTargetTimeout <= 0 {
-				pocTargetTimeout = 60 // 默认60秒
+				pocTargetTimeout = 600 // 默认600秒
 			}
 			w.taskLog(task.TaskId, LevelInfo, "POC scan: %d assets, timeout %ds/target", len(allAssets), pocTargetTimeout)
 
@@ -948,10 +958,16 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				// 创建漏洞缓冲区，10个漏洞批量保存一次
 				vulBuffer := NewVulnerabilityBuffer(10)
 
-				// 创建带超时的上下文，防止POC扫描卡死
-				pocTimeout := config.PocScan.Timeout
-				if pocTimeout <= 0 {
-					pocTimeout = 600 // 默认10分钟总超时
+				// 获取单目标超时配置
+				targetTimeout := config.PocScan.TargetTimeout
+				if targetTimeout <= 0 {
+					targetTimeout = 600 // 默认600秒
+				}
+
+				// 总超时基于目标数量和单目标超时计算，至少10分钟
+				pocTimeout := targetTimeout * len(allAssets)
+				if pocTimeout < 600 {
+					pocTimeout = 600
 				}
 				pocCtx, pocCancel := context.WithTimeout(ctx, time.Duration(pocTimeout)*time.Second)
 
@@ -982,12 +998,6 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				// 构建Nuclei扫描选项，设置回调函数批量保存漏洞
 				taskIdForCallback := task.TaskId // 捕获taskId用于回调
 				
-				// 获取单目标超时配置
-				targetTimeout := config.PocScan.TargetTimeout
-				if targetTimeout <= 0 {
-					targetTimeout = 60 // 默认60秒
-				}
-				
 				nucleiOpts := &scanner.NucleiOptions{
 					Severity:        config.PocScan.Severity,
 					Tags:            autoTags,
@@ -1016,9 +1026,15 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 					nucleiOpts.Concurrency = 25
 				}
 
+				// 创建任务日志回调
+				pocTaskLogger := func(level, format string, args ...interface{}) {
+					w.taskLog(task.TaskId, level, format, args...)
+				}
+
 				result, err := s.Scan(pocCtx, &scanner.ScanConfig{
-					Assets:  allAssets,
-					Options: nucleiOpts,
+					Assets:     allAssets,
+					Options:    nucleiOpts,
+					TaskLogger: pocTaskLogger,
 				})
 				pocCancel()
 
@@ -1731,14 +1747,15 @@ func (w *Worker) loadCustomFingerprints(ctx context.Context, fpScanner *scanner.
 	w.logger.Info("Loaded %d fingerprints (builtin + custom) into fingerprint scanner", len(fingerprints))
 }
 
-// filterByPortThreshold 根据端口阈值过滤资�?
+// filterByPortThreshold 根据端口阈值过滤资产
 // 如果某个主机开放的端口数量超过阈值，则过滤掉该主机的所有资产（可能是防火墙或蜜罐）
-func filterByPortThreshold(assets []*scanner.Asset, threshold int) []*scanner.Asset {
+// 返回值: 过滤后的资产列表, 是否有主机超过阈值
+func filterByPortThreshold(assets []*scanner.Asset, threshold int) ([]*scanner.Asset, bool) {
 	if threshold <= 0 {
-		return assets // 阈值为0或负数表示不过滤
+		return assets, false // 阈值为0或负数表示不过滤
 	}
 
-	// 统计每个主机的开放端口数�?
+	// 统计每个主机的开放端口数量
 	hostPortCount := make(map[string]int)
 	for _, asset := range assets {
 		hostPortCount[asset.Host]++
@@ -1746,16 +1763,18 @@ func filterByPortThreshold(assets []*scanner.Asset, threshold int) []*scanner.As
 
 	// 找出需要过滤的主机
 	filteredHosts := make(map[string]bool)
+	thresholdExceeded := false
 	for host, count := range hostPortCount {
 		if count > threshold {
 			filteredHosts[host] = true
+			thresholdExceeded = true
 			logx.Infof("Host %s has %d open ports (threshold: %d), filtered as potential honeypot/firewall", host, count, threshold)
 		}
 	}
 
 	// 过滤资产
 	if len(filteredHosts) == 0 {
-		return assets
+		return assets, false
 	}
 
 	result := make([]*scanner.Asset, 0, len(assets))
@@ -1764,7 +1783,7 @@ func filterByPortThreshold(assets []*scanner.Asset, threshold int) []*scanner.As
 			result = append(result, asset)
 		}
 	}
-	return result
+	return result, thresholdExceeded
 }
 
 // executePocValidateTask 执行POC验证任务
