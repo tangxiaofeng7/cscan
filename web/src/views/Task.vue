@@ -262,7 +262,11 @@
         </el-form-item>
         <el-form-item v-if="profileForm.pocscanEnable" label="扫描超时">
           <el-input-number v-model="profileForm.pocscanTimeout" :min="30" :max="3600" :step="30" />
-          <span class="form-hint">漏洞扫描总超时时间(秒)，默认300秒</span>
+          <span class="form-hint">漏洞扫描总超时时间(秒)，默认600秒</span>
+        </el-form-item>
+        <el-form-item v-if="profileForm.pocscanEnable" label="目标超时">
+          <el-input-number v-model="profileForm.pocscanTargetTimeout" :min="10" :max="300" :step="10" />
+          <span class="form-hint">单个目标扫描超时时间(秒)，默认60秒</span>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -601,7 +605,8 @@ const profileForm = reactive({
   pocscanAutomaticScan: true,
   pocscanCustomOnly: false,
   pocscanSeverity: ['critical', 'high', 'medium'],
-  pocscanTimeout: 300
+  pocscanTimeout: 600,
+  pocscanTargetTimeout: 60
 })
 
 const profileRules = {
@@ -791,14 +796,15 @@ function showProfileForm(row = null) {
       fingerprintWappalyzer: config.fingerprint?.wappalyzer ?? true,
       fingerprintCustomEngine: config.fingerprint?.customEngine ?? false,
       fingerprintScreenshot: config.fingerprint?.screenshot ?? false,
-      fingerprintTimeout: config.fingerprint?.timeout || 30,
+      fingerprintTimeout: config.fingerprint?.targetTimeout || config.fingerprint?.timeout || 30,
       fingerprintConcurrency: config.fingerprint?.concurrency || 10,
       pocscanEnable: config.pocscan?.enable ?? false,
       pocscanAutoScan: config.pocscan?.autoScan ?? true,
       pocscanAutomaticScan: config.pocscan?.automaticScan ?? true,
       pocscanCustomOnly: config.pocscan?.customPocOnly ?? false,
       pocscanSeverity: config.pocscan?.severity ? config.pocscan.severity.split(',') : ['critical', 'high', 'medium'],
-      pocscanTimeout: config.pocscan?.timeout || 300
+      pocscanTimeout: config.pocscan?.timeout || 600,
+      pocscanTargetTimeout: config.pocscan?.targetTimeout || 60
     })
   } else {
     Object.assign(profileForm, {
@@ -825,7 +831,8 @@ function showProfileForm(row = null) {
       pocscanAutomaticScan: true,
       pocscanCustomOnly: false,
       pocscanSeverity: ['critical', 'high', 'medium'],
-      pocscanTimeout: 300
+      pocscanTimeout: 600,
+      pocscanTargetTimeout: 60
     })
   }
   profileFormVisible.value = true
@@ -850,7 +857,7 @@ async function handleSaveProfile() {
       wappalyzer: profileForm.fingerprintWappalyzer,
       customEngine: profileForm.fingerprintCustomEngine,
       screenshot: profileForm.fingerprintScreenshot,
-      timeout: profileForm.fingerprintTimeout,
+      targetTimeout: profileForm.fingerprintTimeout,
       concurrency: profileForm.fingerprintConcurrency
     },
     pocscan: { 
@@ -860,7 +867,8 @@ async function handleSaveProfile() {
       automaticScan: profileForm.pocscanAutomaticScan,
       customPocOnly: profileForm.pocscanCustomOnly,
       severity: profileForm.pocscanSeverity.join(','),
-      timeout: profileForm.pocscanTimeout
+      timeout: profileForm.pocscanTimeout,
+      targetTimeout: profileForm.pocscanTargetTimeout
     }
   }
   const data = {

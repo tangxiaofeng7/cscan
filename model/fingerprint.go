@@ -294,7 +294,8 @@ func (m *FingerprintModel) Find(ctx context.Context, filter bson.M, page, pageSi
 		opts.SetSkip(int64((page - 1) * pageSize))
 		opts.SetLimit(int64(pageSize))
 	}
-	opts.SetSort(bson.D{{Key: "category", Value: 1}, {Key: "name", Value: 1}})
+	// 按创建时间倒序排序，最新添加的在前
+	opts.SetSort(bson.D{{Key: "create_time", Value: -1}, {Key: "name", Value: 1}})
 
 	cursor, err := m.coll.Find(ctx, filter, opts)
 	if err != nil {

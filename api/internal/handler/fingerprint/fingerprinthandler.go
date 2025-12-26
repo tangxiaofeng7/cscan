@@ -266,3 +266,24 @@ func HttpServiceMappingDeleteHandler(svcCtx *svc.ServiceContext) http.HandlerFun
 		httpx.OkJson(w, resp)
 	}
 }
+
+
+// FingerprintMatchAssetsHandler 验证指纹匹配现有资产
+func FingerprintMatchAssetsHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.FingerprintMatchAssetsReq
+		if err := httpx.Parse(r, &req); err != nil {
+			response.ParamError(w, err.Error())
+			return
+		}
+
+		workspaceId := r.Header.Get("X-Workspace-Id")
+		l := logic.NewFingerprintMatchAssetsLogic(r.Context(), svcCtx)
+		resp, err := l.FingerprintMatchAssets(&req, workspaceId)
+		if err != nil {
+			response.Error(w, err)
+			return
+		}
+		httpx.OkJson(w, resp)
+	}
+}

@@ -72,7 +72,8 @@ type FingerprintOptions struct {
 	IconHash     bool `json:"iconHash"`
 	Wappalyzer   bool `json:"wappalyzer"`
 	CustomEngine bool `json:"customEngine"` // 使用自定义指纹引擎
-	Timeout      int  `json:"timeout"`      // 单个目标超时时间(秒)，默认30秒
+	Timeout      int  `json:"timeout"`      // 总超时时间(秒)，默认300秒
+	TargetTimeout int `json:"targetTimeout"` // 单个目标超时时间(秒)，默认30秒
 	Concurrency  int  `json:"concurrency"`  // 并发数，默认10
 }
 
@@ -81,13 +82,14 @@ type FingerprintOptions struct {
 func (s *FingerprintScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResult, error) {
 	// 解析配置
 	opts := &FingerprintOptions{
-		Enable:       true,
-		Httpx:        true,
-		IconHash:     true,
-		Wappalyzer:   true,
-		CustomEngine: true, // 默认启用自定义指纹引擎
-		Screenshot:   false,
-		Timeout:      10,
+		Enable:        true,
+		Httpx:         true,
+		IconHash:      true,
+		Wappalyzer:    true,
+		CustomEngine:  true, // 默认启用自定义指纹引擎
+		Screenshot:    false,
+		Timeout:       300, // 总超时默认5分钟
+		TargetTimeout: 30,  // 单目标超时默认30秒
 	}
 	if config.Options != nil {
 		switch v := config.Options.(type) {
@@ -98,6 +100,11 @@ func (s *FingerprintScanner) Scan(ctx context.Context, config *ScanConfig) (*Sca
 				json.Unmarshal(data, opts)
 			}
 		}
+	}
+
+	// 设置默认值
+	if opts.TargetTimeout <= 0 {
+		opts.TargetTimeout = 30
 	}
 
 	result := &ScanResult{
@@ -115,7 +122,7 @@ func (s *FingerprintScanner) Scan(ctx context.Context, config *ScanConfig) (*Sca
 		return result, nil
 	}
 	
-	logx.Infof("Filtered %d HTTP/HTTPS assets from %d total assets for fingerprint detection", len(httpAssets), len(config.Assets))
+	logx.Infof("Fingerprint: scanning %d HTTP assets, timeout %ds/target", len(httpAssets), opts.TargetTimeout)
 
 	// 检查httpx是否可用
 	httpxInstalled := checkHttpxInstalled()
@@ -135,7 +142,8 @@ func (s *FingerprintScanner) Scan(ctx context.Context, config *ScanConfig) (*Sca
 		logx.Info("httpx not installed, using builtin fingerprint method")
 	}
 
-	for _, asset := range httpAssets {
+	// 串行扫描每个目标，每个目标独立超时
+	for i, asset := range httpAssets {
 		select {
 		case <-ctx.Done():
 			logx.Info("Fingerprint scan cancelled by context")
@@ -143,11 +151,24 @@ func (s *FingerprintScanner) Scan(ctx context.Context, config *ScanConfig) (*Sca
 		default:
 			// 如果没有使用httpx，或者httpx没有获取到信息，使用内置方法
 			if !useHttpx || (asset.Title == "" && asset.HttpStatus == "") {
-				logx.Infof("Using builtin fingerprint for %s:%d", asset.Host, asset.Port)
-				s.fingerprint(ctx, asset, opts)
+				logx.Debugf("Fingerprint [%d/%d]: %s:%d (builtin)", i+1, len(httpAssets), asset.Host, asset.Port)
+				// 为单个目标创建超时上下文
+				targetCtx, targetCancel := context.WithTimeout(ctx, time.Duration(opts.TargetTimeout)*time.Second)
+				s.fingerprint(targetCtx, asset, opts)
+				if targetCtx.Err() == context.DeadlineExceeded {
+					logx.Debugf("Fingerprint: %s:%d timeout after %ds", asset.Host, asset.Port, opts.TargetTimeout)
+				}
+				targetCancel()
 			} else {
 				// 使用了httpx，但仍需执行勾选的其他功能（不包括截图，因为httpx已处理）
-				s.runAdditionalFingerprint(ctx, asset, opts)
+				logx.Debugf("Fingerprint [%d/%d]: %s:%d (additional)", i+1, len(httpAssets), asset.Host, asset.Port)
+				// 为单个目标创建超时上下文
+				targetCtx, targetCancel := context.WithTimeout(ctx, time.Duration(opts.TargetTimeout)*time.Second)
+				s.runAdditionalFingerprint(targetCtx, asset, opts)
+				if targetCtx.Err() == context.DeadlineExceeded {
+					logx.Debugf("Fingerprint: %s:%d timeout after %ds", asset.Host, asset.Port, opts.TargetTimeout)
+				}
+				targetCancel()
 			}
 			result.Assets = append(result.Assets, asset)
 		}
@@ -160,6 +181,7 @@ func (s *FingerprintScanner) Scan(ctx context.Context, config *ScanConfig) (*Sca
 		}
 	}
 
+	logx.Infof("Fingerprint: completed, scanned %d assets", len(httpAssets))
 	return result, nil
 }
 

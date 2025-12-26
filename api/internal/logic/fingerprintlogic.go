@@ -21,6 +21,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"gopkg.in/yaml.v3"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // isHexString 检查字符串是否为十六进制字符串
@@ -1694,6 +1695,132 @@ func (l *FingerprintBatchValidateLogic) FingerprintBatchValidate(req *types.Fing
 		Duration:     fmt.Sprintf("%.2fs", duration.Seconds()),
 		Matched:      matched,
 	}, nil
+}
+
+// ==================== 指纹匹配现有资产 ====================
+
+// FingerprintMatchAssetsLogic 验证指纹匹配现有资产
+type FingerprintMatchAssetsLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewFingerprintMatchAssetsLogic(ctx context.Context, svcCtx *svc.ServiceContext) *FingerprintMatchAssetsLogic {
+	return &FingerprintMatchAssetsLogic{
+		Logger: logx.WithContext(ctx),
+		ctx:    ctx,
+		svcCtx: svcCtx,
+	}
+}
+
+// FingerprintMatchAssets 验证指纹匹配现有资产
+func (l *FingerprintMatchAssetsLogic) FingerprintMatchAssets(req *types.FingerprintMatchAssetsReq, workspaceId string) (*types.FingerprintMatchAssetsResp, error) {
+	if req.FingerprintId == "" {
+		return &types.FingerprintMatchAssetsResp{Code: 400, Msg: "指纹ID不能为空"}, nil
+	}
+
+	startTime := time.Now()
+
+	// 获取指纹
+	fp, err := l.svcCtx.FingerprintModel.FindById(l.ctx, req.FingerprintId)
+	if err != nil {
+		return &types.FingerprintMatchAssetsResp{Code: 404, Msg: "指纹不存在"}, nil
+	}
+
+	// 获取资产列表（只获取有HTTP响应数据的资产）
+	assetModel := l.svcCtx.GetAssetModel(workspaceId)
+	// 查询有 body 或 header 或 title 的资产
+	filter := map[string]interface{}{
+		"$or": []map[string]interface{}{
+			{"body": map[string]interface{}{"$ne": ""}},
+			{"header": map[string]interface{}{"$ne": ""}},
+			{"title": map[string]interface{}{"$ne": ""}},
+			{"icon_hash": map[string]interface{}{"$ne": ""}},
+		},
+	}
+
+	assets, err := assetModel.Find(l.ctx, filter, 0, 0)
+	if err != nil {
+		return &types.FingerprintMatchAssetsResp{Code: 500, Msg: "获取资产列表失败: " + err.Error()}, nil
+	}
+
+	l.Logger.Infof("FingerprintMatchAssets: fingerprintId=%s, name=%s, totalAssets=%d", req.FingerprintId, fp.Name, len(assets))
+
+	// 创建指纹引擎
+	engine := NewSingleFingerprintEngine(fp)
+
+	// 匹配资产
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 100
+	}
+
+	var matchedList []types.FingerprintMatchedAsset
+	for _, asset := range assets {
+		// 构建指纹数据
+		data := &FingerprintData{
+			Title:        asset.Title,
+			Body:         asset.HttpBody,
+			HeaderString: asset.HttpHeader,
+			Server:       asset.Server,
+			FaviconHash:  asset.IconHash,
+			URL:          asset.Authority,
+		}
+
+		// 解析 Header 字符串为 map
+		if asset.HttpHeader != "" {
+			data.Headers = parseHeaderString(asset.HttpHeader)
+		}
+
+		// 执行匹配
+		if matched, _ := engine.MatchWithDetails(data); matched {
+			matchedList = append(matchedList, types.FingerprintMatchedAsset{
+				Id:        asset.Id.Hex(),
+				Authority: asset.Authority,
+				Host:      asset.Host,
+				Port:      asset.Port,
+				Title:     asset.Title,
+				Service:   asset.Service,
+			})
+
+			// 达到限制数量后停止
+			if len(matchedList) >= limit {
+				break
+			}
+		}
+	}
+
+	duration := time.Since(startTime)
+	l.Logger.Infof("FingerprintMatchAssets: matched=%d, scanned=%d, duration=%s", len(matchedList), len(assets), duration)
+
+	return &types.FingerprintMatchAssetsResp{
+		Code:         0,
+		Msg:          "匹配完成",
+		MatchedCount: len(matchedList),
+		TotalScanned: len(assets),
+		Duration:     fmt.Sprintf("%.2fs", duration.Seconds()),
+		MatchedList:  matchedList,
+	}, nil
+}
+
+// parseHeaderString 解析 Header 字符串为 map
+func parseHeaderString(headerStr string) map[string][]string {
+	headers := make(map[string][]string)
+	lines := strings.Split(headerStr, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		idx := strings.Index(line, ":")
+		if idx > 0 {
+			key := strings.TrimSpace(line[:idx])
+			value := strings.TrimSpace(line[idx+1:])
+			headers[key] = append(headers[key], value)
+		}
+	}
+	return headers
 }
 
 // ==================== HTTP服务映射管理 ====================

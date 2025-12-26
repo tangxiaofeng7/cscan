@@ -175,9 +175,10 @@
                 <el-switch v-model="row.enabled" @change="handleToggleEnabled(row)" size="small" />
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="160">
+            <el-table-column label="操作" width="250">
               <template #default="{ row }">
                 <el-button type="success" link size="small" @click="showValidateDialog(row)">验证</el-button>
+                <el-button type="warning" link size="small" @click="showMatchAssetsDialog(row)">匹配资产</el-button>
                 <el-button type="primary" link size="small" @click="showFingerprintForm(row)">编辑</el-button>
                 <el-button type="danger" link size="small" @click="handleDeleteFingerprint(row)">删除</el-button>
               </template>
@@ -651,6 +652,60 @@
         <el-button type="primary" @click="handleSaveHttpServiceMapping">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 匹配现有资产对话框 -->
+    <el-dialog v-model="matchAssetsDialogVisible" title="匹配现有资产" width="900px">
+      <el-descriptions :column="2" border size="small" style="margin-bottom: 15px">
+        <el-descriptions-item label="指纹名称">{{ matchAssetsFingerprint.name }}</el-descriptions-item>
+        <el-descriptions-item label="匹配规则">
+          <el-tag v-if="matchAssetsFingerprint.rule" size="small" type="warning">自定义规则</el-tag>
+          <span v-else>-</span>
+        </el-descriptions-item>
+      </el-descriptions>
+      
+      <div v-if="!matchAssetsResult" class="match-assets-tip">
+        <el-alert type="info" :closable="false" show-icon>
+          <template #title>
+            点击"开始匹配"将使用该指纹规则扫描数据库中所有已存储HTTP响应数据的资产
+          </template>
+          <template #default>
+            <div style="font-size: 12px; color: #909399; margin-top: 5px">
+              匹配依据：资产的 Title、Header、Body、IconHash 等字段
+            </div>
+          </template>
+        </el-alert>
+      </div>
+      
+      <div v-if="matchAssetsResult" class="match-assets-result">
+        <div class="result-header">
+          <el-tag type="success" size="large">
+            共匹配到 {{ matchAssetsResult.matchedCount }} 个资产
+          </el-tag>
+          <span style="margin-left: 10px; color: #909399; font-size: 13px">
+            扫描 {{ matchAssetsResult.totalScanned }} 个资产，耗时: {{ matchAssetsResult.duration }}
+          </span>
+        </div>
+        <div v-if="matchAssetsResult.matchedList && matchAssetsResult.matchedList.length > 0" class="matched-list">
+          <el-table :data="matchAssetsResult.matchedList" stripe max-height="400">
+            <el-table-column prop="authority" label="资产地址" min-width="250" show-overflow-tooltip />
+            <el-table-column prop="host" label="主机" width="150" />
+            <el-table-column prop="port" label="端口" width="80" />
+            <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
+            <el-table-column prop="service" label="服务" width="100" />
+          </el-table>
+        </div>
+        <div v-else class="no-match">
+          <el-empty description="未匹配到任何资产" :image-size="60" />
+        </div>
+      </div>
+      
+      <template #footer>
+        <el-button @click="matchAssetsDialogVisible = false">关闭</el-button>
+        <el-button type="primary" @click="handleMatchAssets" :loading="matchAssetsLoading">
+          {{ matchAssetsResult ? '重新匹配' : '开始匹配' }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -658,7 +713,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, ArrowDown, Delete, Upload, Search, Download } from '@element-plus/icons-vue'
-import { getFingerprintList, saveFingerprint, deleteFingerprint, getFingerprintCategories, syncFingerprints, updateFingerprintEnabled, importFingerprints, clearCustomFingerprints, validateFingerprint as validateFingerprintApi, batchValidateFingerprints, getHttpServiceMappingList, saveHttpServiceMapping, deleteHttpServiceMapping } from '@/api/fingerprint'
+import { getFingerprintList, saveFingerprint, deleteFingerprint, getFingerprintCategories, syncFingerprints, updateFingerprintEnabled, importFingerprints, clearCustomFingerprints, validateFingerprint as validateFingerprintApi, batchValidateFingerprints, matchFingerprintAssets, getHttpServiceMappingList, saveHttpServiceMapping, deleteHttpServiceMapping } from '@/api/fingerprint'
 import { saveAs } from 'file-saver'
 
 const activeTab = ref('builtin')
@@ -724,6 +779,12 @@ const batchValidateUrl = ref('')
 const batchValidateScope = ref('all')
 const batchValidateResult = ref(null)
 const batchValidateLoading = ref(false)
+
+// 匹配现有资产对话框
+const matchAssetsDialogVisible = ref(false)
+const matchAssetsFingerprint = ref({})
+const matchAssetsResult = ref(null)
+const matchAssetsLoading = ref(false)
 
 // 详情对话框
 const detailDialogVisible = ref(false)
@@ -1395,6 +1456,41 @@ async function handleBatchValidate() {
   }
 }
 
+// 显示匹配现有资产对话框
+function showMatchAssetsDialog(row) {
+  matchAssetsFingerprint.value = row
+  matchAssetsResult.value = null
+  matchAssetsDialogVisible.value = true
+}
+
+// 执行匹配现有资产
+async function handleMatchAssets() {
+  matchAssetsLoading.value = true
+  matchAssetsResult.value = null
+
+  try {
+    const res = await matchFingerprintAssets({
+      fingerprintId: matchAssetsFingerprint.value.id,
+      limit: 100
+    })
+
+    if (res.code === 0) {
+      matchAssetsResult.value = {
+        matchedCount: res.matchedCount,
+        totalScanned: res.totalScanned,
+        duration: res.duration,
+        matchedList: res.matchedList || []
+      }
+    } else {
+      ElMessage.error(res.msg || '匹配失败')
+    }
+  } catch (e) {
+    ElMessage.error('匹配请求失败: ' + e.message)
+  } finally {
+    matchAssetsLoading.value = false
+  }
+}
+
 // ==================== HTTP服务映射相关方法 ====================
 
 // HTTP服务映射全量数据（用于前端分页）
@@ -1696,6 +1792,31 @@ async function handleDeleteHttpServiceMapping(row) {
   }
 
   .batch-validate-result {
+    margin-top: 15px;
+    border: 1px solid var(--el-border-color);
+    border-radius: 4px;
+    overflow: hidden;
+
+    .result-header {
+      padding: 10px 15px;
+      background: var(--el-fill-color-light);
+      border-bottom: 1px solid var(--el-border-color);
+    }
+
+    .matched-list {
+      padding: 10px;
+    }
+
+    .no-match {
+      padding: 20px;
+    }
+  }
+
+  .match-assets-tip {
+    margin-bottom: 15px;
+  }
+
+  .match-assets-result {
     margin-top: 15px;
     border: 1px solid var(--el-border-color);
     border-radius: 4px;

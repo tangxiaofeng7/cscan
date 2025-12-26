@@ -865,6 +865,32 @@ type FingerprintValidateResp struct {
 	Details string `json:"details"` // 匹配详情
 }
 
+// FingerprintMatchAssetsReq 验证指纹匹配现有资产请求
+type FingerprintMatchAssetsReq struct {
+	FingerprintId string `json:"fingerprintId"` // 指纹ID
+	Limit         int    `json:"limit,optional"` // 最大匹配数量，默认100
+}
+
+// FingerprintMatchAssetsResp 验证指纹匹配现有资产响应
+type FingerprintMatchAssetsResp struct {
+	Code         int                       `json:"code"`
+	Msg          string                    `json:"msg"`
+	MatchedCount int                       `json:"matchedCount"` // 匹配数量
+	TotalScanned int                       `json:"totalScanned"` // 扫描资产总数
+	Duration     string                    `json:"duration"`     // 耗时
+	MatchedList  []FingerprintMatchedAsset `json:"matchedList"`  // 匹配的资产列表
+}
+
+// FingerprintMatchedAsset 匹配的资产信息
+type FingerprintMatchedAsset struct {
+	Id        string `json:"id"`
+	Authority string `json:"authority"`
+	Host      string `json:"host"`
+	Port      int    `json:"port"`
+	Title     string `json:"title"`
+	Service   string `json:"service"`
+}
+
 // PocValidateReq 验证POC请求
 type PocValidateReq struct {
 	Id      string `json:"id,optional"`      // POC ID（验证已有POC）

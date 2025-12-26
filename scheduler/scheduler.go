@@ -166,14 +166,15 @@ type DomainScanConfig struct {
 }
 
 type FingerprintConfig struct {
-	Enable       bool `json:"enable"`
-	Httpx        bool `json:"httpx"`
-	IconHash     bool `json:"iconHash"`
-	Wappalyzer   bool `json:"wappalyzer"`
-	CustomEngine bool `json:"customEngine"` // 使用自定义指纹引擎（ARL格式）
-	Screenshot   bool `json:"screenshot"`
-	Timeout      int  `json:"timeout"`     // 指纹识别超时时间(秒)，默认30秒
-	Concurrency  int  `json:"concurrency"` // 指纹识别并发数，默认10
+	Enable        bool `json:"enable"`
+	Httpx         bool `json:"httpx"`
+	IconHash      bool `json:"iconHash"`
+	Wappalyzer    bool `json:"wappalyzer"`
+	CustomEngine  bool `json:"customEngine"`  // 使用自定义指纹引擎（ARL格式）
+	Screenshot    bool `json:"screenshot"`
+	Timeout       int  `json:"timeout"`       // 总超时时间(秒)，默认300秒
+	TargetTimeout int  `json:"targetTimeout"` // 单个目标超时时间(秒)，默认30秒
+	Concurrency   int  `json:"concurrency"`   // 指纹识别并发数，默认10
 }
 
 type PocScanConfig struct {
@@ -188,7 +189,8 @@ type PocScanConfig struct {
 	ExcludeTags       []string            `json:"excludeTags"`       // 排除标签
 	RateLimit         int                 `json:"rateLimit"`         // 速率限制
 	Concurrency       int                 `json:"concurrency"`       // 并发数
-	Timeout           int                 `json:"timeout"`           // 漏洞扫描超时时间(秒)，默认300秒
+	Timeout           int                 `json:"timeout"`           // 总超时时间(秒)，默认600秒
+	TargetTimeout     int                 `json:"targetTimeout"`     // 单个目标超时时间(秒)，默认60秒
 	CustomPocOnly     bool                `json:"customPocOnly"`     // 只使用自定义POC
 	CustomTemplates   []string            `json:"customTemplates"`   // 自定义POC模板内容(YAML) - 已废弃
 	NucleiTemplates   []string            `json:"nucleiTemplates"`   // 从数据库获取的模板内容(YAML) - 已废弃

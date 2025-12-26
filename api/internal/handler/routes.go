@@ -129,6 +129,7 @@ func RegisterHandlers(server *rest.Server, svcCtx *svc.ServiceContext) {
 		{Method: http.MethodPost, Path: "/api/v1/fingerprint/clearCustom", Handler: fingerprint.FingerprintClearCustomHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/fingerprint/validate", Handler: fingerprint.FingerprintValidateHandler(svcCtx)},
 		{Method: http.MethodPost, Path: "/api/v1/fingerprint/batchValidate", Handler: fingerprint.FingerprintBatchValidateHandler(svcCtx)},
+		{Method: http.MethodPost, Path: "/api/v1/fingerprint/matchAssets", Handler: fingerprint.FingerprintMatchAssetsHandler(svcCtx)},
 
 		// POC验证
 		{Method: http.MethodPost, Path: "/api/v1/poc/custom/validate", Handler: poc.PocValidateHandler(svcCtx)},

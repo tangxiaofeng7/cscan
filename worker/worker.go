@@ -811,7 +811,12 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 		}
 
 		if s, ok := w.scanners["fingerprint"]; ok {
-			w.taskLog(task.TaskId, LevelInfo, "Fingerprint: %d assets", len(allAssets))
+			// 获取单目标超时配置
+			targetTimeout := config.Fingerprint.TargetTimeout
+			if targetTimeout <= 0 {
+				targetTimeout = 30 // 默认30秒
+			}
+			w.taskLog(task.TaskId, LevelInfo, "Fingerprint: %d assets, timeout %ds/target", len(allAssets), targetTimeout)
 			
 			// 每次扫描前实时加载HTTP服务映射配置
 			w.loadHttpServiceMappings()
@@ -899,7 +904,12 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 		}
 
 		if s, ok := w.scanners["nuclei"]; ok {
-			w.taskLog(task.TaskId, LevelInfo, "POC scan: %d assets", len(allAssets))
+			// 获取单目标超时配置
+			pocTargetTimeout := config.PocScan.TargetTimeout
+			if pocTargetTimeout <= 0 {
+				pocTargetTimeout = 60 // 默认60秒
+			}
+			w.taskLog(task.TaskId, LevelInfo, "POC scan: %d assets, timeout %ds/target", len(allAssets), pocTargetTimeout)
 
 			// 从数据库获取模板（所有模板都存储在数据库中）
 			var templates []string
@@ -971,6 +981,13 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 
 				// 构建Nuclei扫描选项，设置回调函数批量保存漏洞
 				taskIdForCallback := task.TaskId // 捕获taskId用于回调
+				
+				// 获取单目标超时配置
+				targetTimeout := config.PocScan.TargetTimeout
+				if targetTimeout <= 0 {
+					targetTimeout = 60 // 默认60秒
+				}
+				
 				nucleiOpts := &scanner.NucleiOptions{
 					Severity:        config.PocScan.Severity,
 					Tags:            autoTags,
@@ -978,6 +995,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 					RateLimit:       config.PocScan.RateLimit,
 					Concurrency:     config.PocScan.Concurrency,
 					Timeout:         pocTimeout,
+					TargetTimeout:   targetTimeout,
 					AutoScan:        false, // 标签已在Worker端生成
 					AutomaticScan:   false,
 					CustomPocOnly:   config.PocScan.CustomPocOnly,

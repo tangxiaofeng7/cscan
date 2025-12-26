@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"cscan/pkg/mapping"
 
@@ -75,7 +76,8 @@ type NucleiOptions struct {
 	ExcludeTemplates     []string                      `json:"excludeTemplates"`     // 排除模板
 	RateLimit            int                           `json:"rateLimit"`            // 速率限制
 	Concurrency          int                           `json:"concurrency"`          // 并发数
-	Timeout              int                           `json:"timeout"`              // 超时时间(秒)
+	Timeout              int                           `json:"timeout"`              // 总超时时间(秒)
+	TargetTimeout        int                           `json:"targetTimeout"`        // 单个目标超时时间(秒)，默认60秒
 	Retries              int                           `json:"retries"`              // 重试次数
 	AutoScan             bool                          `json:"autoScan"`             // 基于自定义标签映射自动扫描
 	AutomaticScan        bool                          `json:"automaticScan"`        // 基于Wappalyzer技术的自动扫描（nuclei -as）
@@ -96,16 +98,22 @@ func (s *NucleiScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResu
 
 	// 解析选项
 	opts := &NucleiOptions{
-		Severity:    "critical,high,medium",
-		RateLimit:   150,
-		Concurrency: 25,
-		Timeout:     10,
-		Retries:     1,
+		Severity:      "critical,high,medium",
+		RateLimit:     150,
+		Concurrency:   25,
+		Timeout:       600,  // 总超时默认10分钟
+		TargetTimeout: 60,   // 单目标超时默认60秒
+		Retries:       1,
 	}
 	if config.Options != nil {
 		if o, ok := config.Options.(*NucleiOptions); ok {
 			opts = o
 		}
+	}
+
+	// 设置默认值
+	if opts.TargetTimeout <= 0 {
+		opts.TargetTimeout = 60
 	}
 
 	// 自动扫描模式1: 基于自定义标签映射
@@ -145,7 +153,7 @@ func (s *NucleiScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResu
 		return result, nil
 	}
 
-	logx.Debugf("Targets (%d): %v", len(targets), targets)
+	logx.Infof("Nuclei: scanning %d targets, timeout %ds/target", len(targets), opts.TargetTimeout)
 
 	// 处理自定义POC - 写入临时文件
 	var customTemplatePaths []string
@@ -173,46 +181,36 @@ func (s *NucleiScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResu
 		}()
 	}
 
-	// 构建Nuclei SDK选项
-	nucleiOpts := s.buildNucleiOptions(opts, customTemplatePaths)
-
-	// 创建Nuclei引擎
-	ne, err := nuclei.NewNucleiEngineCtx(ctx, nucleiOpts...)
-	if err != nil {
-		logx.Errorf("Failed to create nuclei engine: %v", err)
-		return result, fmt.Errorf("create nuclei engine failed: %v", err)
-	}
-	defer ne.Close()
-
-	// 启用请求/响应存储（用于证据链）
-	if engineOpts := ne.Options(); engineOpts != nil {
-		engineOpts.StoreResponse = true
-	}
-
-	// 加载模板
-	if err := ne.LoadAllTemplates(); err != nil {
-		logx.Errorf("Failed to load templates: %v", err)
-	}
-
-	// 获取加载的模板数量
-	templates := ne.GetTemplates()
-	logx.Debugf("Loaded %d templates", len(templates))
-
-	// 加载目标
-	ne.LoadTargets(targets, false)
-
 	// 收集结果（使用map去重）
 	var vuls []*Vulnerability
 	seen := make(map[string]bool)
 
-	// 执行扫描并通过回调收集结果
-	err = ne.ExecuteCallbackWithCtx(ctx, func(event *output.ResultEvent) {
-		logx.Debugf("Nuclei result: TemplateID=%s, Host=%s, Matched=%s",
-			event.TemplateID, event.Host, event.Matched)
+	// 串行扫描每个目标，每个目标独立超时
+	for i, target := range targets {
+		select {
+		case <-ctx.Done():
+			logx.Info("Nuclei scan cancelled by context")
+			result.Vulnerabilities = vuls
+			return result, ctx.Err()
+		default:
+		}
 
-		vul := s.convertResult(event)
-		if vul != nil {
-			// 基于 host+port+templateId+url 去重
+		logx.Debugf("Nuclei [%d/%d]: %s", i+1, len(targets), target)
+
+		// 为单个目标创建超时上下文
+		targetCtx, targetCancel := context.WithTimeout(ctx, time.Duration(opts.TargetTimeout)*time.Second)
+
+		// 扫描单个目标
+		targetVuls := s.scanSingleTarget(targetCtx, target, opts, customTemplatePaths)
+		
+		// 检查是否超时
+		if targetCtx.Err() == context.DeadlineExceeded {
+			logx.Debugf("Nuclei: %s timeout after %ds", target, opts.TargetTimeout)
+		}
+		targetCancel()
+
+		// 合并结果并去重
+		for _, vul := range targetVuls {
 			key := fmt.Sprintf("%s:%d:%s:%s", vul.Host, vul.Port, vul.PocFile, vul.Url)
 			if !seen[key] {
 				seen[key] = true
@@ -223,15 +221,57 @@ func (s *NucleiScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResu
 				}
 			}
 		}
-	})
-
-	if err != nil {
-		logx.Errorf("Nuclei scan execution error: %v", err)
 	}
 
 	result.Vulnerabilities = vuls
-
+	logx.Infof("Nuclei: completed, found %d vulnerabilities", len(vuls))
 	return result, nil
+}
+
+// scanSingleTarget 扫描单个目标
+func (s *NucleiScanner) scanSingleTarget(ctx context.Context, target string, opts *NucleiOptions, customTemplatePaths []string) []*Vulnerability {
+	var vuls []*Vulnerability
+
+	// 构建Nuclei SDK选项
+	nucleiOpts := s.buildNucleiOptions(opts, customTemplatePaths)
+
+	// 创建Nuclei引擎
+	ne, err := nuclei.NewNucleiEngineCtx(ctx, nucleiOpts...)
+	if err != nil {
+		logx.Errorf("Failed to create nuclei engine for %s: %v", target, err)
+		return vuls
+	}
+	defer ne.Close()
+
+	// 启用请求/响应存储（用于证据链）
+	if engineOpts := ne.Options(); engineOpts != nil {
+		engineOpts.StoreResponse = true
+	}
+
+	// 加载模板
+	if err := ne.LoadAllTemplates(); err != nil {
+		logx.Errorf("Failed to load templates for %s: %v", target, err)
+	}
+
+	// 加载单个目标
+	ne.LoadTargets([]string{target}, false)
+
+	// 执行扫描并通过回调收集结果
+	err = ne.ExecuteCallbackWithCtx(ctx, func(event *output.ResultEvent) {
+		logx.Debugf("Nuclei result: TemplateID=%s, Host=%s, Matched=%s",
+			event.TemplateID, event.Host, event.Matched)
+
+		vul := s.convertResult(event)
+		if vul != nil {
+			vuls = append(vuls, vul)
+		}
+	})
+
+	if err != nil && ctx.Err() == nil {
+		logx.Errorf("Nuclei scan error for %s: %v", target, err)
+	}
+
+	return vuls
 }
 
 // prepareTargets 准备目标URL列表（跳过非HTTP资产）

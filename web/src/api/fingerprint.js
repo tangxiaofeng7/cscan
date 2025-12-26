@@ -50,6 +50,11 @@ export function batchValidateFingerprints(data) {
   return request.post('/fingerprint/batchValidate', data)
 }
 
+// 匹配现有资产
+export function matchFingerprintAssets(data) {
+  return request.post('/fingerprint/matchAssets', data)
+}
+
 
 // ==================== HTTP服务映射 API ====================
 

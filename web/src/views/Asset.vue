@@ -175,7 +175,7 @@
         <el-table-column label="指纹信息" min-width="320">
           <template #default="{ row }">
             <div class="fingerprint-info">
-              <el-tabs v-if="row.httpHeader || row.httpStatus || row.httpBody || row.banner" type="border-card" class="fingerprint-tabs">
+              <el-tabs v-if="row.httpHeader || row.httpStatus || row.httpBody || row.banner || row.iconHash" type="border-card" class="fingerprint-tabs">
                 <el-tab-pane label="Header">
                   <pre v-if="row.httpHeader || row.httpStatus" class="tab-content">{{ formatHeaderWithStatus(row) }}</pre>
                   <pre v-else-if="row.banner" class="tab-content">{{ row.banner }}</pre>
@@ -184,6 +184,14 @@
                 <el-tab-pane label="Body">
                   <pre v-if="row.httpBody" class="tab-content">{{ row.httpBody }}</pre>
                   <span v-else class="no-data">无内容</span>
+                </el-tab-pane>
+                <el-tab-pane label="IconHash">
+                  <div v-if="row.iconHash" class="icon-hash-content">
+                    <el-tooltip content="点击复制" placement="top">
+                      <span class="icon-hash-value" @click="copyIconHash(row.iconHash)">{{ row.iconHash }}</span>
+                    </el-tooltip>
+                  </div>
+                  <span v-else class="no-data">无IconHash</span>
                 </el-tab-pane>
               </el-tabs>
               <span v-else class="no-data">-</span>
@@ -693,6 +701,21 @@ function handleAppTagClick(app) {
     }
   }
 }
+
+// 复制IconHash
+function copyIconHash(hash) {
+  navigator.clipboard.writeText(hash).then(() => {
+    ElMessage.success(`已复制IconHash: ${hash}`)
+  }).catch(() => {
+    const textarea = document.createElement('textarea')
+    textarea.value = hash
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    ElMessage.success(`已复制IconHash: ${hash}`)
+  })
+}
 </script>
 
 <style lang="scss" scoped>
@@ -1015,6 +1038,29 @@ function handleAppTagClick(app) {
     }
 
     .no-screenshot {
+      color: var(--el-text-color-secondary);
+    }
+
+    .icon-hash-content {
+      padding: 8px;
+      background: var(--el-fill-color-light);
+      border: 1px solid var(--el-border-color);
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      
+      .icon-hash-value {
+        font-family: Consolas, Monaco, monospace;
+        font-size: 13px;
+        color: #409eff;
+        cursor: pointer;
+        
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+
+    .no-data {
       color: var(--el-text-color-secondary);
     }
 
