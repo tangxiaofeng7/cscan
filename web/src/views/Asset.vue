@@ -5,34 +5,62 @@
       <!-- Tab切换 -->
       <el-tabs v-model="activeTab" class="search-tabs">
         <el-tab-pane label="快捷查询" name="quick">
-          <el-form :model="searchForm" inline>
-            <el-form-item label="主机">
-              <el-input v-model="searchForm.host" placeholder="IP/域名" clearable style="width: 120px" @keyup.enter="handleSearch" />
-            </el-form-item>
-            <el-form-item label="端口">
-              <el-input v-model.number="searchForm.port" placeholder="端口号" clearable style="width: 90px" @keyup.enter="handleSearch" />
-            </el-form-item>
-            <el-form-item label="服务">
-              <el-input v-model="searchForm.service" placeholder="服务" clearable style="width: 90px" @keyup.enter="handleSearch" />
-            </el-form-item>
-            <el-form-item label="标题">
-              <el-input v-model="searchForm.title" placeholder="标题" clearable style="width: 120px" @keyup.enter="handleSearch" />
-            </el-form-item>
-            <el-form-item label="应用">
-              <el-input v-model="searchForm.app" placeholder="指纹" clearable style="width: 100px" @keyup.enter="handleSearch" />
-            </el-form-item>
-            <el-form-item label="组织">
-              <el-select v-model="searchForm.orgId" placeholder="全部组织" clearable style="width: 120px" @change="handleSearch">
-                <el-option label="全部组织" value="" />
-                <el-option
-                  v-for="org in organizations"
-                  :key="org.id"
-                  :label="org.name"
-                  :value="org.id"
-                />
-              </el-select>
-            </el-form-item>
-          </el-form>
+          <div class="quick-search-form">
+            <div class="search-row">
+              <div class="search-item">
+                <label class="search-label">主机</label>
+                <el-input v-model="searchForm.host" placeholder="IP/域名" clearable @keyup.enter="handleSearch">
+                  <template #prefix>
+                    <el-icon><Monitor /></el-icon>
+                  </template>
+                </el-input>
+              </div>
+              <div class="search-item">
+                <label class="search-label">端口</label>
+                <el-input v-model.number="searchForm.port" placeholder="端口号" clearable @keyup.enter="handleSearch">
+                  <template #prefix>
+                    <el-icon><Connection /></el-icon>
+                  </template>
+                </el-input>
+              </div>
+              <div class="search-item">
+                <label class="search-label">服务</label>
+                <el-input v-model="searchForm.service" placeholder="http/ssh..." clearable @keyup.enter="handleSearch">
+                  <template #prefix>
+                    <el-icon><Service /></el-icon>
+                  </template>
+                </el-input>
+              </div>
+              <div class="search-item">
+                <label class="search-label">标题</label>
+                <el-input v-model="searchForm.title" placeholder="网页标题" clearable @keyup.enter="handleSearch">
+                  <template #prefix>
+                    <el-icon><Document /></el-icon>
+                  </template>
+                </el-input>
+              </div>
+              <div class="search-item">
+                <label class="search-label">应用</label>
+                <el-input v-model="searchForm.app" placeholder="指纹/应用" clearable @keyup.enter="handleSearch">
+                  <template #prefix>
+                    <el-icon><Cpu /></el-icon>
+                  </template>
+                </el-input>
+              </div>
+              <div class="search-item">
+                <label class="search-label">组织</label>
+                <el-select v-model="searchForm.orgId" placeholder="全部组织" clearable @change="handleSearch">
+                  <el-option label="全部组织" value="" />
+                  <el-option
+                    v-for="org in organizations"
+                    :key="org.id"
+                    :label="org.name"
+                    :value="org.id"
+                  />
+                </el-select>
+              </div>
+            </div>
+          </div>
         </el-tab-pane>
       <el-tab-pane label="语法查询" name="syntax">
           <el-input v-model="searchForm.query" placeholder="输入搜索语法，如: port=80 && service=http" style="width: 100%" @keyup.enter="handleSearch" />
@@ -243,7 +271,7 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Link } from '@element-plus/icons-vue'
+import { Delete, Link, Monitor, Connection, Service, Document, Cpu } from '@element-plus/icons-vue'
 import { getAssetList, getAssetStat, deleteAsset, batchDeleteAsset, getAssetHistory } from '@/api/asset'
 import { useWorkspaceStore } from '@/stores/workspace'
 import request from '@/api/request'
@@ -677,6 +705,64 @@ function handleAppTagClick(app) {
         margin-bottom: 10px;
       }
       
+      // 快捷查询表单样式
+      .quick-search-form {
+        .search-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 16px;
+          
+          .search-item {
+            display: flex;
+            flex-direction: column;
+            min-width: 140px;
+            flex: 1;
+            max-width: 180px;
+            
+            .search-label {
+              font-size: 12px;
+              color: var(--el-text-color-secondary);
+              margin-bottom: 6px;
+              font-weight: 500;
+            }
+            
+            :deep(.el-input) {
+              .el-input__wrapper {
+                border-radius: 8px;
+                box-shadow: 0 0 0 1px var(--el-border-color) inset;
+                transition: all 0.2s;
+                
+                &:hover {
+                  box-shadow: 0 0 0 1px var(--el-color-primary-light-5) inset;
+                }
+                
+                &.is-focus {
+                  box-shadow: 0 0 0 1px var(--el-color-primary) inset;
+                }
+              }
+              
+              .el-input__prefix {
+                color: var(--el-text-color-placeholder);
+              }
+            }
+            
+            :deep(.el-select) {
+              width: 100%;
+              
+              .el-input__wrapper {
+                border-radius: 8px;
+                box-shadow: 0 0 0 1px var(--el-border-color) inset;
+                transition: all 0.2s;
+                
+                &:hover {
+                  box-shadow: 0 0 0 1px var(--el-color-primary-light-5) inset;
+                }
+              }
+            }
+          }
+        }
+      }
+      
       .syntax-hints {
         margin-top: 8px;
         font-size: 12px;
@@ -704,8 +790,14 @@ function handleAppTagClick(app) {
     }
 
     .search-actions {
-      margin-top: 10px;
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--el-border-color-lighter);
       text-align: right;
+      
+      .el-button {
+        min-width: 80px;
+      }
     }
   }
 
