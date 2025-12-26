@@ -90,28 +90,6 @@ func getMainTaskId(taskId string) string {
 	return taskId
 }
 
-// summarizeTarget 生成目标摘要，用于日志显示
-// 如果目标是多行，显示第一个目标和总数
-func summarizeTarget(target string) string {
-	lines := strings.Split(strings.TrimSpace(target), "\n")
-	var validTargets []string
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line != "" && !strings.HasPrefix(line, "#") {
-			validTargets = append(validTargets, line)
-		}
-	}
-	
-	if len(validTargets) == 0 {
-		return "(empty)"
-	}
-	if len(validTargets) == 1 {
-		return validTargets[0]
-	}
-	// 多个目标时显示第一个和总数
-	return fmt.Sprintf("%s (+%d more)", validTargets[0], len(validTargets)-1)
-}
-
 // taskLog 发布任务级别日志
 // 子任务的日志会同时写入主任务的日志流，方便统一查看
 func (w *Worker) taskLog(taskId, level, format string, args ...interface{}) {
@@ -364,9 +342,11 @@ func (w *Worker) pullTask() bool {
 
 	if resp.IsExist && !resp.IsFinished {
 		// 有待执行的任务
+		// MainTaskId 需要提取主任务ID（子任务格式: {mainTaskId}-{index}）
+		// 这样资产保存时使用主任务ID，报告查询才能正确关联
 		task := &scheduler.TaskInfo{
 			TaskId:      resp.TaskId,
-			MainTaskId:  resp.TaskId,
+			MainTaskId:  getMainTaskId(resp.TaskId),
 			WorkspaceId: resp.WorkspaceId,
 			TaskName:    "scan",
 			Config:      resp.Config,
@@ -565,10 +545,19 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 		enabledPhases = append(enabledPhases, "POC Scan")
 	}
 	
-	// 显示扫描目标摘要
-	targetSummary := summarizeTarget(target)
-	w.taskLog(task.TaskId, LevelInfo, "Target: %s", targetSummary)
+	// 解析目标列表
+	targetLines := strings.Split(strings.TrimSpace(target), "\n")
+	var targets []string
+	for _, line := range targetLines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			targets = append(targets, line)
+		}
+	}
+	
+	// 输出任务开始日志
 	w.taskLog(task.TaskId, LevelInfo, "Starting: %s", strings.Join(enabledPhases, " → "))
+	w.taskLog(task.TaskId, LevelInfo, "Targets (%d): %s", len(targets), strings.Join(targets, ", "))
 
 	// 解析恢复状态（如果是继续执行的任务）
 	var resumeState map[string]interface{}
@@ -640,6 +629,11 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			w.taskLog(task.TaskId, level, format, args...)
 		}
 		
+		// 创建进度回调
+		onProgress := func(progress int, message string) {
+			w.updateTaskProgress(ctx, task.TaskId, progress, message)
+		}
+		
 		// 第一步：端口发现
 		switch portDiscoveryTool {
 		case "masscan":
@@ -649,6 +643,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				Target:     target,
 				Options:    config.PortScan,
 				TaskLogger: taskLogger,
+				OnProgress: onProgress,
 			})
 			// 检查是否被停止或超时
 			if portCtx.Err() == context.DeadlineExceeded {
@@ -672,6 +667,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 				Target:     target,
 				Options:    config.PortScan,
 				TaskLogger: taskLogger,
+				OnProgress: onProgress,
 			})
 			// 检查是否被停止或超时
 			if portCtx.Err() == context.DeadlineExceeded {
@@ -1059,6 +1055,26 @@ func (w *Worker) updateTaskStatus(ctx context.Context, taskId, status, result st
 	if err != nil {
 		w.taskLog(taskId, LevelError, "update task status failed: %v", err)
 	}
+}
+
+// updateTaskProgress 更新任务进度（通过Redis）
+func (w *Worker) updateTaskProgress(ctx context.Context, taskId string, progress int, message string) {
+	if w.redisClient == nil {
+		return
+	}
+	
+	// 获取主任务ID
+	mainTaskId := getMainTaskId(taskId)
+	
+	// 更新进度到Redis
+	key := fmt.Sprintf("cscan:task:progress:%s", mainTaskId)
+	data := map[string]interface{}{
+		"progress":   progress,
+		"message":    message,
+		"updateTime": time.Now().Format("2006-01-02 15:04:05"),
+	}
+	jsonData, _ := json.Marshal(data)
+	w.redisClient.Set(ctx, key, jsonData, 30*time.Minute)
 }
 
 // saveAssetResult 保存资产结果

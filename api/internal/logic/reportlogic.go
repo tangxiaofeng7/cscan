@@ -51,12 +51,18 @@ func (l *ReportDetailLogic) ReportDetail(req *types.ReportDetailReq, workspaceId
 	// 获取资产列表
 	assetModel := l.svcCtx.GetAssetModel(workspaceId)
 	
-	// 先尝试用 UUID 查询
-	assets, err := assetModel.Find(l.ctx, bson.M{"taskId": queryTaskId}, 0, 0)
+	// 构建查询条件：匹配主任务ID或子任务ID（子任务格式: {mainTaskId}-{index}）
+	assetFilter := bson.M{
+		"$or": []bson.M{
+			{"taskId": queryTaskId},                                    // 主任务ID
+			{"taskId": bson.M{"$regex": "^" + queryTaskId + "-\\d+$"}}, // 子任务ID
+		},
+	}
+	assets, err := assetModel.Find(l.ctx, assetFilter, 0, 0)
 	if err != nil {
 		l.Logger.Errorf("查询资产失败: %v", err)
 	}
-	l.Logger.Infof("Found %d assets for queryTaskId(UUID)=%s", len(assets), queryTaskId)
+	l.Logger.Infof("Found %d assets for queryTaskId(UUID)=%s (including sub-tasks)", len(assets), queryTaskId)
 	
 	// 如果没找到，尝试用 ObjectID 查询（兼容旧数据）
 	if len(assets) == 0 {
@@ -70,11 +76,18 @@ func (l *ReportDetailLogic) ReportDetail(req *types.ReportDetailReq, workspaceId
 
 	// 获取漏洞列表
 	vulModel := l.svcCtx.GetVulModel(workspaceId)
-	vuls, err := vulModel.Find(l.ctx, bson.M{"task_id": queryTaskId}, 0, 0)
+	// 同样匹配主任务ID或子任务ID
+	vulFilter := bson.M{
+		"$or": []bson.M{
+			{"task_id": queryTaskId},                                    // 主任务ID
+			{"task_id": bson.M{"$regex": "^" + queryTaskId + "-\\d+$"}}, // 子任务ID
+		},
+	}
+	vuls, err := vulModel.Find(l.ctx, vulFilter, 0, 0)
 	if err != nil {
 		l.Logger.Errorf("查询漏洞失败: %v", err)
 	}
-	l.Logger.Infof("Found %d vuls for queryTaskId(UUID)=%s", len(vuls), queryTaskId)
+	l.Logger.Infof("Found %d vuls for queryTaskId(UUID)=%s (including sub-tasks)", len(vuls), queryTaskId)
 	
 	// 如果没找到，尝试用 ObjectID 查询（兼容旧数据）
 	if len(vuls) == 0 {
@@ -198,13 +211,25 @@ func (l *ReportExportLogic) ReportExport(req *types.ReportExportReq, workspaceId
 		return nil, "", fmt.Errorf("任务不存在")
 	}
 
-	// 获取资产列表
+	// 获取资产列表（匹配主任务ID或子任务ID）
 	assetModel := l.svcCtx.GetAssetModel(workspaceId)
-	assets, _ := assetModel.Find(l.ctx, bson.M{"taskId": task.TaskId}, 0, 0)
+	assetFilter := bson.M{
+		"$or": []bson.M{
+			{"taskId": task.TaskId},
+			{"taskId": bson.M{"$regex": "^" + task.TaskId + "-\\d+$"}},
+		},
+	}
+	assets, _ := assetModel.Find(l.ctx, assetFilter, 0, 0)
 
-	// 获取漏洞列表
+	// 获取漏洞列表（匹配主任务ID或子任务ID）
 	vulModel := l.svcCtx.GetVulModel(workspaceId)
-	vuls, _ := vulModel.Find(l.ctx, bson.M{"task_id": task.TaskId}, 0, 0)
+	vulFilter := bson.M{
+		"$or": []bson.M{
+			{"task_id": task.TaskId},
+			{"task_id": bson.M{"$regex": "^" + task.TaskId + "-\\d+$"}},
+		},
+	}
+	vuls, _ := vulModel.Find(l.ctx, vulFilter, 0, 0)
 
 	// 创建Excel文件
 	f := excelize.NewFile()

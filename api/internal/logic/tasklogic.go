@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -94,6 +95,21 @@ func (l *MainTaskListLogic) MainTaskList(req *types.MainTaskListReq, workspaceId
 	// 转换响应
 	list := make([]types.MainTask, 0, len(tasks))
 	for _, t := range tasks {
+		progress := t.Progress
+		
+		// 如果任务正在执行中，尝试从Redis获取实时进度
+		if t.Status == "STARTED" && l.svcCtx.RedisClient != nil {
+			key := fmt.Sprintf("cscan:task:progress:%s", t.TaskId)
+			if data, err := l.svcCtx.RedisClient.Get(l.ctx, key).Result(); err == nil && data != "" {
+				var progressData struct {
+					Progress int `json:"progress"`
+				}
+				if json.Unmarshal([]byte(data), &progressData) == nil && progressData.Progress > progress {
+					progress = progressData.Progress
+				}
+			}
+		}
+		
 		list = append(list, types.MainTask{
 			Id:           t.Id.Hex(),
 			TaskId:       t.TaskId, // UUID，用于日志查询
@@ -102,7 +118,7 @@ func (l *MainTaskListLogic) MainTaskList(req *types.MainTaskListReq, workspaceId
 			ProfileId:    t.ProfileId,
 			ProfileName:  t.ProfileName,
 			Status:       t.Status,
-			Progress:     t.Progress,
+			Progress:     progress,
 			Result:       t.Result,
 			IsCron:       t.IsCron,
 			CronRule:     t.CronRule,

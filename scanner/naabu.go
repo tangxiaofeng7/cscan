@@ -59,6 +59,9 @@ func (s *NaabuScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResul
 		}
 		logx.Infof(format, args...)
 	}
+	
+	// 进度回调
+	onProgress := config.OnProgress
 
 	// 从配置中提取选项
 	if config.Options != nil {
@@ -120,7 +123,7 @@ func (s *NaabuScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResul
 	}
 
 	// 执行Naabu扫描
-	assets := s.runNaabuWithLogger(ctx, targets, opts, logInfo, logWarn)
+	assets := s.runNaabuWithLogger(ctx, targets, opts, logInfo, logWarn, onProgress)
 
 	return &ScanResult{
 		WorkspaceId: config.WorkspaceId,
@@ -132,9 +135,12 @@ func (s *NaabuScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResul
 // logFunc 日志函数类型
 type logFunc func(format string, args ...interface{})
 
+// progressFunc 进度回调函数类型
+type progressFunc func(progress int, message string)
+
 // runNaabuWithLogger 运行Naabu扫描（带日志回调）
 // 按单个目标拆分，串行执行，每个目标独立超时控制
-func (s *NaabuScanner) runNaabuWithLogger(ctx context.Context, targets []string, opts *NaabuOptions, logInfo, logWarn logFunc) []*Asset {
+func (s *NaabuScanner) runNaabuWithLogger(ctx context.Context, targets []string, opts *NaabuOptions, logInfo, logWarn logFunc, onProgress progressFunc) []*Asset {
 	var allAssets []*Asset
 
 	// 处理端口配置
@@ -156,20 +162,32 @@ func (s *NaabuScanner) runNaabuWithLogger(ctx context.Context, targets []string,
 		timeout = 60
 	}
 
-	logInfo("Naabu: scanning %d targets, timeout %ds/target", len(targets), timeout)
+	totalTargets := len(targets)
+	logInfo("Naabu: scanning %d targets, timeout %ds/target", totalTargets, timeout)
 
 	// 串行扫描每个目标
 	for i, target := range targets {
 		// 检查父context是否已取消
 		select {
 		case <-ctx.Done():
-			logInfo("Naabu: cancelled at %d/%d targets", i, len(targets))
+			logInfo("Naabu: cancelled at %d/%d targets", i, totalTargets)
 			return allAssets
 		default:
 		}
 
+		// 报告进度 (端口扫描占总进度的0-30%)
+		if onProgress != nil {
+			progress := (i * 30) / totalTargets
+			onProgress(progress, fmt.Sprintf("Port scan: %d/%d", i, totalTargets))
+		}
+
 		assets := s.scanSingleTargetWithLogger(ctx, target, portsStr, topPorts, opts, logInfo, logWarn)
 		allAssets = append(allAssets, assets...)
+	}
+
+	// 端口扫描完成，进度到30%
+	if onProgress != nil {
+		onProgress(30, fmt.Sprintf("Port scan completed: %d ports", len(allAssets)))
 	}
 
 	logInfo("Naabu: completed, found %d open ports", len(allAssets))

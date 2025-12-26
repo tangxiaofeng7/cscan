@@ -581,6 +581,7 @@ func buildAssetUpdate(doc *model.Asset) bson.M {
 		"new":         false,
 		"update":      true,
 		"is_http":     doc.IsHTTP,
+		"taskId":      doc.TaskId, // 更新任务ID，确保资产关联到最新任务
 	}
 	if doc.Service != "" {
 		update["service"] = doc.Service

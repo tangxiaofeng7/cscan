@@ -21,7 +21,9 @@ type ScanConfig struct {
 	WorkspaceId string      `json:"workspaceId"`
 	MainTaskId  string      `json:"mainTaskId"`
 	// TaskLogger 任务日志回调，用于将扫描日志推送到任务日志流
-	TaskLogger  func(level, format string, args ...interface{}) `json:"-"`
+	TaskLogger func(level, format string, args ...interface{}) `json:"-"`
+	// OnProgress 进度回调，参数为当前进度(0-100)和描述
+	OnProgress func(progress int, message string) `json:"-"`
 }
 
 // ScanResult 扫描结果

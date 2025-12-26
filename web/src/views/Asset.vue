@@ -177,7 +177,7 @@
             <span v-else class="no-screenshot">-</span>
           </template>
         </el-table-column>
-        <el-table-column label="更新时间" width="100">
+        <el-table-column label="更新时间" width="160">
           <template #default="{ row }">
             <div class="update-time">{{ formatTime(row.updateTime) }}</div>
             <el-tag v-if="row.isNew" type="success" size="small" effect="dark" class="mark-tag">新</el-tag>
@@ -438,8 +438,8 @@ function getScreenshotUrl(screenshot) {
 
 function formatTime(time) {
   if (!time) return '-'
-  // 只显示日期部分
-  return time.split(' ')[0] || time.substring(0, 10)
+  // 显示完整时间（精确到秒）
+  return time
 }
 
 function handleSearch() {
