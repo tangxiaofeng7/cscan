@@ -966,7 +966,7 @@ func (l *GetTaskLogsLogic) GetTaskLogs(req *types.GetTaskLogsReq) (resp *types.G
 
 	// 从Redis Stream读取任务专属日志 (cscan:task:logs:{taskId})
 	streamKey := "cscan:task:logs:" + req.TaskId
-	l.Logger.Infof("GetTaskLogs: querying Redis stream key=%s, limit=%d", streamKey, limit)
+	l.Logger.Infof("GetTaskLogs: querying Redis stream key=%s, limit=%d, search=%s", streamKey, limit, req.Search)
 	
 	logs, err := l.svcCtx.RedisClient.XRevRange(l.ctx, streamKey, "+", "-").Result()
 	if err != nil {
@@ -979,19 +979,29 @@ func (l *GetTaskLogsLogic) GetTaskLogs(req *types.GetTaskLogsReq) (resp *types.G
 
 	// 解析日志条目
 	result := make([]types.TaskLogEntry, 0)
-	count := limit
-	if len(logs) < count {
-		count = len(logs)
-	}
+	searchLower := strings.ToLower(req.Search)
 
 	// XRevRange返回的是倒序，我们需要正序显示，所以从后往前遍历
-	for i := count - 1; i >= 0; i-- {
+	for i := len(logs) - 1; i >= 0; i-- {
 		if data, ok := logs[i].Values["data"].(string); ok {
 			var entry types.TaskLogEntry
 			if err := json.Unmarshal([]byte(data), &entry); err == nil {
 				// 放宽匹配条件：匹配主任务ID或子任务ID
 				if entry.TaskId == req.TaskId || getMainTaskIdFromLog(entry.TaskId) == req.TaskId {
+					// 模糊搜索过滤
+					if req.Search != "" {
+						// 搜索 message、level、workerName 字段（不区分大小写）
+						if !strings.Contains(strings.ToLower(entry.Message), searchLower) &&
+							!strings.Contains(strings.ToLower(entry.Level), searchLower) &&
+							!strings.Contains(strings.ToLower(entry.WorkerName), searchLower) {
+							continue
+						}
+					}
 					result = append(result, entry)
+					// 达到限制数量后停止
+					if len(result) >= limit {
+						break
+					}
 				}
 			} else {
 				l.Logger.Errorf("GetTaskLogs: failed to unmarshal log entry: %v", err)

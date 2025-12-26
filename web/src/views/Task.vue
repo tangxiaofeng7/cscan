@@ -383,6 +383,17 @@
         />
       </div>
       <div class="log-filter">
+        <el-input
+          v-model="logSearchKeyword"
+          placeholder="搜索日志..."
+          clearable
+          size="small"
+          style="width: 180px; margin-right: 10px"
+        >
+          <template #prefix>
+            <el-icon><Search /></el-icon>
+          </template>
+        </el-input>
         <el-select v-model="logWorkerFilter" placeholder="筛选Worker" clearable size="small" style="width: 150px">
           <el-option label="全部Worker" value="" />
           <el-option v-for="w in logWorkers" :key="w" :label="w" :value="w" />
@@ -428,7 +439,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Setting, Delete } from '@element-plus/icons-vue'
+import { Plus, Setting, Delete, Search } from '@element-plus/icons-vue'
 import { getTaskList, createTask, deleteTask, batchDeleteTask, getTaskProfileList, saveTaskProfile, deleteTaskProfile, retryTask, startTask, pauseTask, resumeTask, stopTask, updateTask, getTaskLogs } from '@/api/task'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { validateTargets, formatValidationErrors } from '@/utils/target'
@@ -461,6 +472,7 @@ const logIdSet = new Set() // 用于日志去重
 const logWorkerFilter = ref('')
 const logSubTaskFilter = ref('')
 const logLevelFilter = ref('')
+const logSearchKeyword = ref('') // 日志搜索关键词
 const logAutoRefresh = ref(true) // 日志自动刷新开关
 let refreshTimer = null
 let logEventSource = null
@@ -490,10 +502,20 @@ const logSubTasks = computed(() => {
 
 // 筛选后的日志
 const filteredLogs = computed(() => {
+  const keyword = logSearchKeyword.value.toLowerCase()
   return taskLogs.value.filter(log => {
     if (logWorkerFilter.value && log.workerName !== logWorkerFilter.value) return false
     if (logSubTaskFilter.value && log.subTask !== logSubTaskFilter.value) return false
     if (logLevelFilter.value && log.level !== logLevelFilter.value) return false
+    // 模糊搜索
+    if (keyword) {
+      const message = (log.displayMessage || log.message || '').toLowerCase()
+      const level = (log.level || '').toLowerCase()
+      const workerName = (log.workerName || '').toLowerCase()
+      if (!message.includes(keyword) && !level.includes(keyword) && !workerName.includes(keyword)) {
+        return false
+      }
+    }
     return true
   })
 })

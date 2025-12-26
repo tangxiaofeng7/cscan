@@ -118,6 +118,19 @@
         <div class="log-header">
           <span>Worker运行日志</span>
           <div class="log-filters">
+            <el-input
+              v-model="searchKeyword"
+              placeholder="搜索日志..."
+              clearable
+              size="small"
+              style="width: 180px; margin-right: 10px"
+              @keyup.enter="searchLogs"
+              @clear="searchLogs"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
             <el-select 
               v-model="filterWorker" 
               placeholder="筛选Worker" 
@@ -170,7 +183,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted, nextTick, watch, reactive, computed } from 'vue'
-import { Refresh, Delete, Edit, RefreshRight } from '@element-plus/icons-vue'
+import { Refresh, Delete, Edit, RefreshRight, Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import request from '@/api/request'
 
@@ -183,12 +196,14 @@ const isConnected = ref(false)
 const autoRefresh = ref(true)
 const filterWorker = ref('')
 const filterLevel = ref('')
+const searchKeyword = ref('')
 let pollingTimer = null
 let workerRefreshTimer = null
 let logIdSet = new Set() // 用于去重
 
 // 筛选后的日志
 const filteredLogs = computed(() => {
+  const keyword = searchKeyword.value.toLowerCase()
   return logs.value.filter(log => {
     // 筛选 Worker
     if (filterWorker.value && log.workerName !== filterWorker.value) {
@@ -197,6 +212,15 @@ const filteredLogs = computed(() => {
     // 筛选级别
     if (filterLevel.value && log.level?.toUpperCase() !== filterLevel.value) {
       return false
+    }
+    // 模糊搜索
+    if (keyword) {
+      const message = (log.message || '').toLowerCase()
+      const level = (log.level || '').toLowerCase()
+      const workerName = (log.workerName || '').toLowerCase()
+      if (!message.includes(keyword) && !level.includes(keyword) && !workerName.includes(keyword)) {
+        return false
+      }
     }
     return true
   })
@@ -421,6 +445,12 @@ async function submitRename() {
   } finally {
     renameLoading.value = false
   }
+}
+
+// 搜索日志（服务端搜索，用于大量日志场景）
+async function searchLogs() {
+  // 前端已通过 computed 实现实时过滤，此函数可用于触发服务端搜索
+  // 当前实现：前端过滤，无需额外操作
 }
 </script>
 

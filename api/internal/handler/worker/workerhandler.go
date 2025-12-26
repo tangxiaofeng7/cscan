@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"cscan/api/internal/logic"
@@ -164,7 +165,8 @@ func WorkerLogsClearHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 func WorkerLogsHistoryHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			Limit int `json:"limit"`
+			Limit  int    `json:"limit"`
+			Search string `json:"search"` // 模糊搜索关键词
 		}
 		json.NewDecoder(r.Body).Decode(&req)
 		if req.Limit <= 0 {
@@ -178,14 +180,35 @@ func WorkerLogsHistoryHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		}
 
 		result := make([]json.RawMessage, 0)
-		count := req.Limit
-		if len(logs) < count {
-			count = len(logs)
-		}
-		for i := count - 1; i >= 0; i-- {
+		searchLower := strings.ToLower(req.Search)
+
+		// 从最新的日志开始遍历
+		for i := 0; i < len(logs) && len(result) < req.Limit; i++ {
 			if data, ok := logs[i].Values["data"].(string); ok {
+				// 如果有搜索条件，进行模糊匹配
+				if req.Search != "" {
+					// 解析日志内容进行搜索
+					var logEntry struct {
+						Level      string `json:"level"`
+						Message    string `json:"message"`
+						WorkerName string `json:"workerName"`
+					}
+					if json.Unmarshal([]byte(data), &logEntry) == nil {
+						// 搜索 message、level、workerName 字段（不区分大小写）
+						if !strings.Contains(strings.ToLower(logEntry.Message), searchLower) &&
+							!strings.Contains(strings.ToLower(logEntry.Level), searchLower) &&
+							!strings.Contains(strings.ToLower(logEntry.WorkerName), searchLower) {
+							continue
+						}
+					}
+				}
 				result = append(result, json.RawMessage(data))
 			}
+		}
+
+		// 反转结果，使最旧的在前面（时间正序）
+		for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
+			result[i], result[j] = result[j], result[i]
 		}
 
 		httpx.OkJson(w, map[string]interface{}{

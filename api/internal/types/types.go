@@ -321,8 +321,9 @@ type MainTaskUpdateReq struct {
 
 // GetTaskLogsReq 获取任务日志请求
 type GetTaskLogsReq struct {
-	TaskId string `json:"taskId"` // 任务ID
-	Limit  int    `json:"limit,default=100"` // 返回条数限制
+	TaskId string `json:"taskId"`              // 任务ID
+	Limit  int    `json:"limit,default=100"`   // 返回条数限制
+	Search string `json:"search,optional"`     // 模糊搜索关键词
 }
 
 // TaskLogEntry 任务日志条目
