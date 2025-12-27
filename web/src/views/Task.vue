@@ -360,7 +360,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Search } from '@element-plus/icons-vue'
@@ -477,6 +477,16 @@ const availableTools = computed(() => {
   }
   return tools
 })
+
+// 监听工具可用性，自动关闭不可用的功能
+watch(availableTools, (tools) => {
+  if (!tools.nmap && form.portidentifyEnable) {
+    form.portidentifyEnable = false
+  }
+  if (!tools.masscan && form.portscanTool === 'masscan') {
+    form.portscanTool = 'naabu'
+  }
+}, { immediate: true })
 
 function formatLogTime(timestamp) {
   if (!timestamp) return ''
@@ -632,6 +642,35 @@ function buildConfig() {
   }
 }
 
+// 扫描配置字段列表（用于监听变化自动保存）
+const scanConfigFields = [
+  'batchSize', 'portscanEnable', 'portscanTool', 'portscanRate', 'ports', 'portThreshold', 'scanType', 'portscanTimeout', 'skipHostDiscovery',
+  'portidentifyEnable', 'portidentifyTimeout', 'portidentifyArgs',
+  'fingerprintEnable', 'fingerprintHttpx', 'fingerprintIconHash', 'fingerprintWappalyzer', 'fingerprintCustomEngine', 'fingerprintScreenshot', 'fingerprintTimeout', 'fingerprintConcurrency',
+  'pocscanEnable', 'pocscanAutoScan', 'pocscanAutomaticScan', 'pocscanCustomOnly', 'pocscanSeverity', 'pocscanTargetTimeout'
+]
+
+// 防抖保存配置
+let saveConfigTimer = null
+function debounceSaveConfig() {
+  if (saveConfigTimer) clearTimeout(saveConfigTimer)
+  saveConfigTimer = setTimeout(() => {
+    const config = buildConfig()
+    saveScanConfig({ config: JSON.stringify(config) }).catch(e => console.error('自动保存配置失败:', e))
+  }, 500)
+}
+
+// 监听扫描配置变化，自动保存（仅在新建任务对话框打开且非编辑模式时）
+watch(
+  () => scanConfigFields.map(f => form[f]),
+  () => {
+    if (dialogVisible.value && !isEdit.value) {
+      debounceSaveConfig()
+    }
+  },
+  { deep: true }
+)
+
 async function handleSubmit() {
   await formRef.value.validate()
   submitting.value = true
@@ -644,8 +683,6 @@ async function handleSubmit() {
       res = await updateTask({ id: form.id, ...data })
     } else {
       res = await createTask(data)
-      // 新建任务时保存扫描配置作为用户默认配置
-      saveScanConfig({ config: configStr }).catch(e => console.error('保存扫描配置失败:', e))
     }
     if (res.code === 0) {
       ElMessage.success(isEdit.value ? '任务更新成功' : '任务创建成功')
