@@ -26,10 +26,11 @@ func NewMasscanScanner() *MasscanScanner {
 
 // MasscanOptions Masscan扫描选项
 type MasscanOptions struct {
-	Ports         string `json:"ports"`
-	Rate          int    `json:"rate"`
-	Timeout       int    `json:"timeout"`
-	PortThreshold int    `json:"portThreshold"` // 端口阈值，实时检测
+	Ports             string `json:"ports"`
+	Rate              int    `json:"rate"`
+	Timeout           int    `json:"timeout"`
+	PortThreshold     int    `json:"portThreshold"`     // 端口阈值，实时检测
+	SkipHostDiscovery bool   `json:"skipHostDiscovery"` // 跳过主机发现 (-Pn)
 }
 
 // MasscanResult Masscan输出结果
@@ -74,10 +75,11 @@ func (s *MasscanScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanRes
 			// 尝试通过JSON转换
 			if data, err := json.Marshal(config.Options); err == nil {
 				var portConfig struct {
-					Ports         string `json:"ports"`
-					Rate          int    `json:"rate"`
-					Timeout       int    `json:"timeout"`
-					PortThreshold int    `json:"portThreshold"`
+					Ports             string `json:"ports"`
+					Rate              int    `json:"rate"`
+					Timeout           int    `json:"timeout"`
+					PortThreshold     int    `json:"portThreshold"`
+					SkipHostDiscovery bool   `json:"skipHostDiscovery"`
 				}
 				if err := json.Unmarshal(data, &portConfig); err == nil {
 					if portConfig.Ports != "" {
@@ -92,6 +94,7 @@ func (s *MasscanScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanRes
 					if portConfig.PortThreshold > 0 {
 						opts.PortThreshold = portConfig.PortThreshold
 					}
+					opts.SkipHostDiscovery = portConfig.SkipHostDiscovery
 				}
 			}
 		}
@@ -152,6 +155,10 @@ func (s *MasscanScanner) runMasscan(ctx context.Context, targets []string, opts 
 		"-p", portsStr,
 		"--rate", strconv.Itoa(opts.Rate),
 		"-oJ", "-", // JSON输出到stdout
+	}
+	// 跳过主机发现
+	if opts.SkipHostDiscovery {
+		args = append(args, "-Pn")
 	}
 	args = append(args, targets...)
 
@@ -246,4 +253,9 @@ func checkMasscanInstalled() bool {
 	output, _ := cmd.CombinedOutput()
 	// 通过检查输出内容来判断是否安装
 	return strings.Contains(string(output), "Masscan version")
+}
+
+// CheckMasscanInstalled 导出的检查函数，供外部调用
+func CheckMasscanInstalled() bool {
+	return checkMasscanInstalled()
 }

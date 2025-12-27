@@ -8,7 +8,9 @@
 
 ---
 
-## 介绍
+## 目录
+<details>
+<summary>⭐ 介绍 </summary>
 
 - **资产发现** - 端口扫描 (Naabu/Masscan)，端口服务识别（Nmap）
 - **指纹识别** - Httpx + Wappalyzer + 自定义指纹引擎，3W+自定义指纹
@@ -18,8 +20,8 @@
 - **报告管理** - 任务报告生成，支持 Excel 导出
 - **分布式架构** - Worker 节点水平扩展，支持多节点并行扫描
 - **多工作空间** - 项目隔离，团队协作
+</details>
 
-## 目录
 <details open>
 <summary>⭐ 快速开始 </summary>
 

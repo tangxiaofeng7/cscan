@@ -144,20 +144,29 @@ func (s *Scheduler) GetProcessingCount(ctx context.Context) (int64, error) {
 
 // TaskConfig 任务配置
 type TaskConfig struct {
-	PortScan    *PortScanConfig    `json:"portscan,omitempty"`
-	DomainScan  *DomainScanConfig  `json:"domainscan,omitempty"`
-	Fingerprint *FingerprintConfig `json:"fingerprint,omitempty"`
-	PocScan     *PocScanConfig     `json:"pocscan,omitempty"`
+	PortScan     *PortScanConfig     `json:"portscan,omitempty"`
+	PortIdentify *PortIdentifyConfig `json:"portidentify,omitempty"` // 端口识别（Nmap服务识别）
+	DomainScan   *DomainScanConfig   `json:"domainscan,omitempty"`
+	Fingerprint  *FingerprintConfig  `json:"fingerprint,omitempty"`
+	PocScan      *PocScanConfig      `json:"pocscan,omitempty"`
 }
 
 type PortScanConfig struct {
-	Enable        bool   `json:"enable"`
-	Tool          string `json:"tool"`          // tcp, masscan, naabu
-	Ports         string `json:"ports"`
-	Rate          int    `json:"rate"`
-	Timeout       int    `json:"timeout"`       // 端口扫描超时时间(秒)，默认5秒
-	PortThreshold int    `json:"portThreshold"` // 开放端口数量阈值，超过则过滤该主机
-	ScanType      string `json:"scanType"`      // s=SYN, c=CONNECT，默认 c
+	Enable            bool   `json:"enable"`
+	Tool              string `json:"tool"`              // tcp, masscan, naabu
+	Ports             string `json:"ports"`
+	Rate              int    `json:"rate"`
+	Timeout           int    `json:"timeout"`           // 端口扫描超时时间(秒)，默认5秒
+	PortThreshold     int    `json:"portThreshold"`     // 开放端口数量阈值，超过则过滤该主机
+	ScanType          string `json:"scanType"`          // s=SYN, c=CONNECT，默认 c
+	SkipHostDiscovery bool   `json:"skipHostDiscovery"` // 跳过主机发现 (-Pn)
+}
+
+// PortIdentifyConfig 端口识别配置（Nmap服务识别）
+type PortIdentifyConfig struct {
+	Enable  bool   `json:"enable"`
+	Timeout int    `json:"timeout"` // 单个主机超时时间(秒)，默认30秒
+	Args    string `json:"args"`    // Nmap额外参数，如 "-sV --version-intensity 5"
 }
 
 type DomainScanConfig struct {

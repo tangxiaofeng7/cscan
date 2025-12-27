@@ -110,7 +110,7 @@ func NewWorkspaceDeleteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *W
 	}
 }
 
-func (l *WorkspaceDeleteLogic) WorkspaceDelete(req *types.WorkspaceSaveReq) (resp *types.BaseResp, err error) {
+func (l *WorkspaceDeleteLogic) WorkspaceDelete(req *types.WorkspaceDeleteReq) (resp *types.BaseResp, err error) {
 	if req.Id == "" {
 		return &types.BaseResp{Code: 400, Msg: "ID不能为空"}, nil
 	}

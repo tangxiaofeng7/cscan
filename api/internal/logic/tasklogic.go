@@ -151,7 +151,7 @@ func NewMainTaskCreateLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ma
 }
 
 func (l *MainTaskCreateLogic) MainTaskCreate(req *types.MainTaskCreateReq, workspaceId string) (resp *types.BaseResp, err error) {
-	l.Logger.Infof("MainTaskCreate: name=%s, profileId=%s, workspaceId=%s", req.Name, req.ProfileId, workspaceId)
+	l.Logger.Infof("MainTaskCreate: name=%s, workspaceId=%s", req.Name, workspaceId)
 
 	// 校验目标格式
 	if req.Target == "" {
@@ -163,36 +163,44 @@ func (l *MainTaskCreateLogic) MainTaskCreate(req *types.MainTaskCreateReq, works
 
 	taskModel := l.svcCtx.GetMainTaskModel(workspaceId)
 
-	// 获取任务配置
-	profile, err := l.svcCtx.ProfileModel.FindById(l.ctx, req.ProfileId)
-	if err != nil {
-		l.Logger.Errorf("MainTaskCreate: profile not found, profileId=%s, error=%v", req.ProfileId, err)
-		return &types.BaseResp{Code: 400, Msg: "任务配置不存在"}, nil
-	}
-	l.Logger.Infof("MainTaskCreate: profile found, name=%s", profile.Name)
-
-	// 构建任务配置，包含目标信息
+	// 构建任务配置
 	taskConfig := map[string]interface{}{
 		"target": req.Target,
 	}
+
 	// 添加组织ID到配置
 	if req.OrgId != "" {
 		taskConfig["orgId"] = req.OrgId
-		l.Logger.Infof("MainTaskCreate: orgId set to %s", req.OrgId)
-	} else {
-		l.Logger.Infof("MainTaskCreate: orgId is empty")
 	}
+
 	// 添加指定 Worker 列表到配置
 	if len(req.Workers) > 0 {
 		taskConfig["workers"] = req.Workers
-		l.Logger.Infof("MainTaskCreate: workers set to %v", req.Workers)
 	}
-	// 合并 profile 配置
-	if profile.Config != "" {
-		var profileConfig map[string]interface{}
-		if err := json.Unmarshal([]byte(profile.Config), &profileConfig); err == nil {
-			for k, v := range profileConfig {
+
+	// 优先使用直接传递的 config，否则从 profile 获取
+	profileName := "自定义配置"
+	if req.Config != "" {
+		// 直接使用传递的配置
+		var directConfig map[string]interface{}
+		if err := json.Unmarshal([]byte(req.Config), &directConfig); err == nil {
+			for k, v := range directConfig {
 				taskConfig[k] = v
+			}
+		}
+	} else if req.ProfileId != "" {
+		// 从 profile 获取配置（兼容旧版）
+		profile, err := l.svcCtx.ProfileModel.FindById(l.ctx, req.ProfileId)
+		if err != nil {
+			return &types.BaseResp{Code: 400, Msg: "任务配置不存在"}, nil
+		}
+		profileName = profile.Name
+		if profile.Config != "" {
+			var profileConfig map[string]interface{}
+			if err := json.Unmarshal([]byte(profile.Config), &profileConfig); err == nil {
+				for k, v := range profileConfig {
+					taskConfig[k] = v
+				}
 			}
 		}
 	}
@@ -208,11 +216,11 @@ func (l *MainTaskCreateLogic) MainTaskCreate(req *types.MainTaskCreateReq, works
 		Name:        req.Name,
 		Target:      req.Target,
 		ProfileId:   req.ProfileId,
-		ProfileName: profile.Name,
+		ProfileName: profileName,
 		OrgId:       req.OrgId,
 		IsCron:      req.IsCron,
 		CronRule:    req.CronRule,
-		Config:      string(configBytes), // 保存配置用于后续启动
+		Config:      string(configBytes),
 	}
 
 	if err := taskModel.Insert(l.ctx, task); err != nil {
@@ -341,6 +349,20 @@ func NewMainTaskDeleteLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Ma
 
 func (l *MainTaskDeleteLogic) MainTaskDelete(req *types.MainTaskDeleteReq, workspaceId string) (resp *types.BaseResp, err error) {
 	taskModel := l.svcCtx.GetMainTaskModel(workspaceId)
+	
+	// 先获取任务信息，发送停止信号
+	task, err := taskModel.FindById(l.ctx, req.Id)
+	if err == nil && task != nil {
+		// 发送停止信号到Redis，让Worker停止执行
+		ctrlKey := "cscan:task:ctrl:" + task.TaskId
+		l.svcCtx.RedisClient.Set(l.ctx, ctrlKey, "STOP", 24*time.Hour)
+		l.Logger.Infof("Sent stop signal before delete: taskId=%s", task.TaskId)
+		
+		// 清理任务相关的Redis数据
+		taskInfoKey := "cscan:task:info:" + task.TaskId
+		l.svcCtx.RedisClient.Del(l.ctx, taskInfoKey)
+	}
+	
 	err = taskModel.Delete(l.ctx, req.Id)
 	if err != nil {
 		return &types.BaseResp{Code: 500, Msg: "删除失败"}, nil
@@ -369,6 +391,22 @@ func (l *MainTaskBatchDeleteLogic) MainTaskBatchDelete(req *types.MainTaskBatchD
 	}
 
 	taskModel := l.svcCtx.GetMainTaskModel(workspaceId)
+	
+	// 先获取所有任务信息，发送停止信号
+	for _, id := range req.Ids {
+		task, err := taskModel.FindById(l.ctx, id)
+		if err == nil && task != nil {
+			// 发送停止信号到Redis，让Worker停止执行
+			ctrlKey := "cscan:task:ctrl:" + task.TaskId
+			l.svcCtx.RedisClient.Set(l.ctx, ctrlKey, "STOP", 24*time.Hour)
+			l.Logger.Infof("Sent stop signal before batch delete: taskId=%s", task.TaskId)
+			
+			// 清理任务相关的Redis数据
+			taskInfoKey := "cscan:task:info:" + task.TaskId
+			l.svcCtx.RedisClient.Del(l.ctx, taskInfoKey)
+		}
+	}
+	
 	deleted, err := taskModel.BatchDelete(l.ctx, req.Ids)
 	if err != nil {
 		return &types.BaseResp{Code: 500, Msg: "删除失败"}, nil

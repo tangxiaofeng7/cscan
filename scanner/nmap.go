@@ -249,3 +249,8 @@ func checkNmapInstalled() bool {
 	err := cmd.Run()
 	return err == nil
 }
+
+// CheckNmapInstalled 导出的检查函数，供外部调用
+func CheckNmapInstalled() bool {
+	return checkNmapInstalled()
+}

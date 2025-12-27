@@ -32,11 +32,12 @@ func NewNaabuScanner() *NaabuScanner {
 
 // NaabuOptions Naabu扫描选项
 type NaabuOptions struct {
-	Ports         string `json:"ports"`
-	Rate          int    `json:"rate"`
-	Timeout       int    `json:"timeout"`
-	ScanType      string `json:"scanType"`      // s=SYN, c=CONNECT，默认 c
-	PortThreshold int    `json:"portThreshold"` // 端口阈值，使用 naabu 原生 -port-threshold 参数
+	Ports             string `json:"ports"`
+	Rate              int    `json:"rate"`
+	Timeout           int    `json:"timeout"`
+	ScanType          string `json:"scanType"`          // s=SYN, c=CONNECT，默认 c
+	PortThreshold     int    `json:"portThreshold"`     // 端口阈值，使用 naabu 原生 -port-threshold 参数
+	SkipHostDiscovery bool   `json:"skipHostDiscovery"` // 跳过主机发现 (-Pn)
 }
 
 // Scan 执行Naabu扫描
@@ -89,11 +90,12 @@ func (s *NaabuScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResul
 			// 尝试通过JSON转换（支持scheduler.PortScanConfig等其他类型）
 			if data, err := json.Marshal(config.Options); err == nil {
 				var portConfig struct {
-					Ports         string `json:"ports"`
-					Rate          int    `json:"rate"`
-					Timeout       int    `json:"timeout"`
-					PortThreshold int    `json:"portThreshold"`
-					ScanType      string `json:"scanType"`
+					Ports             string `json:"ports"`
+					Rate              int    `json:"rate"`
+					Timeout           int    `json:"timeout"`
+					PortThreshold     int    `json:"portThreshold"`
+					ScanType          string `json:"scanType"`
+					SkipHostDiscovery bool   `json:"skipHostDiscovery"`
 				}
 				if err := json.Unmarshal(data, &portConfig); err == nil {
 					if portConfig.Ports != "" {
@@ -111,6 +113,7 @@ func (s *NaabuScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResul
 					if portConfig.ScanType != "" {
 						opts.ScanType = portConfig.ScanType
 					}
+					opts.SkipHostDiscovery = portConfig.SkipHostDiscovery
 				}
 			}
 		}
@@ -220,9 +223,6 @@ func (s *NaabuScanner) runNaabuWithLogger(ctx context.Context, targets []string,
 	return allAssets, anyThresholdExceeded
 }
 
-// scanSingleTargetWithLogger 扫描单个目标（带日志回调）
-// 返回值: assets - 发现的资产, thresholdExceeded - 是否超过端口阈值
-//
 // 使用 Naabu 原生的 PortThreshold 参数实现端口阈值检测
 // 当某个主机的开放端口数超过阈值时，Naabu 会自动跳过该主机
 func (s *NaabuScanner) scanSingleTargetWithLogger(ctx context.Context, target, portsStr, topPorts string, opts *NaabuOptions, logInfo, logWarn logFunc) ([]*Asset, bool) {
@@ -240,14 +240,15 @@ func (s *NaabuScanner) scanSingleTargetWithLogger(ctx context.Context, target, p
 	defer cancel()
 
 	options := runner.Options{
-		Host:          goflags.StringSlice([]string{target}),
-		Ports:         portsStr,
-		TopPorts:      topPorts,
-		Rate:          opts.Rate,
-		Timeout:       5, // 单个端口连接超时
-		ScanType:      opts.ScanType,
-		Silent:        true,
-		PortThreshold: opts.PortThreshold, // 使用 Naabu 原生端口阈值参数
+		Host:              goflags.StringSlice([]string{target}),
+		Ports:             portsStr,
+		TopPorts:          topPorts,
+		Rate:              opts.Rate,
+		Timeout:           5, // 单个端口连接超时
+		ScanType:          opts.ScanType,
+		Silent:            true,
+		PortThreshold:     opts.PortThreshold,     // 使用 Naabu 原生端口阈值参数
+		SkipHostDiscovery: opts.SkipHostDiscovery, // 跳过主机发现 (-Pn)
 		OnResult: func(hr *result.HostResult) {
 			mu.Lock()
 			defer mu.Unlock()

@@ -124,3 +124,35 @@ func UserResetPasswordHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 		httpx.OkJson(w, resp)
 	}
 }
+
+// SaveScanConfigHandler 保存用户扫描配置
+func SaveScanConfigHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req types.SaveScanConfigReq
+		if err := httpx.Parse(r, &req); err != nil {
+			response.ParamError(w, err.Error())
+			return
+		}
+
+		l := logic.NewScanConfigLogic(r.Context(), svcCtx)
+		resp, err := l.SaveScanConfig(r, &req)
+		if err != nil {
+			response.Error(w, err)
+			return
+		}
+		httpx.OkJson(w, resp)
+	}
+}
+
+// GetScanConfigHandler 获取用户扫描配置
+func GetScanConfigHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		l := logic.NewScanConfigLogic(r.Context(), svcCtx)
+		resp, err := l.GetScanConfig(r)
+		if err != nil {
+			response.Error(w, err)
+			return
+		}
+		httpx.OkJson(w, resp)
+	}
+}

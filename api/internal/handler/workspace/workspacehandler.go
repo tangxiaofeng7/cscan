@@ -52,7 +52,7 @@ func WorkspaceSaveHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 // WorkspaceDeleteHandler 删除工作空间
 func WorkspaceDeleteHandler(svcCtx *svc.ServiceContext) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var req types.WorkspaceSaveReq
+		var req types.WorkspaceDeleteReq
 		if err := httpx.Parse(r, &req); err != nil {
 			response.ParamError(w, err.Error())
 			return

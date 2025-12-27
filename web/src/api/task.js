@@ -59,3 +59,12 @@ export function getTaskLogs(data) {
 export function getWorkerList() {
   return request.post('/worker/list')
 }
+
+// 用户扫描配置
+export function saveScanConfig(data) {
+  return request.post('/user/scanConfig/save', data)
+}
+
+export function getScanConfig() {
+  return request.post('/user/scanConfig/get')
+}

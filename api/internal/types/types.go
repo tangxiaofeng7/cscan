@@ -84,6 +84,10 @@ type WorkspaceSaveReq struct {
 	Description string `json:"description,optional"`
 }
 
+type WorkspaceDeleteReq struct {
+	Id string `json:"id"`
+}
+
 // ==================== 组织管理 ====================
 type Organization struct {
 	Id          string `json:"id"`
@@ -265,7 +269,8 @@ type MainTaskListResp struct {
 type MainTaskCreateReq struct {
 	Name      string   `json:"name"`
 	Target    string   `json:"target"`
-	ProfileId string   `json:"profileId"`
+	ProfileId string   `json:"profileId,optional"` // 可选，兼容旧版
+	Config    string   `json:"config,optional"`    // 直接传递配置JSON
 	OrgId     string   `json:"orgId,optional"`
 	IsCron    bool     `json:"isCron,optional"`
 	CronRule  string   `json:"cronRule,optional"`
@@ -461,14 +466,15 @@ type TaskStatResp struct {
 
 // ==================== Worker管理 ====================
 type Worker struct {
-	Name         string  `json:"name"`
-	IP           string  `json:"ip"`
-	CPULoad      float64 `json:"cpuLoad"`
-	MemUsed      float64 `json:"memUsed"`
-	TaskCount    int     `json:"taskCount"`    // 已执行任务数
-	RunningCount int     `json:"runningCount"` // 正在执行任务数
-	Status       string  `json:"status"`
-	UpdateTime   string  `json:"updateTime"`
+	Name         string            `json:"name"`
+	IP           string            `json:"ip"`
+	CPULoad      float64           `json:"cpuLoad"`
+	MemUsed      float64           `json:"memUsed"`
+	TaskCount    int               `json:"taskCount"`    // 已执行任务数
+	RunningCount int               `json:"runningCount"` // 正在执行任务数
+	Status       string            `json:"status"`
+	UpdateTime   string            `json:"updateTime"`
+	Tools        map[string]bool   `json:"tools"`        // 工具安装状态
 }
 
 type WorkerListResp struct {
@@ -1077,4 +1083,15 @@ type ReportDetailResp struct {
 type ReportExportReq struct {
 	TaskId string `json:"taskId"`
 	Format string `json:"format,optional"` // excel, pdf (默认excel)
+}
+
+// ==================== 用户扫描配置 ====================
+type SaveScanConfigReq struct {
+	Config string `json:"config"` // 扫描配置JSON
+}
+
+type GetScanConfigResp struct {
+	Code   int    `json:"code"`
+	Msg    string `json:"msg"`
+	Config string `json:"config"` // 扫描配置JSON
 }

@@ -538,6 +538,9 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 	if config.PortScan != nil && config.PortScan.Enable {
 		enabledPhases = append(enabledPhases, "Port Scan")
 	}
+	if config.PortIdentify != nil && config.PortIdentify.Enable {
+		enabledPhases = append(enabledPhases, "Port Identify")
+	}
 	if config.Fingerprint != nil && config.Fingerprint.Enable {
 		enabledPhases = append(enabledPhases, "Fingerprint")
 	}
@@ -558,6 +561,7 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 	// 输出任务开始日志
 	w.taskLog(task.TaskId, LevelInfo, "Starting: %s", strings.Join(enabledPhases, " → "))
 	w.taskLog(task.TaskId, LevelInfo, "Targets (%d): %s", len(targets), strings.Join(targets, ", "))
+
 
 	// 解析恢复状态（如果是继续执行的任务）
 	var resumeState map[string]interface{}
@@ -697,99 +701,53 @@ func (w *Worker) executeTask(task *scheduler.TaskInfo) {
 			return
 		}
 		
-		// 第二步：Nmap 对存活端口进行服务识别
+		// 端口发现完成，将结果添加到 allAssets
 		if len(openPorts) > 0 {
-			w.taskLog(task.TaskId, LevelInfo, "Service detection: Nmap (%d ports)", len(openPorts))
-			
-			// 按主机分组
-			hostPorts := make(map[string][]int)
 			for _, asset := range openPorts {
-				hostPorts[asset.Host] = append(hostPorts[asset.Host], asset.Port)
+				asset.IsHTTP = scanner.IsHTTPService(asset.Service, asset.Port)
 			}
-			
-			nmapScanner := w.scanners["nmap"]
-			for host, ports := range hostPorts {
-				// 检查是否被停止或超时
-				if portCtx.Err() == context.DeadlineExceeded {
-					w.taskLog(task.TaskId, LevelWarn, "Port scan timeout during service detection, using partial results")
-					// 超时时使用端口发现阶段的结果
-					for _, asset := range openPorts {
-						if asset.Host == host {
-							asset.IsHTTP = scanner.IsHTTPService(asset.Service, asset.Port)
-							allAssets = append(allAssets, asset)
-						}
-					}
-					continue
-				}
-				if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
-					portCancel()
-					w.taskLog(task.TaskId, LevelInfo, "Task stopped")
-					return
-				}
-				
-				// 构建端口字符
-				portStrs := make([]string, len(ports))
-				for i, p := range ports {
-					portStrs[i] = fmt.Sprintf("%d", p)
-				}
-				portsStr := strings.Join(portStrs, ",")
-				
-				nmapResult, err := nmapScanner.Scan(portCtx, &scanner.ScanConfig{
-					Target: host,
-					Options: &scanner.NmapOptions{
-						Ports:   portsStr,
-						Timeout: config.PortScan.Timeout,
-					},
-				})
-				
-				// 检查是否被停止
-				if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
-					portCancel()
-					w.taskLog(task.TaskId, LevelInfo, "Task stopped")
-					return
-				}
-				
-				if err != nil {
-					w.taskLog(task.TaskId, LevelError, "Nmap error %s: %v", host, err)
-					// Nmap失败时，使用端口发现阶段的结果
-					for _, asset := range openPorts {
-						if asset.Host == host {
-							asset.IsHTTP = scanner.IsHTTPService(asset.Service, asset.Port)
-							allAssets = append(allAssets, asset)
-						}
-					}
-					continue
-				}
-				
-				if nmapResult != nil && len(nmapResult.Assets) > 0 {
-					// 设置 IsHTTP 字段
-					for _, asset := range nmapResult.Assets {
-						asset.IsHTTP = scanner.IsHTTPService(asset.Service, asset.Port)
-					}
-					allAssets = append(allAssets, nmapResult.Assets...)
-				} else {
-					// Nmap没有结果时，使用端口发现阶段的结果
-					for _, asset := range openPorts {
-						if asset.Host == host {
-							asset.IsHTTP = scanner.IsHTTPService(asset.Service, asset.Port)
-							allAssets = append(allAssets, asset)
-						}
-					}
-				}
-			}
-			
+			allAssets = append(allAssets, openPorts...)
 			w.taskLog(task.TaskId, LevelInfo, "Port scan completed: %d assets", len(allAssets))
 			
 			// 端口扫描完成后立即保存结果
-			if len(allAssets) > 0 {
-				w.saveAssetResult(ctx, task.WorkspaceId, task.MainTaskId, orgId, allAssets)
-			}
+			w.saveAssetResult(ctx, task.WorkspaceId, task.MainTaskId, orgId, allAssets)
 		} else {
 			w.taskLog(task.TaskId, LevelInfo, "No open ports found")
 		}
 		
 		portCancel() // 释放端口扫描上下文
 		completedPhases["portscan"] = true
+	}
+
+	// 检查控制信号
+	if ctrl := w.checkTaskControl(ctx, task.TaskId); ctrl == "STOP" {
+		w.taskLog(task.TaskId, LevelInfo, "Task stopped")
+		return
+	} else if ctrl == "PAUSE" {
+		w.taskLog(task.TaskId, LevelInfo, "Task paused, saving progress...")
+		w.saveTaskProgress(ctx, task, completedPhases, allAssets)
+		return
+	}
+
+	// 执行端口识别（Nmap服务识别）- 独立阶段
+	if config.PortIdentify != nil && config.PortIdentify.Enable && len(allAssets) > 0 && !completedPhases["portidentify"] {
+		// 检查控制信号
+		if ctrl := w.checkTaskControl(ctx, task.TaskId); ctrl == "STOP" {
+			w.taskLog(task.TaskId, LevelInfo, "Task stopped")
+			return
+		} else if ctrl == "PAUSE" {
+			w.taskLog(task.TaskId, LevelInfo, "Task paused, saving progress...")
+			w.saveTaskProgress(ctx, task, completedPhases, allAssets)
+			return
+		}
+
+		identifiedAssets := w.executePortIdentify(ctx, task, allAssets, config.PortIdentify)
+		if len(identifiedAssets) > 0 {
+			allAssets = identifiedAssets
+			// 端口识别完成后保存更新结果
+			w.saveAssetResult(ctx, task.WorkspaceId, task.MainTaskId, orgId, allAssets)
+		}
+		completedPhases["portidentify"] = true
 	}
 
 	// 检查控制信号
@@ -1493,6 +1451,11 @@ func (w *Worker) reportStatusToRedis() {
 		"isThrottled":        isThrottled,
 		"cpuOverloadCount":   cpuOverloadCount,
 		"updateTime":         time.Now().Format("2006-01-02 15:04:05"),
+		// 工具安装状态
+		"tools": map[string]bool{
+			"nmap":    scanner.CheckNmapInstalled(),
+			"masscan": scanner.CheckMasscanInstalled(),
+		},
 	}
 
 	data, _ := json.Marshal(status)
@@ -2076,6 +2039,107 @@ func (c *WorkerHttpServiceChecker) SetMapping(serviceName string, isHttp bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.cache[serviceName] = isHttp
+}
+
+// executePortIdentify 执行端口识别阶段（Nmap服务识别）
+func (w *Worker) executePortIdentify(ctx context.Context, task *scheduler.TaskInfo, assets []*scanner.Asset, config *scheduler.PortIdentifyConfig) []*scanner.Asset {
+	w.taskLog(task.TaskId, LevelInfo, "Port identify: Nmap (%d assets)", len(assets))
+
+	// 获取超时配置
+	timeout := config.Timeout
+	if timeout <= 0 {
+		timeout = 30 // 默认30秒/主机
+	}
+
+	// 按主机分组
+	hostPorts := make(map[string][]int)
+	hostAssets := make(map[string][]*scanner.Asset)
+	for _, asset := range assets {
+		hostPorts[asset.Host] = append(hostPorts[asset.Host], asset.Port)
+		hostAssets[asset.Host] = append(hostAssets[asset.Host], asset)
+	}
+
+	// 计算总超时时间
+	totalTimeout := timeout * len(hostPorts)
+	if totalTimeout < 60 {
+		totalTimeout = 60
+	}
+	identifyCtx, identifyCancel := context.WithTimeout(ctx, time.Duration(totalTimeout)*time.Second)
+	defer identifyCancel()
+
+	var identifiedAssets []*scanner.Asset
+	nmapScanner := w.scanners["nmap"]
+
+	for host, ports := range hostPorts {
+		// 检查是否被停止或超时
+		if identifyCtx.Err() == context.DeadlineExceeded {
+			w.taskLog(task.TaskId, LevelWarn, "Port identify timeout, using partial results")
+			// 超时时使用原始资产
+			for _, asset := range hostAssets[host] {
+				asset.IsHTTP = scanner.IsHTTPService(asset.Service, asset.Port)
+				identifiedAssets = append(identifiedAssets, asset)
+			}
+			continue
+		}
+		if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
+			w.taskLog(task.TaskId, LevelInfo, "Task stopped")
+			return identifiedAssets
+		}
+
+		// 构建端口字符串
+		portStrs := make([]string, len(ports))
+		for i, p := range ports {
+			portStrs[i] = fmt.Sprintf("%d", p)
+		}
+		portsStr := strings.Join(portStrs, ",")
+
+		// 构建 Nmap 选项
+		nmapOpts := &scanner.NmapOptions{
+			Ports:   portsStr,
+			Timeout: timeout,
+		}
+		if config.Args != "" {
+			nmapOpts.Args = config.Args
+		}
+
+		nmapResult, err := nmapScanner.Scan(identifyCtx, &scanner.ScanConfig{
+			Target:  host,
+			Options: nmapOpts,
+		})
+
+		// 检查是否被停止
+		if ctx.Err() != nil || w.checkTaskControl(ctx, task.TaskId) == "STOP" {
+			w.taskLog(task.TaskId, LevelInfo, "Task stopped")
+			return identifiedAssets
+		}
+
+		if err != nil {
+			w.taskLog(task.TaskId, LevelError, "Nmap error %s: %v", host, err)
+			// Nmap失败时，使用原始资产
+			for _, asset := range hostAssets[host] {
+				asset.IsHTTP = scanner.IsHTTPService(asset.Service, asset.Port)
+				identifiedAssets = append(identifiedAssets, asset)
+			}
+			continue
+		}
+
+		if nmapResult != nil && len(nmapResult.Assets) > 0 {
+			// 设置 IsHTTP 字段
+			for _, asset := range nmapResult.Assets {
+				asset.IsHTTP = scanner.IsHTTPService(asset.Service, asset.Port)
+			}
+			identifiedAssets = append(identifiedAssets, nmapResult.Assets...)
+		} else {
+			// Nmap没有结果时，使用原始资产
+			for _, asset := range hostAssets[host] {
+				asset.IsHTTP = scanner.IsHTTPService(asset.Service, asset.Port)
+				identifiedAssets = append(identifiedAssets, asset)
+			}
+		}
+	}
+
+	w.taskLog(task.TaskId, LevelInfo, "Port identify completed: %d assets", len(identifiedAssets))
+	return identifiedAssets
 }
 
 // generateAssetsFromTarget 从目标生成初始资产列表（用于端口扫描禁用时）

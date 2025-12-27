@@ -27,13 +27,14 @@ func NewWorkerListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Worker
 }
 
 type WorkerStatus struct {
-	WorkerName         string  `json:"workerName"`
-	IP                 string  `json:"ip"`
-	CPULoad            float64 `json:"cpuLoad"`
-	MemUsed            float64 `json:"memUsed"`
-	TaskStartedNumber  int     `json:"taskStartedNumber"`
-	TaskExecutedNumber int     `json:"taskExecutedNumber"`
-	UpdateTime         string  `json:"updateTime"`
+	WorkerName         string          `json:"workerName"`
+	IP                 string          `json:"ip"`
+	CPULoad            float64         `json:"cpuLoad"`
+	MemUsed            float64         `json:"memUsed"`
+	TaskStartedNumber  int             `json:"taskStartedNumber"`
+	TaskExecutedNumber int             `json:"taskExecutedNumber"`
+	UpdateTime         string          `json:"updateTime"`
+	Tools              map[string]bool `json:"tools"`
 }
 
 func (l *WorkerListLogic) WorkerList() (resp *types.WorkerListResp, err error) {
@@ -95,6 +96,7 @@ func (l *WorkerListLogic) WorkerList() (resp *types.WorkerListResp, err error) {
 			RunningCount: runningCount,
 			Status:       workerStatus,
 			UpdateTime:   status.UpdateTime,
+			Tools:        status.Tools,
 		})
 	}
 

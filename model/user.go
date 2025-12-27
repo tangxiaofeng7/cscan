@@ -23,6 +23,7 @@ type User struct {
 	Password        string             `bson:"password" json:"-"`
 	Status          string             `bson:"status" json:"status"`
 	WorkspaceIds    []string           `bson:"workspace_ids" json:"workspaceIds"`
+	ScanConfig      string             `bson:"scan_config" json:"scanConfig"` // 用户默认扫描配置JSON
 	LastLoginTime   *time.Time         `bson:"last_login_time" json:"lastLoginTime"`
 	CreateTime      time.Time          `bson:"create_time" json:"createTime"`
 	UpdateTime      time.Time          `bson:"update_time" json:"updateTime"`
@@ -128,6 +129,30 @@ func (m *UserModel) UpdatePassword(ctx context.Context, id string, newPassword s
 	}
 	_, err = m.coll.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": update})
 	return err
+}
+
+func (m *UserModel) UpdateScanConfig(ctx context.Context, id string, config string) error {
+	oid, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return err
+	}
+	update := bson.M{
+		"scan_config": config,
+		"update_time": time.Now(),
+	}
+	_, err = m.coll.UpdateOne(ctx, bson.M{"_id": oid}, bson.M{"$set": update})
+	return err
+}
+
+func (m *UserModel) GetScanConfig(ctx context.Context, id string) (string, error) {
+	user, err := m.FindById(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	if user == nil {
+		return "", nil
+	}
+	return user.ScanConfig, nil
 }
 
 func (m *UserModel) DeleteById(ctx context.Context, id string) error {

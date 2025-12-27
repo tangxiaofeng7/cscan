@@ -2,8 +2,10 @@ package logic
 
 import (
 	"context"
+	"net/http"
 	"time"
 
+	"cscan/api/internal/middleware"
 	"cscan/api/internal/svc"
 	"cscan/api/internal/types"
 	"cscan/model"
@@ -178,6 +180,11 @@ func (l *UserDeleteLogic) UserDelete(req *types.UserDeleteReq) (resp *types.Base
 		return &types.BaseResp{Code: 404, Msg: "用户不存在"}, nil
 	}
 
+	// 禁止删除 admin 账号
+	if user.Username == "admin" {
+		return &types.BaseResp{Code: 400, Msg: "admin 账号不允许删除"}, nil
+	}
+
 	// 删除用户
 	err = l.svcCtx.UserModel.DeleteById(l.ctx, req.Id)
 	if err != nil {
@@ -222,4 +229,52 @@ func (l *UserResetPasswordLogic) UserResetPassword(req *types.UserResetPasswordR
 	}
 
 	return &types.BaseResp{Code: 0, Msg: "密码重置成功"}, nil
+}
+
+
+// ScanConfigLogic 扫描配置逻辑
+type ScanConfigLogic struct {
+	logx.Logger
+	ctx    context.Context
+	svcCtx *svc.ServiceContext
+}
+
+func NewScanConfigLogic(ctx context.Context, svcCtx *svc.ServiceContext) *ScanConfigLogic {
+	return &ScanConfigLogic{
+		Logger: logx.WithContext(ctx),
+		ctx:    ctx,
+		svcCtx: svcCtx,
+	}
+}
+
+func (l *ScanConfigLogic) SaveScanConfig(r *http.Request, req *types.SaveScanConfigReq) (resp *types.BaseResp, err error) {
+	// 从请求上下文获取用户ID
+	userId := middleware.GetUserId(r.Context())
+	if userId == "" {
+		return &types.BaseResp{Code: 401, Msg: "未登录"}, nil
+	}
+
+	err = l.svcCtx.UserModel.UpdateScanConfig(l.ctx, userId, req.Config)
+	if err != nil {
+		logx.Errorf("保存扫描配置失败: %v", err)
+		return &types.BaseResp{Code: 500, Msg: "保存失败"}, nil
+	}
+
+	return &types.BaseResp{Code: 0, Msg: "保存成功"}, nil
+}
+
+func (l *ScanConfigLogic) GetScanConfig(r *http.Request) (resp *types.GetScanConfigResp, err error) {
+	// 从请求上下文获取用户ID
+	userId := middleware.GetUserId(r.Context())
+	if userId == "" {
+		return &types.GetScanConfigResp{Code: 401, Msg: "未登录"}, nil
+	}
+
+	config, err := l.svcCtx.UserModel.GetScanConfig(l.ctx, userId)
+	if err != nil {
+		logx.Errorf("获取扫描配置失败: %v", err)
+		return &types.GetScanConfigResp{Code: 500, Msg: "获取失败"}, nil
+	}
+
+	return &types.GetScanConfigResp{Code: 0, Msg: "success", Config: config}, nil
 }

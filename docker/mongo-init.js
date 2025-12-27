@@ -29,8 +29,9 @@ db.task_profile.insertOne({
     description: "cscan项目默认扫描配置",
     config: JSON.stringify({
         batchSize: 5,
-        portscan: { enable: true, tool: "naabu", rate: 1000, ports: "top1000", portThreshold: 50, timeout: 600 },
-        fingerprint: { enable: true, httpx: true, iconHash: true, wappalyzer: false, customEngine: true, screenshot: true, targetTimeout: 30, concurrency: 5 },
+        portscan: { enable: true, tool: "naabu", rate: 1000, ports: "top1000", portThreshold: 50, scanType: "c", timeout: 600, skipHostDiscovery: false },
+        portidentify: { enable: false, timeout: 30, args: "" },
+        fingerprint: { enable: true, httpx: true, iconHash: true, wappalyzer: false, customEngine: true, screenshot: true, targetTimeout: 30, concurrency: 2 },
         pocscan: { enable: true, useNuclei: true, autoScan: true, automaticScan: true, customPocOnly: false, severity: "critical,high,medium,low,info", targetTimeout: 600 }
     }),
     sort_number: 1,

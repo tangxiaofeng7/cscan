@@ -130,7 +130,7 @@ func (s *FingerprintScanner) Scan(ctx context.Context, config *ScanConfig) (*Sca
 	}
 	
 	logx.Infof("Fingerprint: scanning %d HTTP assets, timeout %ds/target", len(httpAssets), opts.TargetTimeout)
-
+	taskLog("INFO", "Fingerprint: scanning %d HTTP assets, timeout %ds/target", len(httpAssets), opts.TargetTimeout)
 	// 检查httpx是否可用
 	httpxInstalled := checkHttpxInstalled()
 	useHttpx := opts.Httpx && httpxInstalled
@@ -139,14 +139,18 @@ func (s *FingerprintScanner) Scan(ctx context.Context, config *ScanConfig) (*Sca
 		// httpx支持截图功能，如果同时启用httpx和screenshot，使用httpx的-screenshot参数
 		if opts.Screenshot {
 			logx.Info("Using httpx for fingerprint detection with screenshot enabled")
+			taskLog("DEBUG", "Using httpx for fingerprint detection with screenshot enabled")
 		} else {
 			logx.Info("Using httpx for fingerprint detection")
+			taskLog("DEBUG", "Using httpx for fingerprint detection")
 		}
 		s.runHttpx(ctx, httpAssets, opts)
 	} else if !opts.Httpx && opts.Screenshot {
 		logx.Info("Screenshot enabled without httpx, using builtin fingerprint method with chromedp")
+		taskLog("DEBUG", "Screenshot enabled without httpx, using builtin fingerprint method with chromedp")
 	} else if opts.Httpx && !httpxInstalled {
 		logx.Info("httpx not installed, using builtin fingerprint method")
+		taskLog("DEBUG", "httpx not installed, using builtin fingerprint method")
 	}
 
 	// 串行扫描每个目标，每个目标独立超时
@@ -193,6 +197,7 @@ func (s *FingerprintScanner) Scan(ctx context.Context, config *ScanConfig) (*Sca
 	}
 
 	logx.Infof("Fingerprint: completed, scanned %d assets", len(httpAssets))
+	taskLog("Debug", "Fingerprint: completed, scanned %d assets", len(httpAssets))
 	return result, nil
 }
 
@@ -594,6 +599,7 @@ func (s *FingerprintScanner) fingerprint(ctx context.Context, asset *Asset, opts
 			}
 			customApps := s.customFingerprintEngine.MatchWithId(fpData)
 			logx.Debugf("Custom fingerprint engine (loaded %d fingerprints) detected apps for %s:%d: %v", fpCount, asset.Host, asset.Port, customApps)
+
 			
 			for _, customApp := range customApps {
 				appNameLower := strings.ToLower(customApp.Name)
