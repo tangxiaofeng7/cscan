@@ -115,6 +115,7 @@ func (s *NaabuScanner) Scan(ctx context.Context, config *ScanConfig) (*ScanResul
 					}
 					opts.SkipHostDiscovery = portConfig.SkipHostDiscovery
 				}
+				
 			}
 		}
 	}
@@ -184,7 +185,7 @@ func (s *NaabuScanner) runNaabuWithLogger(ctx context.Context, targets []string,
 	}
 
 	totalTargets := len(targets)
-	logInfo("Naabu: scanning %d targets, timeout %ds/target", totalTargets, timeout)
+	logInfo("Naabu: scanning %d targets, timeout %ds/target, skipHostDiscovery=%v, ports=%s", totalTargets, timeout, opts.SkipHostDiscovery, opts.Ports)
 
 	// 串行扫描每个目标
 	for i, target := range targets {
@@ -239,20 +240,24 @@ func (s *NaabuScanner) scanSingleTargetWithLogger(ctx context.Context, target, p
 	targetCtx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 	defer cancel()
 
+	// 调试日志：打印扫描配置
+	logInfo("Naabu: scanning %s, ports=%s, topPorts=%s, rate=%d, scanType=%s, skipHostDiscovery=%v, timeout=%ds",
+		target, portsStr, topPorts, opts.Rate, opts.ScanType, opts.SkipHostDiscovery, timeout)
+
 	options := runner.Options{
-		Host:              goflags.StringSlice([]string{target}),
-		Ports:             portsStr,
-		TopPorts:          topPorts,
-		Rate:              opts.Rate,
-		Timeout:           5, // 单个端口连接超时
-		ScanType:          opts.ScanType,
-		Silent:            true,
-		PortThreshold:     opts.PortThreshold,     // 使用 Naabu 原生端口阈值参数
-		SkipHostDiscovery: opts.SkipHostDiscovery, // 跳过主机发现 (-Pn)
+		Host:          goflags.StringSlice([]string{target}),
+		Ports:         portsStr,
+		TopPorts:      topPorts,
+		Rate:          opts.Rate,
+		Timeout:       10, // 单个端口连接超时（增加到10秒）
+		ScanType:      opts.ScanType,
+		Silent:        true,
+		PortThreshold: opts.PortThreshold, // 使用 Naabu 原生端口阈值参数
 		OnResult: func(hr *result.HostResult) {
 			mu.Lock()
 			defer mu.Unlock()
 
+			logInfo("Naabu: OnResult callback, host=%s, ports=%d", hr.Host, len(hr.Ports))
 			host := hr.Host
 			for _, port := range hr.Ports {
 				asset := &Asset{
@@ -267,15 +272,27 @@ func (s *NaabuScanner) scanSingleTargetWithLogger(ctx context.Context, target, p
 		},
 	}
 
+	// 只有明确要求跳过主机发现时才设置（避免默认值干扰）
+	if opts.SkipHostDiscovery {
+		options.SkipHostDiscovery = true
+	}
+
+	// 打印完整的naabu配置
+	logInfo("Naabu config: Host=%v, Ports=%s, TopPorts=%s, Rate=%d, Timeout=%d, ScanType=%s, Silent=%v, PortThreshold=%d, SkipHostDiscovery=%v",
+		options.Host, options.Ports, options.TopPorts, options.Rate, options.Timeout, options.ScanType, options.Silent, options.PortThreshold, options.SkipHostDiscovery)
+
+	logInfo("Naabu: creating runner for %s", target)
 	naabuRunner, err := runner.NewRunner(&options)
 	if err != nil {
-		logWarn("Naabu: failed to scan %s: %v", target, err)
+		logWarn("Naabu: failed to create runner for %s: %v", target, err)
 		return assets, false
 	}
 	defer naabuRunner.Close()
 
 	// 运行扫描
+	logInfo("Naabu: starting enumeration for %s", target)
 	err = naabuRunner.RunEnumeration(targetCtx)
+	logInfo("Naabu: enumeration completed for %s, err=%v, foundPorts=%d", target, err, len(foundPorts))
 
 	// 检查扫描结果
 	if err != nil {
@@ -311,6 +328,8 @@ func (s *NaabuScanner) scanSingleTargetWithLogger(ctx context.Context, target, p
 	// 输出扫描结果日志
 	if len(foundPorts) > 0 {
 		logInfo("Naabu: %s -> %s", target, strings.Join(foundPorts, ","))
+	} else {
+		logInfo("Naabu: %s -> no open ports found", target)
 	}
 
 	return assets, thresholdExceeded

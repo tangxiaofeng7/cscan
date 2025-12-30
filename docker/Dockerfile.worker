@@ -53,9 +53,6 @@ RUN unzip /tmp/httpx.zip -d /tmp/ \
     && rm -rf /tmp/httpx* \
     && chmod +x /usr/local/bin/httpx
 
-# 更新 nuclei 模板
-RUN nuclei -update-templates || true
-
 # 设置时区
 ENV TZ=Asia/Shanghai
 

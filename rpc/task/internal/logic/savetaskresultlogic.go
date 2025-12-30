@@ -129,34 +129,36 @@ func (l *SaveTaskResultLogic) SaveTaskResult(in *pb.SaveTaskResultReq) (*pb.Save
 			}
 			newAsset++
 		} else {
-			// 更新已存在的资产 - 检查是否需要保存历史记录
-			// 只有当任务ID不同时才保存历史记录（同一任务多次保存不重复记录）
-			historyModel := l.svcCtx.GetAssetHistoryModel(workspaceId)
-			
-			// 检查是否已存在同一任务的历史记录
-			exists, _ := historyModel.ExistsByAssetIdAndTaskId(l.ctx, existing.Id.Hex(), in.MainTaskId)
-			if !exists {
-				// 不存在同一任务的历史记录，保存一条新记录
-				history := &model.AssetHistory{
-					AssetId:    existing.Id.Hex(),
-					Authority:  existing.Authority,
-					Host:       existing.Host,
-					Port:       existing.Port,
-					Service:    existing.Service,
-					Title:      existing.Title,
-					App:        existing.App,
-					HttpStatus: existing.HttpStatus,
-					HttpHeader: existing.HttpHeader,
-					HttpBody:   existing.HttpBody,
-					IconHash:   existing.IconHash,
-					Screenshot: existing.Screenshot,
-					Banner:     existing.Banner,
-					TaskId:     in.MainTaskId,
-					CreateTime: now,
-				}
-				if err := historyModel.Insert(l.ctx, history); err != nil {
-					l.Logger.Errorf("Insert asset history failed: %v", err)
-					// 继续更新资产，不中断
+			// 更新已存在的资产
+			// 只有当任务ID不同时才保存历史记录（表示是新一轮扫描，需要记录上一次的状态）
+			if existing.TaskId != "" && existing.TaskId != in.MainTaskId {
+				historyModel := l.svcCtx.GetAssetHistoryModel(workspaceId)
+				
+				// 检查是否已存在同一任务的历史记录（避免重复）
+				exists, _ := historyModel.ExistsByAssetIdAndTaskId(l.ctx, existing.Id.Hex(), existing.TaskId)
+				if !exists {
+					// 保存上一次扫描的状态作为历史记录
+					history := &model.AssetHistory{
+						AssetId:    existing.Id.Hex(),
+						Authority:  existing.Authority,
+						Host:       existing.Host,
+						Port:       existing.Port,
+						Service:    existing.Service,
+						Title:      existing.Title,
+						App:        existing.App,
+						HttpStatus: existing.HttpStatus,
+						HttpHeader: existing.HttpHeader,
+						HttpBody:   existing.HttpBody,
+						IconHash:   existing.IconHash,
+						Screenshot: existing.Screenshot,
+						Banner:     existing.Banner,
+						TaskId:     existing.TaskId, // 使用旧的任务ID
+						CreateTime: existing.UpdateTime, // 使用旧的更新时间
+					}
+					if err := historyModel.Insert(l.ctx, history); err != nil {
+						l.Logger.Errorf("Insert asset history failed: %v", err)
+						// 继续更新资产，不中断
+					}
 				}
 			}
 

@@ -17,15 +17,31 @@ func parseTargets(target string) []string {
 		}
 		// 支持CIDR格式
 		if strings.Contains(line, "/") {
-			ips := expandCIDR(line)
-			targets = append(targets, ips...)
-		} else if strings.Contains(line, "-") {
-			// 支持IP范围格式
-			ips := expandIPRange(line)
-			targets = append(targets, ips...)
-		} else {
-			targets = append(targets, line)
+			// 检查是否是有效的CIDR（必须是IP地址格式）
+			if _, _, err := net.ParseCIDR(line); err == nil {
+				ips := expandCIDR(line)
+				targets = append(targets, ips...)
+				continue
+			}
 		}
+		// 支持IP范围格式（如 192.168.1.1-192.168.1.100）
+		// 只有当格式为 IP-IP 时才解析为范围，避免误解析域名中的连字符
+		if strings.Contains(line, "-") && !strings.Contains(line, ".com") && !strings.Contains(line, ".net") && !strings.Contains(line, ".org") && !strings.Contains(line, ".cn") && !strings.Contains(line, ".io") {
+			parts := strings.Split(line, "-")
+			if len(parts) == 2 {
+				startIP := net.ParseIP(strings.TrimSpace(parts[0]))
+				// 只有当起始部分是有效IP时才当作IP范围处理
+				if startIP != nil {
+					ips := expandIPRange(line)
+					if len(ips) > 0 {
+						targets = append(targets, ips...)
+						continue
+					}
+				}
+			}
+		}
+		// 其他情况直接作为目标（域名、IP等）
+		targets = append(targets, line)
 	}
 	return targets
 }

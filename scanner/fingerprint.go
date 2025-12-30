@@ -352,6 +352,10 @@ func (s *FingerprintScanner) runAdditionalFingerprint(ctx context.Context, asset
 			}
 			// 更新状态码为最终响应的状态码
 			asset.HttpStatus = fmt.Sprintf("%d", resp.StatusCode)
+			// 更新HttpHeader为实际响应的header
+			if asset.HttpHeader == "" {
+				asset.HttpHeader = formatHeadersWithStatus(resp.Header, resp.StatusCode, resp.Proto)
+			}
 		}
 	} else {
 		bodyBytes = []byte(asset.HttpBody)
@@ -1049,16 +1053,10 @@ func formatHttpxHeaders(headers map[string]string) string {
 	return sb.String()
 }
 
-// formatHttpxHeadersWithStatus 格式化httpx返回的响应头，包含HTTP状态行
+// formatHttpxHeadersWithStatus 格式化httpx返回的响应头
 func formatHttpxHeadersWithStatus(headers map[string]string, statusCode int) string {
 	var sb strings.Builder
-	// 添加HTTP状态行
-	statusText := http.StatusText(statusCode)
-	if statusText == "" {
-		statusText = "Unknown"
-	}
-	sb.WriteString(fmt.Sprintf("HTTP/1.1 %d %s\n", statusCode, statusText))
-	// 添加headers
+	// 添加headers（不添加状态行，因为无法获取实际的协议版本）
 	for key, value := range headers {
 		sb.WriteString(fmt.Sprintf("%s: %s\n", key, value))
 	}
