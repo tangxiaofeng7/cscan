@@ -24,6 +24,7 @@
 
 <details open>
 <summary>⭐ 快速开始 </summary>
+
 ```bash
 git clone https://github.com/tangxiaofeng7/cscan.git
 cd cscan
