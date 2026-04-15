@@ -1,6 +1,6 @@
 module cscan
 
-go 1.25.1
+go 1.23
 
 require (
 	github.com/chromedp/chromedp v0.14.2
